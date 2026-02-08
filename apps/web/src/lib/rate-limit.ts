@@ -14,7 +14,8 @@ type RateLimitConfig = {
 export const RATE_LIMITS = {
   anonymous: { maxRequests: 20, windowMs: 60 * 1000 } as RateLimitConfig,
   authenticated: { maxRequests: 60, windowMs: 60 * 1000 } as RateLimitConfig,
-  edit: { maxRequests: 10, windowMs: 60 * 60 * 1000 } as RateLimitConfig,
+  // Edit limits: 100 operations per hour (batch counts as 1 operation)
+  edit: { maxRequests: 100, windowMs: 60 * 60 * 1000 } as RateLimitConfig,
 };
 
 export function checkRateLimit(

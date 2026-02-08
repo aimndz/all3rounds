@@ -5,7 +5,7 @@ import { Separator } from "@/components/ui/separator";
 export default function Header() {
   return (
     <>
-      <header className="bg-card/80 backdrop-blur-sm sticky top-0 z-40">
+      <header className="bg-card/80 backdrop-blur-sm sticky top-0 z-50">
         <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-4">
           <Link
             href="/"

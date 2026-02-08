@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Pencil, X } from "lucide-react";
+import { Pencil, X, ChevronRight, ChevronDown } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import BatchActionBar from "@/components/BatchActionBar";
 import BattleEditModal from "@/components/BattleEditModal";
@@ -79,6 +79,30 @@ export default function BattlePage() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [batchSaving, setBatchSaving] = useState(false);
   const [emcees, setEmcees] = useState<Emcee[]>([]);
+
+  // Collapsible state for folder structure
+  const [collapsedRounds, setCollapsedRounds] = useState<Set<number>>(
+    new Set(),
+  );
+  const [collapsedTurns, setCollapsedTurns] = useState<Set<string>>(new Set());
+
+  const toggleRoundCollapse = (roundIndex: number) => {
+    setCollapsedRounds((prev) => {
+      const next = new Set(prev);
+      if (next.has(roundIndex)) next.delete(roundIndex);
+      else next.add(roundIndex);
+      return next;
+    });
+  };
+
+  const toggleTurnCollapse = (turnKey: string) => {
+    setCollapsedTurns((prev) => {
+      const next = new Set(prev);
+      if (next.has(turnKey)) next.delete(turnKey);
+      else next.add(turnKey);
+      return next;
+    });
+  };
 
   const fetchBattle = useCallback(() => {
     fetch(`/api/battles/${battleId}`)
@@ -261,8 +285,8 @@ export default function BattlePage() {
       <Header />
 
       <main className="mx-auto max-w-3xl px-4 py-8">
-        {/* Battle header */}
-        <div className="mb-8">
+        {/* Battle header - sticky */}
+        <div className="sticky top-14 z-40 -mx-4 mb-8 bg-background/95 backdrop-blur-sm px-4 pb-4 pt-2 border-b border-border">
           <div className="flex items-start justify-between gap-4">
             <h1 className="text-3xl font-bold tracking-tight text-foreground">
               {battle.title}
@@ -313,127 +337,141 @@ export default function BattlePage() {
               </a>
             </Button>
           </div>
-
-          {/* Emcees */}
-          <div className="mt-3 flex flex-wrap gap-2">
-            {speakerSet.map((speaker) => (
-              <Badge
-                key={speaker}
-                variant="outline"
-                className={speakerColorMap.get(speaker)}
-              >
-                {speaker}
-              </Badge>
-            ))}
-          </div>
         </div>
 
-        {/* Transcription — lyrics style */}
-        <div className="space-y-8">
-          {roundGroups.map((group, gi) => (
-            <div key={gi}>
-              {group.round && (
-                <h2 className="mb-4 text-sm font-bold uppercase tracking-widest text-muted-foreground">
-                  Round {group.round}:
-                </h2>
-              )}
+        {/* Transcription — folder structure */}
+        <div className="space-y-2">
+          {roundGroups.map((group, gi) => {
+            const isRoundCollapsed = collapsedRounds.has(gi);
+            const roundLabel = group.round
+              ? `Round ${group.round}`
+              : "Unassigned";
 
-              <div className="space-y-6">
-                {group.turns.map((turn, ti) => {
-                  const colorClass =
-                    speakerColorMap.get(turn.speaker) || SPEAKER_TEXT_COLORS[0];
-                  const turnAllSelected =
-                    editMode && turn.lines.every((l) => selectedIds.has(l.id));
+            return (
+              <div key={gi}>
+                {/* Round header - collapsible */}
+                <button
+                  onClick={() => toggleRoundCollapse(gi)}
+                  className="flex w-full items-center gap-1 py-2 text-left text-sm font-semibold text-foreground hover:text-primary transition-colors"
+                >
+                  {isRoundCollapsed ? (
+                    <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  ) : (
+                    <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  )}
+                  <span className="uppercase tracking-widest">
+                    {roundLabel}
+                  </span>
+                  <span className="ml-2 text-xs font-normal text-muted-foreground">
+                    ({group.turns.reduce((sum, t) => sum + t.lines.length, 0)}{" "}
+                    lines)
+                  </span>
+                </button>
 
-                  return (
-                    <div key={ti}>
-                      {/* Speaker heading — clickable in edit mode to select entire turn */}
-                      <p
-                        className={`mb-1 text-xs font-bold uppercase tracking-widest text-muted-foreground ${
-                          editMode
-                            ? "cursor-pointer select-none hover:text-foreground transition-colors"
-                            : ""
-                        }`}
-                        onClick={
-                          editMode
-                            ? () => toggleSelectTurn(turn.lines)
-                            : undefined
-                        }
-                        title={
-                          editMode
-                            ? turnAllSelected
-                              ? "Deselect all lines"
-                              : "Select all lines"
-                            : undefined
-                        }
-                      >
-                        {editMode && (
-                          <Checkbox
-                            checked={turnAllSelected}
-                            className="mr-2 align-middle"
-                            onCheckedChange={() => toggleSelectTurn(turn.lines)}
-                          />
-                        )}
-                        {turn.speaker}:
-                      </p>
+                {/* Round children */}
+                {!isRoundCollapsed && (
+                  <div className="ml-2 border-l-2 border-border pl-4 space-y-1">
+                    {group.turns.map((turn, ti) => {
+                      const turnKey = `${gi}-${ti}`;
+                      const isTurnCollapsed = collapsedTurns.has(turnKey);
+                      const turnAllSelected =
+                        editMode &&
+                        turn.lines.every((l) => selectedIds.has(l.id));
 
-                      {/* Lyrics lines */}
-                      <div className="space-y-0">
-                        {turn.lines.map((line) => {
-                          const ytLink = `https://www.youtube.com/watch?v=${battle.youtube_id}&t=${Math.floor(line.start_time)}s`;
-                          const isSelected = selectedIds.has(line.id);
-
-                          if (editMode) {
-                            return (
-                              <div
-                                key={line.id}
-                                className={`group/line flex items-start gap-2 rounded px-1 py-0.5 transition-colors ${
-                                  isSelected
-                                    ? "bg-primary/10"
-                                    : "hover:bg-muted/50"
-                                }`}
-                              >
-                                <Checkbox
-                                  checked={isSelected}
-                                  onCheckedChange={() => toggleSelect(line.id)}
-                                  className="mt-1.5 shrink-0"
-                                />
-                                <span
-                                  className={`flex-1 leading-7 cursor-pointer ${colorClass}`}
-                                  onClick={() => toggleSelect(line.id)}
-                                >
-                                  {line.content}
-                                </span>
-                                <button
-                                  onClick={() => setEditingLine(line)}
-                                  className="mt-1 shrink-0 rounded p-1 text-muted-foreground opacity-0 transition-opacity hover:bg-muted hover:text-foreground group-hover/line:opacity-100 focus:opacity-100"
-                                  title="Edit this line"
-                                >
-                                  <Pencil className="h-3.5 w-3.5" />
-                                </button>
-                              </div>
-                            );
-                          }
-
-                          return (
-                            <a
-                              key={line.id}
-                              href={ytLink}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className={`block leading-7 transition-colors hover:text-red-500 ${colorClass}`}
+                      return (
+                        <div key={ti}>
+                          {/* Emcee header - collapsible */}
+                          <div className="flex items-center gap-1">
+                            <button
+                              onClick={() => toggleTurnCollapse(turnKey)}
+                              className="flex items-center gap-1 py-1.5 text-left text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
                             >
-                              {line.content}
-                            </a>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  );
-                })}
+                              {isTurnCollapsed ? (
+                                <ChevronRight className="h-3.5 w-3.5 shrink-0" />
+                              ) : (
+                                <ChevronDown className="h-3.5 w-3.5 shrink-0" />
+                              )}
+                              <span>{turn.speaker}</span>
+                              <span className="text-xs text-muted-foreground/60">
+                                ({turn.lines.length})
+                              </span>
+                            </button>
+
+                            {/* Edit mode: select all toggle */}
+                            {editMode && (
+                              <Checkbox
+                                checked={turnAllSelected}
+                                className="ml-2"
+                                onCheckedChange={() =>
+                                  toggleSelectTurn(turn.lines)
+                                }
+                              />
+                            )}
+                          </div>
+
+                          {/* Lines - children of emcee */}
+                          {!isTurnCollapsed && (
+                            <div className="ml-2 border-l border-border/50 pl-4 space-y-0">
+                              {turn.lines.map((line) => {
+                                const ytLink = `https://www.youtube.com/watch?v=${battle.youtube_id}&t=${Math.floor(line.start_time)}s`;
+                                const isSelected = selectedIds.has(line.id);
+
+                                if (editMode) {
+                                  return (
+                                    <div
+                                      key={line.id}
+                                      className={`group/line flex items-start gap-2 rounded px-1 py-0.5 transition-colors ${
+                                        isSelected
+                                          ? "bg-primary/10"
+                                          : "hover:bg-muted/50"
+                                      }`}
+                                    >
+                                      <Checkbox
+                                        checked={isSelected}
+                                        onCheckedChange={() =>
+                                          toggleSelect(line.id)
+                                        }
+                                        className="mt-1.5 shrink-0"
+                                      />
+                                      <span
+                                        className="flex-1 leading-7 cursor-pointer text-foreground text-sm"
+                                        onClick={() => toggleSelect(line.id)}
+                                      >
+                                        {line.content}
+                                      </span>
+                                      <button
+                                        onClick={() => setEditingLine(line)}
+                                        className="mt-1 shrink-0 rounded p-1 text-muted-foreground opacity-0 transition-opacity hover:bg-muted hover:text-foreground group-hover/line:opacity-100 focus:opacity-100"
+                                        title="Edit this line"
+                                      >
+                                        <Pencil className="h-3.5 w-3.5" />
+                                      </button>
+                                    </div>
+                                  );
+                                }
+
+                                return (
+                                  <a
+                                    key={line.id}
+                                    href={ytLink}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="block leading-7 text-sm text-foreground transition-colors hover:text-red-500"
+                                  >
+                                    {line.content}
+                                  </a>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         {/* Footer */}

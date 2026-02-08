@@ -40,8 +40,16 @@ export default function BatchActionBar({
   const [emcees, setEmcees] = useState<Emcee[]>(externalEmcees || []);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
+  // Sync local state when externalEmcees prop changes
   useEffect(() => {
-    if (!externalEmcees) {
+    if (externalEmcees && externalEmcees.length > 0) {
+      setEmcees(externalEmcees);
+    }
+  }, [externalEmcees]);
+
+  // Fetch emcees if not provided or empty
+  useEffect(() => {
+    if (!externalEmcees || externalEmcees.length === 0) {
       fetch("/api/emcees")
         .then((r) => r.json())
         .then(setEmcees)
