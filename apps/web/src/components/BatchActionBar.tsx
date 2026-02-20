@@ -26,6 +26,7 @@ export default function BatchActionBar({
   onAction,
   onClear,
   saving,
+  canDelete,
 }: {
   selectedCount: number;
   selectedIds: Set<number>;
@@ -36,6 +37,7 @@ export default function BatchActionBar({
   ) => Promise<void>;
   onClear: () => void;
   saving: boolean;
+  canDelete?: boolean;
 }) {
   const [emcees, setEmcees] = useState<Emcee[]>(externalEmcees || []);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -104,15 +106,17 @@ export default function BatchActionBar({
             </Select>
 
             {/* Delete */}
-            <Button
-              variant="destructive"
-              size="sm"
-              disabled={saving}
-              onClick={() => setShowDeleteConfirm(true)}
-            >
-              <Trash2 className="h-4 w-4" />
-              <span className="hidden sm:inline">Delete</span>
-            </Button>
+            {canDelete && (
+              <Button
+                variant="destructive"
+                size="sm"
+                disabled={saving}
+                onClick={() => setShowDeleteConfirm(true)}
+              >
+                <Trash2 className="h-4 w-4" />
+                <span className="hidden sm:inline">Delete</span>
+              </Button>
+            )}
           </div>
 
           {/* Cancel */}

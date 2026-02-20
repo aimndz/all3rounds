@@ -11,7 +11,7 @@ export default function Header() {
             href="/"
             className="text-xl font-black tracking-tighter uppercase text-foreground transition-transform hover:scale-105"
           >
-            talasalita
+            dataverse
           </Link>
           <div className="flex items-center gap-6">
             <Link

@@ -6,7 +6,6 @@ import Header from "@/components/Header";
 import SearchBar from "@/components/SearchBar";
 import ResultCard from "@/components/ResultCard";
 import { SearchResult } from "@/lib/types";
-import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Search, AlertCircle } from "lucide-react";
 
@@ -20,13 +19,15 @@ function SearchResults() {
   const [totalPages, setTotalPages] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [canEdit, setCanEdit] = useState(false);
 
   useEffect(() => {
-    const supabase = createClient();
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      setIsLoggedIn(!!user);
-    });
+    fetch("/api/me")
+      .then((r) => r.json())
+      .then((data) => {
+        setCanEdit(["superadmin", "admin", "editor"].includes(data.role));
+      })
+      .catch(() => {});
   }, []);
 
   const doSearch = useCallback(
@@ -137,7 +138,7 @@ function SearchResults() {
               <ResultCard
                 key={result.id}
                 result={result}
-                isLoggedIn={isLoggedIn}
+                isLoggedIn={canEdit}
                 onEdited={() => doSearch(page)}
                 query={query}
               />

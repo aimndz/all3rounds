@@ -1,5 +1,5 @@
 """
-Talasalita — FlipTop Mass Extraction Pipeline
+Dataverse — FlipTop Mass Extraction Pipeline
 
 Automatically transcribes all FlipTop battle videos from the official YouTube
 channel and uploads structured data (battles, lines, emcees) to Supabase.

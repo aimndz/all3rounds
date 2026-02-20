@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Talasalita — FlipTop Verse Directory",
+  title: "Dataverse — FlipTop Verse Directory",
   description:
     "Search any FlipTop battle line. Find out who said it, which battle, and watch it instantly.",
 };

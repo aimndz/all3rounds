@@ -1,5 +1,5 @@
 """
-Google Colab Setup Script for Talasalita Transcription Pipeline
+Google Colab Setup Script for Dataverse Transcription Pipeline
 
 Run this cell FIRST in your Colab notebook:
     !python colab_setup.py
@@ -24,7 +24,7 @@ def run(cmd):
 
 
 def main():
-    print("🚀 Talasalita Colab Setup")
+    print("🚀 Dataverse Colab Setup")
     print("Installing all dependencies with compatible versions.\n")
 
     # Step 1: NodeJS (required by yt-dlp for YouTube JS challenge)

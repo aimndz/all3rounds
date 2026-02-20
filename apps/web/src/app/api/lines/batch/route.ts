@@ -1,24 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient, createAdminClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/server";
+import { requirePermission, hasPermission } from "@/lib/auth";
 import { checkRateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 
 export async function PATCH(request: NextRequest) {
-  // Use regular client for auth check
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  // Use admin client for data operations (bypasses RLS)
-  const adminClient = createAdminClient();
-
-  if (!user) {
+  // ── Auth & Permission Check (batch edit requires admin+) ──
+  const auth = await requirePermission("lines:batch_edit");
+  if (auth.error) {
     return NextResponse.json(
-      { error: "You must be logged in to edit lines." },
-      { status: 401 },
+      { error: auth.error.message },
+      { status: auth.error.status },
     );
   }
+  const { user, role } = auth;
 
+  // ── Rate limit ──
   const { allowed } = checkRateLimit(`edit:${user.id}`, RATE_LIMITS.edit);
   if (!allowed) {
     return NextResponse.json(
@@ -27,6 +23,7 @@ export async function PATCH(request: NextRequest) {
     );
   }
 
+  const adminClient = createAdminClient();
   const body = await request.json();
   const { lineIds, action, value } = body as {
     lineIds: number[];
@@ -49,6 +46,14 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ error: "Invalid action." }, { status: 400 });
   }
 
+  // ── Delete requires superadmin ──
+  if (action === "delete" && !hasPermission(role, "lines:delete")) {
+    return NextResponse.json(
+      { error: "Only superadmins can delete lines." },
+      { status: 403 },
+    );
+  }
+
   try {
     if (action === "set_round") {
       const roundVal =
@@ -56,7 +61,6 @@ export async function PATCH(request: NextRequest) {
           ? null
           : Number(value);
 
-      // Record edit history for each line
       const { data: existing } = await adminClient
         .from("lines")
         .select("id, round_number")
@@ -106,7 +110,6 @@ export async function PATCH(request: NextRequest) {
 
       if (updateError) throw updateError;
     } else if (action === "delete") {
-      // Record deletion in edit history
       const { data: existing } = await adminClient
         .from("lines")
         .select("id, content")

@@ -1,4 +1,4 @@
-# Setup Guide — Talasalita
+# Setup Guide — Dataverse
 
 Step-by-step instructions to get the project running from zero.
 
@@ -10,7 +10,7 @@ Step-by-step instructions to get the project running from zero.
 
 1. Go to [supabase.com](https://supabase.com) → Sign up (GitHub login works).
 2. Click **"New Project"**.
-3. Name: `talasalita`, Region: pick closest to you, set a DB password.
+3. Name: `dataverse`, Region: pick closest to you, set a DB password.
 4. Wait for provisioning (~2 minutes).
 
 ### 1.2 Run Database Migration
@@ -139,8 +139,8 @@ python mass_pipeline.py
 1. Open [colab.research.google.com](https://colab.research.google.com).
 2. Create a new notebook.
 3. Set runtime to **GPU** (Runtime → Change runtime type → T4 GPU).
-4. Open your Google Drive in a separate tab, and create a new folder named `talasalita`.
-5. Upload `colab_setup.py`, `transcribe.py`, `mass_pipeline.py`, and `.env` directly into that new `talasalita` folder.
+4. Open your Google Drive in a separate tab, and create a new folder named `dataverse`.
+5. Upload `colab_setup.py`, `transcribe.py`, `mass_pipeline.py`, and `.env` directly into that new `dataverse` folder.
 
 #### Each Session — Run This First
 
@@ -150,10 +150,10 @@ from google.colab import drive
 drive.mount('/content/drive')
 
 # Copy files from Drive (adjust path if needed)
-!cp /content/drive/MyDrive/talasalita/colab_setup.py .
-!cp /content/drive/MyDrive/talasalita/transcribe.py .
-!cp /content/drive/MyDrive/talasalita/mass_pipeline.py .
-!cp /content/drive/MyDrive/talasalita/.env .
+!cp /content/drive/MyDrive/dataverse/colab_setup.py .
+!cp /content/drive/MyDrive/dataverse/transcribe.py .
+!cp /content/drive/MyDrive/dataverse/mass_pipeline.py .
+!cp /content/drive/MyDrive/dataverse/.env .
 ```
 
 ```python
@@ -218,6 +218,84 @@ After the pipeline uploads lines, you need to:
 2. **Tag round numbers:**
    - The AI doesn't know where rounds start/end.
    - Community users can tag them, or you can bulk-update in Supabase SQL Editor.
+
+---
+
+## 6. Role-Based Access Control (RBAC)
+
+The app uses a 4-tier role system to control who can edit, batch edit, and delete content.
+
+### 6.1 Permission Matrix
+
+| Action                | superadmin | admin | editor | viewer |
+| :-------------------- | :--------: | :---: | :----: | :----: |
+| Search & read         |     ✅     |  ✅   |   ✅   |   ✅   |
+| Edit line content     |     ✅     |  ✅   |   ✅   |   ❌   |
+| Batch set round/emcee |     ✅     |  ✅   |   ❌   |   ❌   |
+| Delete lines          |     ✅     |  ❌   |   ❌   |   ❌   |
+| Manage users/roles    |     ✅     |  ❌   |   ❌   |   ❌   |
+
+### 6.2 Run the RBAC Migration
+
+1. Go to **Supabase Dashboard → SQL Editor**.
+2. Click **"New query"**.
+3. Copy-paste the entire contents of `supabase/migration_rbac.sql`.
+4. Click **"Run"**.
+5. You should see: `Success. No rows returned.`
+
+### 6.3 Make Yourself Superadmin
+
+1. In the **SQL Editor**, run:
+   ```sql
+   SELECT id, email FROM auth.users;
+   ```
+2. Copy the `id` value next to your email address.
+3. Run:
+   ```sql
+   UPDATE user_profiles SET role = 'superadmin'
+   WHERE id = 'PASTE_YOUR_USER_ID_HERE';
+   ```
+4. Verify:
+   ```sql
+   SELECT id, role, display_name FROM user_profiles;
+   ```
+
+### 6.4 Add an Admin
+
+```sql
+SELECT id, email FROM auth.users WHERE email = 'their.email@gmail.com';
+
+UPDATE user_profiles SET role = 'admin'
+WHERE id = 'THEIR_USER_ID';
+```
+
+### 6.5 Add an Editor
+
+```sql
+UPDATE user_profiles SET role = 'editor'
+WHERE id = 'THEIR_USER_ID';
+```
+
+### 6.6 Demote / Remove Access
+
+```sql
+UPDATE user_profiles SET role = 'viewer'
+WHERE id = 'THEIR_USER_ID';
+```
+
+### 6.7 View All Users and Roles
+
+```sql
+SELECT
+  up.id, au.email, up.role, up.display_name, up.created_at
+FROM user_profiles up
+JOIN auth.users au ON au.id = up.id
+ORDER BY
+  CASE up.role
+    WHEN 'superadmin' THEN 1 WHEN 'admin' THEN 2
+    WHEN 'editor' THEN 3 ELSE 4
+  END;
+```
 
 ---
 

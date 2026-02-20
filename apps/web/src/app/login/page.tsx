@@ -29,7 +29,7 @@ export default function LoginPage() {
       <Card className="w-full max-w-sm">
         <CardHeader className="text-center">
           <CardTitle className="text-3xl font-bold tracking-tight">
-            talasalita
+            dataverse
           </CardTitle>
           <CardDescription>
             Login to help improve FlipTop transcriptions.

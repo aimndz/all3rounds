@@ -139,22 +139,20 @@ export default function ResultCard({
                 Play at {formatTime(result.start_time)}
               </button>
 
-              <button
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  if (!isLoggedIn) {
-                    window.location.href = "/login";
-                    return;
-                  }
-                  setShowEdit(true);
-                }}
-                className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                title={isLoggedIn ? "Edit this line" : "Login to edit"}
-              >
-                <Pencil className="h-3 w-3" />
-                Edit
-              </button>
+              {isLoggedIn && (
+                <button
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setShowEdit(true);
+                  }}
+                  className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                  title="Edit this line"
+                >
+                  <Pencil className="h-3 w-3" />
+                  Edit
+                </button>
+              )}
             </div>
           </div>
         </div>

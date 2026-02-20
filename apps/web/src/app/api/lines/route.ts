@@ -1,25 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient, createAdminClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/server";
+import { requirePermission } from "@/lib/auth";
 import { checkRateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 
 export async function PATCH(request: NextRequest) {
-  // Use regular client for auth check
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  // Use admin client for data operations (bypasses RLS)
-  const adminClient = createAdminClient();
-
-  if (!user) {
+  // ── Auth & Permission Check ──
+  const auth = await requirePermission("lines:edit");
+  if (auth.error) {
     return NextResponse.json(
-      { error: "You must be logged in to edit lines." },
-      { status: 401 },
+      { error: auth.error.message },
+      { status: auth.error.status },
     );
   }
+  const { user } = auth;
 
-  // Rate limit edits
+  // ── Rate limit ──
   const { allowed } = checkRateLimit(`edit:${user.id}`, RATE_LIMITS.edit);
   if (!allowed) {
     return NextResponse.json(
@@ -28,6 +23,7 @@ export async function PATCH(request: NextRequest) {
     );
   }
 
+  const adminClient = createAdminClient();
   const body = await request.json();
   const { lineId, field, value } = body;
 

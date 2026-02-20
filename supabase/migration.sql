@@ -1,7 +1,4 @@
--- ============================================
--- Talasalita: FlipTop Directory
--- Supabase Migration
--- ============================================
+-- Dataverse: FlipTop Directory
 
 -- Enable extensions
 CREATE EXTENSION IF NOT EXISTS "pg_trgm";

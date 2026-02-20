@@ -18,10 +18,10 @@ import {
   Clock,
   ArrowLeft,
 } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
 import BatchActionBar from "@/components/BatchActionBar";
 import BattleEditModal from "@/components/BattleEditModal";
 import type { Emcee } from "@/lib/types";
+import type { UserRole } from "@/lib/auth";
 
 // ============================================================================
 // Types
@@ -143,7 +143,10 @@ export default function BattlePage() {
   const [editMode, setEditMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [editingLine, setEditingLine] = useState<BattleLine | null>(null);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [userRole, setUserRole] = useState<UserRole>("viewer");
+  const canEdit = ["superadmin", "admin", "editor"].includes(userRole);
+  const canBatchEdit = ["superadmin", "admin"].includes(userRole);
+  const canDelete = userRole === "superadmin";
   const [batchSaving, setBatchSaving] = useState(false);
   const [emcees, setEmcees] = useState<Emcee[]>([]);
 
@@ -187,10 +190,12 @@ export default function BattlePage() {
   }, [fetchBattle]);
 
   useEffect(() => {
-    const supabase = createClient();
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      setIsLoggedIn(!!user);
-    });
+    fetch("/api/me")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.role) setUserRole(data.role);
+      })
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -226,7 +231,7 @@ export default function BattlePage() {
   };
 
   const handleToggleEditMode = () => {
-    if (!isLoggedIn) {
+    if (!canEdit) {
       window.location.href = "/login";
       return;
     }
@@ -404,24 +409,26 @@ export default function BattlePage() {
                 <ExternalLink className="h-3 w-3" />
                 YouTube
               </a>
-              <Button
-                variant={editMode ? "default" : "outline"}
-                size="sm"
-                onClick={handleToggleEditMode}
-                className="h-8 text-xs"
-              >
-                {editMode ? (
-                  <>
-                    <X className="mr-1 h-3 w-3" />
-                    Exit Edit
-                  </>
-                ) : (
-                  <>
-                    <Pencil className="mr-1 h-3 w-3" />
-                    Edit
-                  </>
-                )}
-              </Button>
+              {canEdit && (
+                <Button
+                  variant={editMode ? "default" : "outline"}
+                  size="sm"
+                  onClick={handleToggleEditMode}
+                  className="h-8 text-xs"
+                >
+                  {editMode ? (
+                    <>
+                      <X className="mr-1 h-3 w-3" />
+                      Exit Edit
+                    </>
+                  ) : (
+                    <>
+                      <Pencil className="mr-1 h-3 w-3" />
+                      Edit
+                    </>
+                  )}
+                </Button>
+              )}
             </div>
           </div>
         </div>
@@ -596,6 +603,7 @@ export default function BattlePage() {
           onAction={handleBatchAction}
           onClear={() => setSelectedIds(new Set())}
           saving={batchSaving}
+          canDelete={canDelete}
         />
       )}
 

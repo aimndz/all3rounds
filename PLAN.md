@@ -1,4 +1,4 @@
-# Project Plan: FlipTop Directory (Talasalita)
+# Project Plan: FlipTop Directory (Dataverse)
 
 **Goal**: Build a searchable directory for FlipTop battles where users can search for specific lines, verses, or rhymes. The system will index automated transcriptions, linking text directly to the timestamped YouTube video.
 

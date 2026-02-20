@@ -1,5 +1,5 @@
 """
-Talasalita — FlipTop Transcription Pipeline
+Dataverse — FlipTop Transcription Pipeline
 
 Downloads audio from YouTube, transcribes with WhisperX (+ speaker diarization),
 and uploads structured battle data to Supabase.
@@ -446,7 +446,7 @@ def load_transcript_json(json_path: str) -> list[dict]:
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Talasalita — Transcribe a FlipTop battle from YouTube"
+        description="Dataverse — Transcribe a FlipTop battle from YouTube"
     )
     parser.add_argument("--url",      required=True,  help="YouTube video URL")
     parser.add_argument("--title",    default=None,   help="Battle title (auto-detected if omitted)")
