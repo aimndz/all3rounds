@@ -8,7 +8,7 @@ import ResultCard from "@/components/ResultCard";
 import { SearchResult } from "@/lib/types";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Search, AlertCircle } from "lucide-react";
 
 function SearchResults() {
   const searchParams = useSearchParams();
@@ -40,7 +40,7 @@ function SearchResults() {
           `/api/search?q=${encodeURIComponent(query)}&page=${p}`,
         );
         if (res.status === 429) {
-          setError("You're searching too fast, chill for a sec and try again.");
+          setError("Too many requests — slow down and try again.");
           setLoading(false);
           return;
         }
@@ -69,51 +69,70 @@ function SearchResults() {
     <div className="min-h-screen bg-background">
       <Header />
 
-      {/* Search bar (compact, sticky below header) */}
+      {/* Search bar */}
       <div className="border-b border-border bg-card/50">
-        <div className="mx-auto max-w-5xl px-4 py-3">
+        <div className="mx-auto max-w-4xl px-4 py-3 sm:px-6">
           <SearchBar initialQuery={query} size="sm" />
         </div>
       </div>
 
       {/* Results */}
-      <main className="mx-auto max-w-5xl px-4 py-6">
+      <main className="mx-auto max-w-4xl px-4 py-6 sm:px-6">
         {/* Result count */}
         {!loading && !error && query && (
-          <p className="mb-4 text-sm font-medium text-muted-foreground">
-            {total === 0
-              ? `No results found for "${query}"`
-              : `${total} result${total !== 1 ? "s" : ""} for "${query}"`}
-          </p>
+          <div className="mb-5 flex items-baseline gap-2">
+            <h1 className="text-lg font-semibold text-foreground">
+              {total === 0 ? "No results" : `${total} results`}
+            </h1>
+            <span className="text-sm text-muted-foreground">
+              for &ldquo;{query}&rdquo;
+            </span>
+          </div>
         )}
 
         {/* Error state */}
         {error && (
-          <Card className="border-red-200 dark:border-red-800">
-            <CardContent className="p-6 text-center text-red-700 dark:text-red-300">
-              {error}
-            </CardContent>
-          </Card>
+          <div className="mb-6 flex items-center gap-3 rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+            <AlertCircle className="h-4 w-4 shrink-0" />
+            {error}
+          </div>
         )}
 
         {/* Loading state */}
         {loading && (
-          <div className="space-y-4">
-            {[...Array(3)].map((_, i) => (
-              <Card key={i} className="animate-pulse">
-                <CardContent className="p-5">
-                  <div className="h-5 w-3/4 rounded bg-muted" />
-                  <div className="mt-3 h-4 w-1/2 rounded bg-muted" />
-                  <div className="mt-4 h-9 w-40 rounded bg-muted" />
-                </CardContent>
-              </Card>
+          <div className="space-y-3">
+            {[...Array(4)].map((_, i) => (
+              <div
+                key={i}
+                className="flex animate-pulse gap-4 rounded-xl border border-border p-5"
+              >
+                <div className="hidden h-20 w-32 shrink-0 rounded-lg bg-muted sm:block" />
+                <div className="flex-1 space-y-3">
+                  <div className="h-5 w-full rounded bg-muted" />
+                  <div className="h-4 w-2/3 rounded bg-muted" />
+                  <div className="h-8 w-32 rounded bg-muted" />
+                </div>
+              </div>
             ))}
           </div>
         )}
 
+        {/* Empty state */}
+        {!loading && !error && query && results.length === 0 && (
+          <div className="flex flex-col items-center justify-center py-20">
+            <Search className="mb-4 h-12 w-12 text-muted-foreground/30" />
+            <p className="text-sm text-muted-foreground">
+              No lines matched &ldquo;{query}&rdquo;
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground/60">
+              Try searching for an emcee name, a punchline, or a Tagalog phrase.
+            </p>
+          </div>
+        )}
+
         {/* Results list */}
-        {!loading && !error && (
-          <div className="space-y-4">
+        {!loading && !error && results.length > 0 && (
+          <div className="space-y-3">
             {results.map((result) => (
               <ResultCard
                 key={result.id}
@@ -128,23 +147,25 @@ function SearchResults() {
 
         {/* Pagination */}
         {!loading && totalPages > 1 && (
-          <div className="mt-8 flex items-center justify-center gap-2">
+          <div className="mt-8 flex items-center justify-center gap-3">
             <Button
               variant="outline"
               size="sm"
               onClick={() => doSearch(page - 1)}
               disabled={page <= 1}
+              className="h-8 text-xs"
             >
-              ← Prev
+              ← Previous
             </Button>
-            <span className="px-4 text-sm text-muted-foreground">
-              Page {page} of {totalPages}
+            <span className="text-xs text-muted-foreground tabular-nums">
+              {page} / {totalPages}
             </span>
             <Button
               variant="outline"
               size="sm"
               onClick={() => doSearch(page + 1)}
               disabled={page >= totalPages}
+              className="h-8 text-xs"
             >
               Next →
             </Button>
@@ -160,7 +181,7 @@ export default function SearchPage() {
     <Suspense
       fallback={
         <div className="flex min-h-screen items-center justify-center bg-background">
-          <div className="animate-pulse text-muted-foreground">Loading...</div>
+          <div className="text-sm text-muted-foreground">Loading...</div>
         </div>
       }
     >

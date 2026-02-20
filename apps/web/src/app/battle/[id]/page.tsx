@@ -4,16 +4,28 @@ import { useEffect, useState, useCallback } from "react";
 import { useParams } from "next/navigation";
 import Header from "@/components/Header";
 import Link from "next/link";
-import { Badge } from "@/components/ui/badge";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Pencil, X, ChevronRight, ChevronDown } from "lucide-react";
+import {
+  Pencil,
+  X,
+  ChevronRight,
+  ChevronDown,
+  ExternalLink,
+  Calendar,
+  Mic2,
+  Clock,
+  ArrowLeft,
+} from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import BatchActionBar from "@/components/BatchActionBar";
 import BattleEditModal from "@/components/BattleEditModal";
 import type { Emcee } from "@/lib/types";
+
+// ============================================================================
+// Types
+// ============================================================================
 
 type BattleLine = {
   id: number;
@@ -41,6 +53,10 @@ type BattleData = {
   lines: BattleLine[];
 };
 
+// ============================================================================
+// Helpers
+// ============================================================================
+
 function formatTime(seconds: number): string {
   const m = Math.floor(seconds / 60);
   const s = Math.floor(seconds % 60);
@@ -56,13 +72,64 @@ function formatDate(dateStr: string | null): string {
   });
 }
 
-// Speaker text colors for lyrics view
-const SPEAKER_TEXT_COLORS = [
-  "text-foreground",
-  "text-stone-500 dark:text-stone-400",
-  "text-stone-600 dark:text-stone-300",
-  "text-stone-400 dark:text-stone-500",
+// Distinct colors for different speakers (flat, no glow)
+const SPEAKER_COLORS: Record<
+  string,
+  { bg: string; text: string; dot: string }
+> = {};
+const COLOR_PALETTE = [
+  {
+    bg: "bg-amber-500/8 dark:bg-amber-400/10",
+    text: "text-amber-700 dark:text-amber-300",
+    dot: "bg-amber-500",
+  },
+  {
+    bg: "bg-sky-500/8 dark:bg-sky-400/10",
+    text: "text-sky-700 dark:text-sky-300",
+    dot: "bg-sky-500",
+  },
+  {
+    bg: "bg-emerald-500/8 dark:bg-emerald-400/10",
+    text: "text-emerald-700 dark:text-emerald-300",
+    dot: "bg-emerald-500",
+  },
+  {
+    bg: "bg-violet-500/8 dark:bg-violet-400/10",
+    text: "text-violet-700 dark:text-violet-300",
+    dot: "bg-violet-500",
+  },
+  {
+    bg: "bg-rose-500/8 dark:bg-rose-400/10",
+    text: "text-rose-700 dark:text-rose-300",
+    dot: "bg-rose-500",
+  },
+  {
+    bg: "bg-teal-500/8 dark:bg-teal-400/10",
+    text: "text-teal-700 dark:text-teal-300",
+    dot: "bg-teal-500",
+  },
+  {
+    bg: "bg-orange-500/8 dark:bg-orange-400/10",
+    text: "text-orange-700 dark:text-orange-300",
+    dot: "bg-orange-500",
+  },
+  {
+    bg: "bg-indigo-500/8 dark:bg-indigo-400/10",
+    text: "text-indigo-700 dark:text-indigo-300",
+    dot: "bg-indigo-500",
+  },
 ];
+
+function getSpeakerColor(speaker: string, index: number) {
+  if (!SPEAKER_COLORS[speaker]) {
+    SPEAKER_COLORS[speaker] = COLOR_PALETTE[index % COLOR_PALETTE.length];
+  }
+  return SPEAKER_COLORS[speaker];
+}
+
+// ============================================================================
+// Component
+// ============================================================================
 
 export default function BattlePage() {
   const params = useParams();
@@ -80,7 +147,7 @@ export default function BattlePage() {
   const [batchSaving, setBatchSaving] = useState(false);
   const [emcees, setEmcees] = useState<Emcee[]>([]);
 
-  // Collapsible state for folder structure
+  // Collapsible state
   const [collapsedRounds, setCollapsedRounds] = useState<Set<number>>(
     new Set(),
   );
@@ -126,7 +193,6 @@ export default function BattlePage() {
     });
   }, []);
 
-  // Prefetch emcees when entering edit mode
   useEffect(() => {
     if (editMode && emcees.length === 0) {
       fetch("/api/emcees")
@@ -165,7 +231,6 @@ export default function BattlePage() {
       return;
     }
     if (editMode) {
-      // Exiting edit mode
       setSelectedIds(new Set());
       setEditMode(false);
     } else {
@@ -179,7 +244,6 @@ export default function BattlePage() {
   ) => {
     if (selectedIds.size === 0) return;
     setBatchSaving(true);
-
     try {
       const res = await fetch("/api/lines/batch", {
         method: "PATCH",
@@ -190,14 +254,11 @@ export default function BattlePage() {
           value: value ?? null,
         }),
       });
-
       if (!res.ok) {
-        const data = await res.json();
-        alert(data.error || "Batch operation failed.");
+        const d = await res.json();
+        alert(d.error || "Batch operation failed.");
         return;
       }
-
-      // Refetch battle data and clear selection
       setSelectedIds(new Set());
       fetchBattle();
     } finally {
@@ -205,17 +266,19 @@ export default function BattlePage() {
     }
   };
 
+  // ── Loading ──
   if (loading) {
     return (
       <div className="min-h-screen bg-background">
         <Header />
-        <div className="mx-auto max-w-3xl px-4 py-12">
+        <div className="mx-auto max-w-4xl px-4 py-8">
           <div className="animate-pulse space-y-4">
+            <div className="aspect-3/1 w-full rounded-xl bg-muted" />
             <div className="h-8 w-2/3 rounded bg-muted" />
-            <div className="h-5 w-1/3 rounded bg-muted" />
-            <div className="mt-8 space-y-3">
-              {[...Array(8)].map((_, i) => (
-                <div key={i} className="h-12 rounded bg-muted" />
+            <div className="h-4 w-1/3 rounded bg-muted" />
+            <div className="mt-8 space-y-2">
+              {[...Array(10)].map((_, i) => (
+                <div key={i} className="h-10 rounded-lg bg-muted" />
               ))}
             </div>
           </div>
@@ -224,22 +287,20 @@ export default function BattlePage() {
     );
   }
 
+  // ── Error ──
   if (error || !data) {
     return (
       <div className="min-h-screen bg-background">
         <Header />
-        <div className="mx-auto max-w-3xl px-4 py-12 text-center">
-          <Card className="mx-auto max-w-md">
-            <CardContent className="p-8 space-y-3">
-              <h1 className="text-2xl font-semibold text-foreground">
-                Battle Not Found
-              </h1>
-              <p className="text-muted-foreground">{error}</p>
-              <Button variant="outline" asChild>
-                <Link href="/">← Back to search</Link>
-              </Button>
-            </CardContent>
-          </Card>
+        <div className="mx-auto max-w-4xl px-4 py-20 text-center">
+          <Mic2 className="mx-auto mb-4 h-12 w-12 text-muted-foreground/40" />
+          <h1 className="text-xl font-semibold text-foreground">
+            Battle Not Found
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground">{error}</p>
+          <Button variant="outline" size="sm" className="mt-4" asChild>
+            <Link href="/battles">← Back to battles</Link>
+          </Button>
         </div>
       </div>
     );
@@ -247,14 +308,11 @@ export default function BattlePage() {
 
   const { battle, lines } = data;
 
-  // Build speaker text color map
+  // Build speaker color map
   const speakerSet = [
     ...new Set(lines.map((l) => l.emcee?.name || l.speaker_label || "Unknown")),
   ];
-  const speakerColorMap = new Map<string, string>();
-  speakerSet.forEach((s, i) => {
-    speakerColorMap.set(s, SPEAKER_TEXT_COLORS[i % SPEAKER_TEXT_COLORS.length]);
-  });
+  speakerSet.forEach((s, i) => getSpeakerColor(s, i));
 
   // Group lines by round and speaker turns
   type Turn = { speaker: string; lines: BattleLine[] };
@@ -284,124 +342,164 @@ export default function BattlePage() {
     <div className="min-h-screen bg-background">
       <Header />
 
-      <main className="mx-auto max-w-3xl px-4 py-8">
-        {/* Battle header - sticky */}
-        <div className="sticky top-14 z-40 -mx-4 mb-8 bg-background/95 backdrop-blur-sm px-4 pb-4 pt-2 border-b border-border">
-          <div className="flex items-start justify-between gap-4">
-            <h1 className="text-4xl font-black tracking-tighter uppercase text-foreground drop-shadow-sm">
-              {battle.title}
-            </h1>
-            <Button
-              variant={editMode ? "default" : "outline"}
-              size="sm"
-              onClick={handleToggleEditMode}
-              className="shrink-0"
-            >
-              {editMode ? (
-                <>
-                  <X className="h-4 w-4" />
-                  Exit Edit
-                </>
-              ) : (
-                <>
-                  <Pencil className="h-4 w-4" />
-                  Edit
-                </>
-              )}
-            </Button>
+      <main className="mx-auto max-w-4xl px-4 py-6 sm:px-6">
+        {/* Back link */}
+        <Link
+          href="/battles"
+          className="mb-4 inline-flex items-center gap-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+        >
+          <ArrowLeft className="h-3 w-3" />
+          All battles
+        </Link>
+
+        {/* ── Hero Card ── */}
+        <div className="mb-8 overflow-hidden rounded-xl border border-border bg-card">
+          {/* Thumbnail */}
+          <div className="relative aspect-3/1 w-full overflow-hidden bg-muted">
+            <Image
+              src={`https://img.youtube.com/vi/${battle.youtube_id}/maxresdefault.jpg`}
+              alt={battle.title}
+              fill
+              priority
+              sizes="(max-width: 768px) 100vw, 896px"
+              className="object-cover"
+            />
+            {/* Scrim for legibility */}
+            <div className="absolute inset-0 bg-linear-to-t from-black/70 via-black/20 to-transparent" />
+
+            {/* Title on image */}
+            <div className="absolute bottom-0 left-0 right-0 p-5 sm:p-6">
+              <h1 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">
+                {battle.title}
+              </h1>
+            </div>
           </div>
-          <div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
-            {battle.event_name && <span>{battle.event_name}</span>}
-            {battle.event_date && (
-              <>
-                <span className="text-border">•</span>
-                <span>{formatDate(battle.event_date)}</span>
-              </>
+
+          {/* Meta bar */}
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-border px-5 py-3 sm:px-6">
+            {battle.event_name && (
+              <span className="flex items-center gap-1.5 text-sm font-medium text-foreground">
+                <Mic2 className="h-3.5 w-3.5 text-muted-foreground" />
+                {battle.event_name}
+              </span>
             )}
-            <span className="text-border">•</span>
-            <Button
-              variant="link"
-              size="sm"
-              className="h-auto p-0 font-bold text-primary hover:text-primary/80"
-              asChild
-            >
-              <a href={battle.url} target="_blank" rel="noopener noreferrer">
-                <svg
-                  className="h-4 w-4"
-                  viewBox="0 0 24 24"
-                  fill="currentColor"
-                >
-                  <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
-                </svg>
-                Watch on YouTube
+            {battle.event_date && (
+              <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                <Calendar className="h-3.5 w-3.5" />
+                {formatDate(battle.event_date)}
+              </span>
+            )}
+            <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
+              <Clock className="h-3.5 w-3.5" />
+              {lines.length} lines
+            </span>
+
+            <div className="ml-auto flex items-center gap-2">
+              <a
+                href={battle.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted"
+              >
+                <ExternalLink className="h-3 w-3" />
+                YouTube
               </a>
-            </Button>
+              <Button
+                variant={editMode ? "default" : "outline"}
+                size="sm"
+                onClick={handleToggleEditMode}
+                className="h-8 text-xs"
+              >
+                {editMode ? (
+                  <>
+                    <X className="mr-1 h-3 w-3" />
+                    Exit Edit
+                  </>
+                ) : (
+                  <>
+                    <Pencil className="mr-1 h-3 w-3" />
+                    Edit
+                  </>
+                )}
+              </Button>
+            </div>
           </div>
         </div>
 
-        {/* Transcription — folder structure */}
-        <div className="space-y-2">
+        {/* ── Transcript ── */}
+        <div className="space-y-1">
           {roundGroups.map((group, gi) => {
             const isRoundCollapsed = collapsedRounds.has(gi);
             const roundLabel = group.round
               ? `Round ${group.round}`
               : "Unassigned";
+            const lineCount = group.turns.reduce(
+              (sum, t) => sum + t.lines.length,
+              0,
+            );
 
             return (
               <div key={gi}>
-                {/* Round header - collapsible */}
+                {/* Round header */}
                 <button
                   onClick={() => toggleRoundCollapse(gi)}
-                  className="flex w-full items-center gap-1 py-2 text-left text-sm font-semibold text-foreground hover:text-primary transition-colors"
+                  className="flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-left transition-colors hover:bg-muted/50"
                 >
                   {isRoundCollapsed ? (
                     <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
                   ) : (
                     <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
                   )}
-                  <span className="uppercase tracking-widest">
+                  <span className="text-sm font-semibold uppercase tracking-wider text-foreground">
                     {roundLabel}
                   </span>
-                  <span className="ml-2 text-xs font-normal text-muted-foreground">
-                    ({group.turns.reduce((sum, t) => sum + t.lines.length, 0)}{" "}
-                    lines)
+                  <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                    {lineCount}
                   </span>
                 </button>
 
                 {/* Round children */}
                 {!isRoundCollapsed && (
-                  <div className="ml-2 border-l-2 border-border pl-4 space-y-1">
+                  <div className="ml-3 border-l-2 border-border/60 pl-4 space-y-0.5">
                     {group.turns.map((turn, ti) => {
                       const turnKey = `${gi}-${ti}`;
                       const isTurnCollapsed = collapsedTurns.has(turnKey);
+                      const speakerColor = getSpeakerColor(
+                        turn.speaker,
+                        speakerSet.indexOf(turn.speaker),
+                      );
                       const turnAllSelected =
                         editMode &&
                         turn.lines.every((l) => selectedIds.has(l.id));
 
                       return (
                         <div key={ti}>
-                          {/* Emcee header - collapsible */}
-                          <div className="flex items-center gap-1">
+                          {/* Speaker header */}
+                          <div className="flex items-center gap-1.5">
                             <button
                               onClick={() => toggleTurnCollapse(turnKey)}
-                              className="flex items-center gap-1 py-1.5 text-left text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                              className={`flex items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-sm transition-colors hover:bg-muted/50 ${speakerColor.text}`}
                             >
                               {isTurnCollapsed ? (
-                                <ChevronRight className="h-3.5 w-3.5 shrink-0" />
+                                <ChevronRight className="h-3.5 w-3.5 shrink-0 opacity-50" />
                               ) : (
-                                <ChevronDown className="h-3.5 w-3.5 shrink-0" />
+                                <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-50" />
                               )}
-                              <span>{turn.speaker}</span>
-                              <span className="text-xs text-muted-foreground/60">
-                                ({turn.lines.length})
+                              <span
+                                className={`h-2 w-2 rounded-full ${speakerColor.dot}`}
+                              />
+                              <span className="font-medium">
+                                {turn.speaker}
+                              </span>
+                              <span className="text-xs opacity-50">
+                                {turn.lines.length}
                               </span>
                             </button>
 
-                            {/* Edit mode: select all toggle */}
                             {editMode && (
                               <Checkbox
                                 checked={turnAllSelected}
-                                className="ml-2"
+                                className="ml-1"
                                 onCheckedChange={() =>
                                   toggleSelectTurn(turn.lines)
                                 }
@@ -409,9 +507,9 @@ export default function BattlePage() {
                             )}
                           </div>
 
-                          {/* Lines - children of emcee */}
+                          {/* Lines */}
                           {!isTurnCollapsed && (
-                            <div className="ml-2 border-l border-border/50 pl-4 space-y-0">
+                            <div className="ml-3 border-l border-border/40 pl-4 py-0.5">
                               {turn.lines.map((line) => {
                                 const ytLink = `https://www.youtube.com/watch?v=${battle.youtube_id}&t=${Math.floor(line.start_time)}s`;
                                 const isSelected = selectedIds.has(line.id);
@@ -420,10 +518,10 @@ export default function BattlePage() {
                                   return (
                                     <div
                                       key={line.id}
-                                      className={`group/line flex items-start gap-2 rounded px-1 py-0.5 transition-colors ${
+                                      className={`group/line flex items-start gap-2 rounded-md px-2 py-1 transition-colors ${
                                         isSelected
                                           ? "bg-primary/10"
-                                          : "hover:bg-muted/50"
+                                          : "hover:bg-muted/40"
                                       }`}
                                     >
                                       <Checkbox
@@ -431,20 +529,20 @@ export default function BattlePage() {
                                         onCheckedChange={() =>
                                           toggleSelect(line.id)
                                         }
-                                        className="mt-1.5 shrink-0"
+                                        className="mt-1 shrink-0"
                                       />
                                       <span
-                                        className="flex-1 leading-7 cursor-pointer text-foreground text-sm"
+                                        className="flex-1 cursor-pointer text-sm leading-relaxed text-foreground"
                                         onClick={() => toggleSelect(line.id)}
                                       >
                                         {line.content}
                                       </span>
                                       <button
                                         onClick={() => setEditingLine(line)}
-                                        className="mt-1 shrink-0 rounded p-1 text-muted-foreground opacity-0 transition-opacity hover:bg-muted hover:text-foreground group-hover/line:opacity-100 focus:opacity-100"
+                                        className="mt-0.5 shrink-0 rounded p-1 text-muted-foreground opacity-0 transition-opacity hover:bg-muted hover:text-foreground group-hover/line:opacity-100 focus:opacity-100"
                                         title="Edit this line"
                                       >
-                                        <Pencil className="h-3.5 w-3.5" />
+                                        <Pencil className="h-3 w-3" />
                                       </button>
                                     </div>
                                   );
@@ -456,9 +554,14 @@ export default function BattlePage() {
                                     href={ytLink}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="block leading-7 text-sm text-foreground transition-all hover:text-primary hover:font-medium hover:translate-x-1"
+                                    className="group/line flex items-baseline gap-3 rounded-md px-2 py-1 text-sm transition-colors hover:bg-muted/40"
                                   >
-                                    {line.content}
+                                    <span className="shrink-0 font-mono text-[10px] tabular-nums text-muted-foreground/50 transition-colors group-hover/line:text-muted-foreground">
+                                      {formatTime(line.start_time)}
+                                    </span>
+                                    <span className="leading-relaxed text-foreground/90 transition-colors group-hover/line:text-foreground">
+                                      {line.content}
+                                    </span>
                                   </a>
                                 );
                               })}
@@ -475,14 +578,12 @@ export default function BattlePage() {
         </div>
 
         {/* Footer */}
-        <div className="mt-12 pt-6 text-center">
-          <Separator className="mb-6" />
+        <div className="mt-16 border-t border-border pt-6 text-center">
           <p className="text-xs text-muted-foreground">
             {lines.length} lines transcribed • Community edits welcome
           </p>
         </div>
 
-        {/* Bottom padding when batch bar is visible */}
         {editMode && selectedIds.size > 0 && <div className="h-20" />}
       </main>
 
