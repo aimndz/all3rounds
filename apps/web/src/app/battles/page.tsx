@@ -2,13 +2,21 @@
 
 import Header from "@/components/Header";
 import { createClient } from "@/lib/supabase/client";
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Card, CardContent } from "@/components/ui/card";
-import { Calendar, Users } from "lucide-react";
+import {
+  Calendar,
+  ChevronDown,
+  ChevronRight,
+  Mic2,
+  Search,
+} from "lucide-react";
 
-// Type based on our DB schema
+// ============================================================================
+// Types
+// ============================================================================
+
 type Battle = {
   id: string;
   title: string;
@@ -18,14 +26,149 @@ type Battle = {
   url: string;
 };
 
+type EventGroup = {
+  name: string;
+  date: string | null;
+  battles: Battle[];
+};
+
+// ============================================================================
+// Helpers
+// ============================================================================
+
 function formatDate(dateStr: string | null): string {
-  if (!dateStr) return "Unknown Date";
+  if (!dateStr) return "";
   return new Date(dateStr).toLocaleDateString("en-PH", {
     year: "numeric",
     month: "short",
     day: "numeric",
   });
 }
+
+function formatEventDate(dateStr: string | null): string {
+  if (!dateStr) return "";
+  return new Date(dateStr).toLocaleDateString("en-PH", {
+    year: "numeric",
+    month: "long",
+  });
+}
+
+/** Group battles by event_name, sorted by most recent event first. */
+function groupByEvent(battles: Battle[]): EventGroup[] {
+  const groups = new Map<string, EventGroup>();
+
+  for (const battle of battles) {
+    const key = battle.event_name || "Other Battles";
+    if (!groups.has(key)) {
+      groups.set(key, { name: key, date: battle.event_date, battles: [] });
+    }
+    groups.get(key)!.battles.push(battle);
+  }
+
+  // Sort groups: most recent event date first
+  return Array.from(groups.values()).sort((a, b) => {
+    if (!a.date && !b.date) return 0;
+    if (!a.date) return 1;
+    if (!b.date) return -1;
+    return new Date(b.date).getTime() - new Date(a.date).getTime();
+  });
+}
+
+// ============================================================================
+// Battle Card
+// ============================================================================
+
+function BattleCard({ battle }: { battle: Battle }) {
+  return (
+    <Link href={`/battle/${battle.id}`} className="group block">
+      <div className="overflow-hidden rounded-lg border border-border bg-card transition-all duration-200 hover:border-primary/50 hover:shadow-md">
+        {/* Thumbnail */}
+        <div className="relative aspect-video w-full overflow-hidden bg-muted">
+          <Image
+            src={`https://img.youtube.com/vi/${battle.youtube_id}/mqdefault.jpg`}
+            alt={battle.title}
+            fill
+            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+            className="object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+          />
+        </div>
+
+        {/* Info */}
+        <div className="p-3.5">
+          <h3 className="line-clamp-2 text-sm font-semibold leading-snug text-foreground transition-colors group-hover:text-primary">
+            {battle.title}
+          </h3>
+          <div className="mt-2 flex items-center gap-3 text-xs text-muted-foreground">
+            {battle.event_date && (
+              <span className="flex items-center gap-1">
+                <Calendar className="h-3 w-3 shrink-0" />
+                {formatDate(battle.event_date)}
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+    </Link>
+  );
+}
+
+// ============================================================================
+// Event Section
+// ============================================================================
+
+function EventSection({
+  group,
+  defaultOpen = true,
+}: {
+  group: EventGroup;
+  defaultOpen?: boolean;
+}) {
+  const [isOpen, setIsOpen] = useState(defaultOpen);
+
+  return (
+    <section className="space-y-4">
+      {/* Event Header */}
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="group/header flex w-full items-center gap-3 text-left"
+      >
+        <div className="flex items-center gap-2">
+          {isOpen ? (
+            <ChevronDown className="h-4 w-4 text-muted-foreground transition-colors group-hover/header:text-foreground" />
+          ) : (
+            <ChevronRight className="h-4 w-4 text-muted-foreground transition-colors group-hover/header:text-foreground" />
+          )}
+          <h2 className="text-lg font-bold tracking-tight text-foreground">
+            {group.name}
+          </h2>
+        </div>
+
+        <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
+          {group.battles.length}
+        </span>
+
+        {group.date && (
+          <span className="ml-auto text-xs text-muted-foreground">
+            {formatEventDate(group.date)}
+          </span>
+        )}
+      </button>
+
+      {/* Battle Grid */}
+      {isOpen && (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {group.battles.map((battle) => (
+            <BattleCard key={battle.id} battle={battle} />
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+// ============================================================================
+// Main Component
+// ============================================================================
 
 function BattlesDirectory() {
   const [battles, setBattles] = useState<Battle[]>([]);
@@ -45,11 +188,9 @@ function BattlesDirectory() {
         if (error) throw error;
         setBattles(data || []);
       } catch (err) {
-        if (err instanceof Error) {
-          setError(err.message || "Failed to fetch battles.");
-        } else {
-          setError("Failed to fetch battles.");
-        }
+        setError(
+          err instanceof Error ? err.message : "Failed to fetch battles.",
+        );
       } finally {
         setLoading(false);
       }
@@ -58,98 +199,103 @@ function BattlesDirectory() {
     fetchBattles();
   }, []);
 
-  const filteredBattles = battles.filter(
-    (b) =>
-      b.title.toLowerCase().includes(filter.toLowerCase()) ||
-      b.event_name?.toLowerCase().includes(filter.toLowerCase()),
+  // Filter battles by search query
+  const filteredBattles = useMemo(
+    () =>
+      battles.filter(
+        (b) =>
+          b.title.toLowerCase().includes(filter.toLowerCase()) ||
+          b.event_name?.toLowerCase().includes(filter.toLowerCase()),
+      ),
+    [battles, filter],
+  );
+
+  // Group filtered results by event
+  const eventGroups = useMemo(
+    () => groupByEvent(filteredBattles),
+    [filteredBattles],
   );
 
   return (
     <div className="min-h-screen bg-background text-foreground">
       <Header />
 
-      <main className="mx-auto max-w-6xl px-4 py-8">
-        <div className="mb-8 flex flex-col items-center justify-between gap-6 md:flex-row md:items-end">
-          <div className="space-y-2 text-center md:text-left">
-            <h1 className="text-4xl font-black uppercase tracking-tighter text-primary drop-shadow-[2px_2px_0px_var(--color-secondary)]">
-              All Battles
+      <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        {/* Page Header */}
+        <div className="mb-10 flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
+          <div className="space-y-1">
+            <h1 className="text-3xl font-bold tracking-tight text-foreground">
+              Battles
             </h1>
-            <p className="text-muted-foreground font-medium">
-              Explore the entire FlipTop verse directory.
+            <p className="text-sm text-muted-foreground">
+              {battles.length} battles across{" "}
+              {new Set(battles.map((b) => b.event_name).filter(Boolean)).size}{" "}
+              events
             </p>
           </div>
-          <div className="w-full max-w-xs">
+
+          {/* Search */}
+          <div className="relative w-full max-w-xs">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <input
               type="text"
-              placeholder="Filter by emcee or event..."
-              className="w-full rounded-lg border-2 border-border bg-card px-4 py-2 text-sm shadow-sm transition-all focus:border-primary outline-none focus:ring-2 focus:ring-primary/20"
+              placeholder="Search battles or events..."
+              className="w-full rounded-lg border border-border bg-card py-2 pl-9 pr-4 text-sm text-foreground placeholder:text-muted-foreground outline-none transition-colors focus:border-primary"
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
             />
           </div>
         </div>
 
+        {/* Error State */}
         {error && (
-          <div className="mb-8 rounded-lg border-2 border-red-500/50 bg-red-500/10 p-4 text-center text-red-600 dark:text-red-400">
+          <div className="mb-8 rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-center text-sm text-destructive">
             {error}
           </div>
         )}
 
+        {/* Loading State */}
         {loading ? (
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {[...Array(6)].map((_, i) => (
-              <Card key={i} className="animate-pulse overflow-hidden">
-                <div className="aspect-video w-full bg-muted" />
-                <CardContent className="p-4 space-y-3">
-                  <div className="h-6 w-3/4 rounded bg-muted" />
-                  <div className="h-4 w-1/2 rounded bg-muted" />
-                </CardContent>
-              </Card>
+          <div className="space-y-10">
+            {[...Array(2)].map((_, gi) => (
+              <div key={gi} className="space-y-4">
+                <div className="h-6 w-40 animate-pulse rounded bg-muted" />
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                  {[...Array(4)].map((_, i) => (
+                    <div
+                      key={i}
+                      className="animate-pulse overflow-hidden rounded-lg border border-border"
+                    >
+                      <div className="aspect-video w-full bg-muted" />
+                      <div className="space-y-2 p-3.5">
+                        <div className="h-4 w-3/4 rounded bg-muted" />
+                        <div className="h-3 w-1/2 rounded bg-muted" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
             ))}
           </div>
         ) : filteredBattles.length === 0 ? (
-          <div className="py-12 text-center">
-            <p className="text-lg text-muted-foreground">
-              No battles found matching &quot;{filter}&quot;.
+          /* Empty State */
+          <div className="flex flex-col items-center justify-center py-20">
+            <Mic2 className="mb-4 h-12 w-12 text-muted-foreground/40" />
+            <p className="text-sm text-muted-foreground">
+              {filter
+                ? `No battles found matching "${filter}"`
+                : "No battles have been transcribed yet."}
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {filteredBattles.map((battle) => (
-              <Link key={battle.id} href={`/battle/${battle.id}`}>
-                <Card className="group h-full overflow-hidden border-2 border-border bg-card transition-all hover:-translate-y-1 hover:border-primary hover:shadow-[4px_4px_0_var(--color-primary)]">
-                  <div className="relative aspect-video w-full overflow-hidden bg-muted">
-                    {/* Fallback image style while loading, using YouTube's maxresdefault (or hqdefault if max doesn't exist) */}
-                    <div className="relative h-full w-full">
-                      <Image
-                        src={`https://img.youtube.com/vi/${battle.youtube_id}/mqdefault.jpg`}
-                        alt={battle.title}
-                        fill
-                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                        className="object-cover transition-transform duration-500 group-hover:scale-105"
-                      />
-                    </div>
-                    <div className="absolute inset-0 bg-black/20 transition-colors group-hover:bg-transparent" />
-                  </div>
-                  <CardContent className="flex flex-col justify-between p-4 h-[120px]">
-                    <h2 className="line-clamp-2 text-lg font-bold leading-tight text-foreground transition-colors group-hover:text-primary">
-                      {battle.title}
-                    </h2>
-                    <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground font-medium">
-                      {battle.event_name && (
-                        <span className="flex items-center gap-1">
-                          <Users className="h-3 w-3" />
-                          {battle.event_name}
-                        </span>
-                      )}
-                      <span className="flex items-center gap-1">
-                        <Calendar className="h-3 w-3" />
-                        {formatDate(battle.event_date)}
-                      </span>
-                    </div>
-                  </CardContent>
-                </Card>
-              </Link>
+          /* Event Groups */
+          <div className="space-y-10">
+            {eventGroups.map((group, idx) => (
+              <EventSection
+                key={group.name}
+                group={group}
+                defaultOpen={idx < 3}
+              />
             ))}
           </div>
         )}
@@ -158,12 +304,16 @@ function BattlesDirectory() {
   );
 }
 
+// ============================================================================
+// Page Export
+// ============================================================================
+
 export default function BattlesPage() {
   return (
     <Suspense
       fallback={
         <div className="flex min-h-screen items-center justify-center bg-background">
-          <div className="animate-pulse text-muted-foreground">Loading...</div>
+          <div className="text-sm text-muted-foreground">Loading...</div>
         </div>
       }
     >
