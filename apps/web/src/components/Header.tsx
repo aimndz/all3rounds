@@ -9,11 +9,19 @@ export default function Header() {
         <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-4">
           <Link
             href="/"
-            className="text-xl font-black tracking-tighter uppercase text-primary drop-shadow-[1px_1px_0px_var(--color-secondary)] transition-transform hover:scale-105"
+            className="text-xl font-black tracking-tighter uppercase text-foreground transition-transform hover:scale-105"
           >
             talasalita
           </Link>
-          <AuthButton />
+          <div className="flex items-center gap-6">
+            <Link
+              href="/battles"
+              className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+            >
+              Explore
+            </Link>
+            <AuthButton />
+          </div>
         </div>
       </header>
       <Separator />
