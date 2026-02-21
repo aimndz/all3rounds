@@ -12,6 +12,7 @@ import {
   Mic2,
   Search,
 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 // ============================================================================
 // Types
@@ -128,9 +129,10 @@ function EventSection({
   return (
     <section className="space-y-4">
       {/* Event Header */}
-      <button
+      <Button
+        variant="ghost"
         onClick={() => setIsOpen(!isOpen)}
-        className="group/header flex w-full items-center gap-3 text-left"
+        className="group/header h-auto w-full items-center justify-start gap-3 p-0 px-2 py-1 text-left hover:bg-transparent"
       >
         <div className="flex items-center gap-2">
           {isOpen ? (
@@ -152,7 +154,7 @@ function EventSection({
             {formatEventDate(group.date)}
           </span>
         )}
-      </button>
+      </Button>
 
       {/* Battle Grid */}
       {isOpen && (

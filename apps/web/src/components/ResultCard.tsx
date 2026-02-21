@@ -5,7 +5,7 @@ import EditLineModal from "./EditLineModal";
 import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Play, Pencil, Mic2 } from "lucide-react";
 
 function formatTime(seconds: number): string {
@@ -127,31 +127,35 @@ export default function ResultCard({
 
             {/* Actions */}
             <div className="mt-3 flex items-center gap-2">
-              <button
+              <Button
+                variant="default"
+                size="sm"
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
                   window.open(ytLink, "_blank", "noopener,noreferrer");
                 }}
-                className="inline-flex items-center gap-1.5 rounded-md bg-foreground px-3 py-1.5 text-xs font-medium text-background transition-opacity hover:opacity-80"
+                className="h-7 gap-1.5 bg-foreground px-3 text-xs font-medium text-background transition-opacity hover:opacity-80"
               >
                 <Play className="h-3 w-3" />
                 Play at {formatTime(result.start_time)}
-              </button>
+              </Button>
 
               {isLoggedIn && (
-                <button
+                <Button
+                  variant="outline"
+                  size="sm"
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
                     setShowEdit(true);
                   }}
-                  className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                  className="h-7 gap-1.5 border-border px-3 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                   title="Edit this line"
                 >
                   <Pencil className="h-3 w-3" />
                   Edit
-                </button>
+                </Button>
               )}
             </div>
           </div>

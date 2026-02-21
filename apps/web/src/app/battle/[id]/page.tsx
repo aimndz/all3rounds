@@ -448,9 +448,10 @@ export default function BattlePage() {
             return (
               <div key={gi}>
                 {/* Round header */}
-                <button
+                <Button
+                  variant="ghost"
                   onClick={() => toggleRoundCollapse(gi)}
-                  className="flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-left transition-colors hover:bg-muted/50"
+                  className="h-auto w-full justify-start gap-2 rounded-lg px-3 py-2.5 text-left transition-colors hover:bg-muted/50"
                 >
                   {isRoundCollapsed ? (
                     <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
@@ -463,7 +464,7 @@ export default function BattlePage() {
                   <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
                     {lineCount}
                   </span>
-                </button>
+                </Button>
 
                 {/* Round children */}
                 {!isRoundCollapsed && (
@@ -483,9 +484,10 @@ export default function BattlePage() {
                         <div key={ti}>
                           {/* Speaker header */}
                           <div className="flex items-center gap-1.5">
-                            <button
+                            <Button
+                              variant="ghost"
                               onClick={() => toggleTurnCollapse(turnKey)}
-                              className={`flex items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-sm transition-colors hover:bg-muted/50 ${speakerColor.text}`}
+                              className={`h-auto justify-start gap-2 rounded-md px-2.5 py-1.5 text-left text-sm transition-colors hover:bg-muted/50 ${speakerColor.text}`}
                             >
                               {isTurnCollapsed ? (
                                 <ChevronRight className="h-3.5 w-3.5 shrink-0 opacity-50" />
@@ -501,7 +503,7 @@ export default function BattlePage() {
                               <span className="text-xs opacity-50">
                                 {turn.lines.length}
                               </span>
-                            </button>
+                            </Button>
 
                             {editMode && (
                               <Checkbox
@@ -544,13 +546,15 @@ export default function BattlePage() {
                                       >
                                         {line.content}
                                       </span>
-                                      <button
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
                                         onClick={() => setEditingLine(line)}
-                                        className="mt-0.5 shrink-0 rounded p-1 text-muted-foreground opacity-0 transition-opacity hover:bg-muted hover:text-foreground group-hover/line:opacity-100 focus:opacity-100"
+                                        className="h-6 w-6 shrink-0 text-muted-foreground opacity-0 transition-opacity hover:bg-muted hover:text-foreground group-hover/line:opacity-100 focus:opacity-100"
                                         title="Edit this line"
                                       >
                                         <Pencil className="h-3 w-3" />
-                                      </button>
+                                      </Button>
                                     </div>
                                   );
                                 }
