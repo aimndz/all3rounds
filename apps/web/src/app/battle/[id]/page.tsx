@@ -698,26 +698,6 @@ export default function BattlePage() {
                     <ExternalLink className="h-3 w-3" />
                     Original
                   </a>
-                  {canEdit && (
-                    <Button
-                      variant={editMode ? "default" : "outline"}
-                      size="sm"
-                      onClick={handleToggleEditMode}
-                      className="h-8 text-xs underline-none"
-                    >
-                      {editMode ? (
-                        <>
-                          <X className="mr-1 h-3 w-3" />
-                          Exit Edit
-                        </>
-                      ) : (
-                        <>
-                          <Pencil className="mr-1 h-3 w-3" />
-                          Edit
-                        </>
-                      )}
-                    </Button>
-                  )}
                 </div>
               </div>
             </div>
@@ -725,6 +705,34 @@ export default function BattlePage() {
 
           {/* ── Right Column: Transcript (Scrollable) ── */}
           <div className="flex flex-1 flex-col overflow-hidden pb-4 lg:col-span-5 lg:h-full lg:pb-6 xl:col-span-4">
+            <div className="mb-4 flex items-center justify-between px-1">
+              <div className="flex items-center gap-2">
+                <div className="h-1.5 w-1.5 rounded-full bg-primary" />
+                <h2 className="text-[11px] font-black uppercase tracking-[0.2em] text-foreground/70">
+                  Transcript
+                </h2>
+              </div>
+              {canEdit && (
+                <Button
+                  variant={editMode ? "default" : "outline"}
+                  size="sm"
+                  onClick={handleToggleEditMode}
+                  className="h-7 px-3 text-[10px] font-bold uppercase tracking-wider underline-none"
+                >
+                  {editMode ? (
+                    <>
+                      <X className="mr-1.5 h-3 w-3" />
+                      Exit Edit
+                    </>
+                  ) : (
+                    <>
+                      <Pencil className="mr-1.5 h-3 w-3" />
+                      Edit
+                    </>
+                  )}
+                </Button>
+              )}
+            </div>
             <div
               ref={transcriptContainerRef}
               className="flex-1 overflow-y-auto pr-1 [scrollbar-width:thin] [scrollbar-color:var(--muted)_transparent] [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-muted"

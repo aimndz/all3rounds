@@ -16,8 +16,9 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { Trash2, X } from "lucide-react";
+import { Trash2, X, Search, User } from "lucide-react";
 import type { Emcee } from "@/lib/types";
+import EmceeSearchModal from "./EmceeSearchModal";
 
 export default function BatchActionBar({
   selectedCount,
@@ -41,6 +42,7 @@ export default function BatchActionBar({
 }) {
   const [emcees, setEmcees] = useState<Emcee[]>(externalEmcees || []);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isEmceeModalOpen, setIsEmceeModalOpen] = useState(false);
 
   // Sync local state when externalEmcees prop changes
   useEffect(() => {
@@ -88,22 +90,25 @@ export default function BatchActionBar({
             </Select>
 
             {/* Set Emcee */}
-            <Select
+            <button
               disabled={saving}
-              onValueChange={(val) => onAction("set_emcee", val)}
+              onClick={() => setIsEmceeModalOpen(true)}
+              className="flex cursor-pointer h-9 w-[150px] items-center justify-between rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm ring-offset-background hover:bg-muted/50 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              <SelectTrigger className="h-9 w-[150px]">
-                <SelectValue placeholder="Set Emcee" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">Clear Emcee</SelectItem>
-                {emcees.map((e) => (
-                  <SelectItem key={e.id} value={e.id}>
-                    {e.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              <div className="flex items-center gap-2 truncate">
+                <User className="h-3.5 w-3.5 text-muted-foreground" />
+                <span className="truncate">Set Emcee</span>
+              </div>
+              <Search className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+            </button>
+
+            <EmceeSearchModal
+              isOpen={isEmceeModalOpen}
+              onClose={() => setIsEmceeModalOpen(false)}
+              emcees={emcees}
+              selectedId=""
+              onSelect={(val) => onAction("set_emcee", val)}
+            />
 
             {/* Delete */}
             {canDelete && (
