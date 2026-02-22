@@ -6,6 +6,8 @@ import {
   useCallback,
   useRef,
   useMemo,
+  useTransition,
+  memo,
   Fragment,
 } from "react";
 import { useParams, useSearchParams } from "next/navigation";
@@ -75,6 +77,16 @@ type BattleData = {
     emcee: { id: string; name: string } | null;
   }[];
   lines: BattleLine[];
+};
+
+type Turn = {
+  speaker: string;
+  lines: BattleLine[];
+};
+
+type RoundGroup = {
+  round: number | null;
+  turns: Turn[];
 };
 
 // ============================================================================
@@ -151,6 +163,174 @@ function getSpeakerColor(speaker: string, index: number) {
   return SPEAKER_COLORS[speaker];
 }
 
+// ────────────────────────────────────────────────────────────────────────────
+// Sub-components for performance
+// ────────────────────────────────────────────────────────────────────────────
+
+const LineItem = memo(
+  ({
+    line,
+    editMode,
+    isSelected,
+    isActive,
+    isLastClicked,
+    inlineEditingId,
+    inlineContent,
+    onToggleSelect,
+    onStartInlineEdit,
+    onInlineSave,
+    onSetInlineEditingId,
+    onSetInlineContent,
+    onSeek,
+    onEditClick,
+    onAddClick,
+    showBeforeInsert,
+  }: {
+    line: BattleLine;
+    editMode: boolean;
+    isSelected: boolean;
+    isActive: boolean;
+    isLastClicked: boolean;
+    inlineEditingId: number | null;
+    inlineContent: string;
+    onToggleSelect: (id: number) => void;
+    onStartInlineEdit: (line: BattleLine) => void;
+    onInlineSave: (id: number, moveToNext?: boolean) => void;
+    onSetInlineEditingId: (id: number | null) => void;
+    onSetInlineContent: (val: string) => void;
+    onSeek: (time: number) => void;
+    onEditClick: (line: BattleLine) => void;
+    onAddClick: (lineId: number, pos: "before" | "after") => void;
+    showBeforeInsert?: boolean;
+  }) => {
+    return (
+      <Fragment>
+        {showBeforeInsert && editMode && (
+          <div className="relative h-4 w-full group/insert flex items-center justify-center -mt-2 mb-2 z-20">
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <div className="w-full border-t border-dashed border-primary/20 lg:border-primary/0 lg:group-hover/insert:border-primary/30 transition-colors" />
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => onAddClick(line.id, "before")}
+              className="h-5 w-5 rounded-full bg-background border border-primary/20 text-primary opacity-100 lg:opacity-0 lg:group-hover/insert:opacity-100 transition-all hover:bg-primary hover:text-primary-foreground scale-100 lg:scale-75 lg:group-hover/insert:scale-100 shadow-md hover:shadow-primary/20 cursor-pointer z-30"
+            >
+              <Plus className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        )}
+
+        {editMode ? (
+          <div
+            data-line-id={line.id}
+            className={cn(
+              "group/line flex items-start gap-2 rounded-md px-2 py-0.5 transition-all duration-200",
+              isSelected || isActive ? "bg-primary/10" : "hover:bg-muted/40",
+              (isLastClicked || isActive) &&
+                "border-l-2 border-primary rounded-l-none",
+            )}
+          >
+            {isActive && (
+              <div className="absolute -left-1.5 top-2.5 h-1.5 w-1.5 rounded-full bg-primary animate-pulse hidden lg:block" />
+            )}
+            <Checkbox
+              checked={isSelected}
+              onCheckedChange={() => onToggleSelect(line.id)}
+              className="mt-1 h-3.5 w-3.5 shrink-0"
+            />
+            {inlineEditingId === line.id ? (
+              <Textarea
+                autoFocus
+                value={inlineContent}
+                onChange={(e) => onSetInlineContent(e.target.value)}
+                onFocus={(e) => {
+                  const length = e.target.value.length;
+                  e.target.setSelectionRange(length, length);
+                }}
+                onBlur={() => onInlineSave(line.id)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    onInlineSave(line.id, true);
+                  } else if (e.key === "Escape") {
+                    onSetInlineEditingId(null);
+                  }
+                }}
+                className="resize-none min-h-0 flex-1 border-none bg-transparent p-0 text-base md:text-[13px] leading-relaxed shadow-none focus-visible:ring-0 focus-visible:ring-offset-0"
+              />
+            ) : (
+              <span
+                className="flex-1 cursor-text text-[13px] leading-relaxed text-foreground transition-colors hover:text-primary/80"
+                onClick={() => onStartInlineEdit(line)}
+              >
+                {line.content}
+              </span>
+            )}
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => onEditClick(line)}
+              className="h-5 w-5 shrink-0 text-muted-foreground opacity-100 lg:opacity-0 lg:transition-opacity hover:bg-muted hover:text-foreground lg:group-hover/line:opacity-100 focus:opacity-100"
+              title="Edit this line"
+            >
+              <Pencil className="h-2.5 w-2.5" />
+            </Button>
+          </div>
+        ) : (
+          <button
+            data-line-id={line.id}
+            onClick={() => onSeek(line.start_time)}
+            className={cn(
+              "group/line flex w-full items-baseline gap-3 rounded-md px-1.5 py-0.5 text-left text-[13px] transition-all duration-300 ease-in-out",
+              isActive
+                ? "bg-primary/10 border-l-2 border-primary rounded-l-none font-semibold"
+                : "hover:bg-muted/30 text-foreground/80 border-l-2 border-transparent",
+            )}
+          >
+            <div className="flex min-w-[32px] items-center gap-1 shrink-0">
+              {isActive ? (
+                <Play className="h-2 w-2 fill-primary text-primary animate-pulse" />
+              ) : (
+                <span className="font-mono text-[9px] tabular-nums text-muted-foreground/30 transition-colors group-hover/line:text-muted-foreground">
+                  {formatTime(line.start_time)}
+                </span>
+              )}
+            </div>
+            <span
+              className={cn(
+                "leading-relaxed transition-colors",
+                isActive
+                  ? "text-foreground"
+                  : "group-hover/line:text-foreground",
+              )}
+            >
+              {line.content}
+            </span>
+          </button>
+        )}
+
+        {editMode && (
+          <div className="relative h-4 w-full group/insert flex items-center justify-center -my-0.5 z-10">
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <div className="w-full border-t border-dashed border-primary/20 lg:border-primary/0 lg:group-hover/insert:border-primary/30 transition-colors" />
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => onAddClick(line.id, "after")}
+              className="h-5 w-5 rounded-full bg-background border border-primary/20 text-primary opacity-100 lg:opacity-0 lg:group-hover/insert:opacity-100 transition-all hover:bg-primary hover:text-primary-foreground scale-100 lg:scale-75 lg:group-hover/insert:scale-100 shadow-md hover:shadow-primary/20 cursor-pointer z-30"
+            >
+              <Plus className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        )}
+      </Fragment>
+    );
+  },
+);
+LineItem.displayName = "LineItem";
+
 // ============================================================================
 // Main Component
 // ============================================================================
@@ -169,6 +349,7 @@ export default function BattlePage() {
   // -- Player & Scroll State --
   const [player, setPlayer] = useState<any>(null);
   const [activeTime, setActiveTime] = useState<number>(0);
+  const [isPending, startTransition] = useTransition();
   const playerRef = useRef<HTMLDivElement>(null);
   const transcriptContainerRef = useRef<HTMLDivElement>(null);
   const scrollAnimationFrameRef = useRef<number | null>(null);
@@ -405,19 +586,22 @@ export default function BattlePage() {
   // Event Handlers
   // ────────────────────────────────────────────────────────────────────────────
 
-  const handleSeek = (seconds: number) => {
-    if (player && typeof player.seekTo === "function") {
-      player.seekTo(seconds, true);
-      player.playVideo();
-      playerRef.current?.scrollIntoView({
-        behavior: "smooth",
-        block: "center",
-      });
-    } else {
-      const url = `https://www.youtube.com/watch?v=${data?.battle.youtube_id}&t=${Math.floor(seconds)}s`;
-      window.open(url, "_blank");
-    }
-  };
+  const handleSeek = useCallback(
+    (seconds: number) => {
+      if (player && typeof player.seekTo === "function") {
+        player.seekTo(seconds, true);
+        player.playVideo();
+        playerRef.current?.scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+        });
+      } else {
+        const url = `https://www.youtube.com/watch?v=${data?.battle.youtube_id}&t=${Math.floor(seconds)}s`;
+        window.open(url, "_blank");
+      }
+    },
+    [player, data?.battle.youtube_id],
+  );
 
   const handleStatusChange = async (newStatus: BattleStatus) => {
     if (!canEdit) return;
@@ -447,66 +631,100 @@ export default function BattlePage() {
     }
   };
 
-  const toggleRoundCollapse = (roundIndex: number) => {
+  const toggleRoundCollapse = useCallback((roundIndex: number) => {
     setCollapsedRounds((prev) => {
       const next = new Set(prev);
       if (next.has(roundIndex)) next.delete(roundIndex);
       else next.add(roundIndex);
       return next;
     });
-  };
+  }, []);
 
-  const toggleTurnCollapse = (turnKey: string) => {
+  const toggleTurnCollapse = useCallback((turnKey: string) => {
     setCollapsedTurns((prev) => {
       const next = new Set(prev);
       if (next.has(turnKey)) next.delete(turnKey);
       else next.add(turnKey);
       return next;
     });
-  };
+  }, []);
 
-  const toggleSelect = (id: number) => {
+  const toggleSelect = useCallback((id: number) => {
     setSelectedIds((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
       return next;
     });
-  };
+  }, []);
 
-  const toggleSelectTurn = (turnLines: BattleLine[]) => {
-    const turnIds = turnLines.map((l) => l.id);
-    const allSelected = turnIds.every((id) => selectedIds.has(id));
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      if (allSelected) {
-        turnIds.forEach((id) => next.delete(id));
-      } else {
-        turnIds.forEach((id) => next.add(id));
-      }
-      return next;
-    });
-  };
+  const toggleSelectTurn = useCallback(
+    (turnLines: BattleLine[]) => {
+      const turnIds = turnLines.map((l) => l.id);
+      const allSelected = turnIds.every((id) => selectedIds.has(id));
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        if (allSelected) {
+          turnIds.forEach((id) => next.delete(id));
+        } else {
+          turnIds.forEach((id) => next.add(id));
+        }
+        return next;
+      });
+    },
+    [selectedIds],
+  );
 
   const handleToggleEditMode = () => {
     if (!canEdit) {
       window.location.href = "/login";
       return;
     }
-    if (editMode) {
-      setSelectedIds(new Set());
-      setEditMode(false);
-    } else {
-      setEditMode(true);
-      // Prioritize the currently playing line, fallback to last clicked
-      const targetId = activeLineId || lastClickedLineId;
-      if (targetId) {
-        setSelectedIds(new Set([targetId]));
-        // Update lastClickedLineId so the effect scrolls to it
-        setLastClickedLineId(targetId);
+    startTransition(() => {
+      if (editMode) {
+        setSelectedIds(new Set());
+        setEditMode(false);
+      } else {
+        setEditMode(true);
+        // Prioritize the currently playing line, fallback to last clicked
+        const targetId = activeLineId || lastClickedLineId;
+        if (targetId) {
+          setSelectedIds(new Set([targetId]));
+          // Update lastClickedLineId so the effect scrolls to it
+          setLastClickedLineId(targetId);
+        }
       }
-    }
+    });
   };
+
+  const handleAddLineAt = useCallback(
+    (lineId: number, position: "before" | "after") => {
+      if (!data) return;
+      const idx = data.lines.findIndex((l) => l.id === lineId);
+      if (idx === -1) return;
+
+      const line = data.lines[idx];
+      if (position === "before") {
+        setAddingLineData({
+          start_time: Math.max(0, line.start_time - 2),
+          end_time: line.start_time,
+          round_number: line.round_number,
+          emcee_id: line.emcee?.id,
+        });
+      } else {
+        const nextLine = data.lines[idx + 1];
+        setAddingLineData({
+          start_time: line.end_time || line.start_time + 1,
+          end_time:
+            nextLine?.start_time || (line.end_time || line.start_time + 1) + 2,
+          round_number: line.round_number,
+          emcee_id: line.emcee?.id,
+        });
+      }
+      setAddingLine(true);
+    },
+    [data],
+  );
   // ────────────────────────────────────────────────────────────────────────────
   // Battle Action Handlers
   // ────────────────────────────────────────────────────────────────────────────
@@ -539,63 +757,66 @@ export default function BattlePage() {
     }
   };
 
-  const startInlineEdit = (line: BattleLine) => {
+  const startInlineEdit = useCallback((line: BattleLine) => {
     setInlineEditingId(line.id);
     setInlineContent(line.content);
     setLastClickedLineId(line.id);
-  };
+  }, []);
 
   /**
    * Saves content for a single line (Inline Mode).
    * Updates local state optimistically for instant feedback.
    */
-  const handleInlineSave = async (id: number, moveToNext = false) => {
-    if (!canEdit) return;
-    const originalLine = data?.lines.find((l) => l.id === id);
-    if (!originalLine) {
-      setInlineEditingId(null);
-      return;
-    }
+  const handleInlineSave = useCallback(
+    async (id: number, moveToNext = false) => {
+      if (!canEdit) return;
+      const originalLine = data?.lines.find((l) => l.id === id);
+      if (!originalLine) {
+        setInlineEditingId(null);
+        return;
+      }
 
-    if (inlineContent === originalLine.content) {
-      setInlineEditingId(null);
-      if (moveToNext) focusNextLine(id);
-      return;
-    }
+      if (inlineContent === originalLine.content) {
+        setInlineEditingId(null);
+        if (moveToNext) focusNextLine(id);
+        return;
+      }
 
-    // -- Optimistic Update --
-    setData((prev) => {
-      if (!prev) return null;
-      return {
-        ...prev,
-        lines: prev.lines.map((l) =>
-          l.id === id ? { ...l, content: inlineContent } : l,
-        ),
-      };
-    });
-
-    try {
-      const res = await fetch("/api/lines", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          lineId: id,
-          field: "content",
-          value: inlineContent,
-        }),
+      // -- Optimistic Update --
+      setData((prev) => {
+        if (!prev) return null;
+        return {
+          ...prev,
+          lines: prev.lines.map((l) =>
+            l.id === id ? { ...l, content: inlineContent } : l,
+          ),
+        };
       });
-      if (!res.ok) throw new Error("Failed to save");
 
-      if (moveToNext) focusNextLine(id);
-    } catch (err) {
-      console.error("Inline save error:", err);
-      fetchBattle(); // Sync back on error
-    } finally {
-      setInlineEditingId(null);
-    }
-  };
+      try {
+        const res = await fetch("/api/lines", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            lineId: id,
+            field: "content",
+            value: inlineContent,
+          }),
+        });
+        if (!res.ok) throw new Error("Failed to save");
 
-  const focusNextLine = (currentId: number) => {
+        if (moveToNext) focusNextLine(id);
+      } catch (err) {
+        console.error("Inline save error:", err);
+        fetchBattle(); // Sync back on error
+      } finally {
+        setInlineEditingId(null);
+      }
+    },
+    [canEdit, data?.lines, inlineContent, focusNextLine, fetchBattle],
+  );
+
+  function focusNextLine(currentId: number) {
     const currentIndex = data?.lines.findIndex((l) => l.id === currentId);
     if (
       currentIndex !== undefined &&
@@ -605,7 +826,52 @@ export default function BattlePage() {
       const nextLine = data.lines[currentIndex + 1];
       setTimeout(() => startInlineEdit(nextLine), 10);
     }
+  }
+
+  const { battle, lines } = data || {
+    battle: {} as BattleData["battle"],
+    lines: [] as BattleLine[],
   };
+
+  // ────────────────────────────────────────────────────────────────────────────
+  // Render Logic (Memoized)
+  // ────────────────────────────────────────────────────────────────────────────
+
+  // Build speaker set and group lines by round and speaker turns
+  const { roundGroups, speakerSet } = useMemo(() => {
+    if (!lines || lines.length === 0) {
+      return { roundGroups: [], speakerSet: [] };
+    }
+
+    const speakers = [
+      ...new Set(
+        lines.map((l) => l.emcee?.name || l.speaker_label || "Unknown"),
+      ),
+    ];
+    speakers.forEach((s, i) => getSpeakerColor(s, i));
+
+    const groups: RoundGroup[] = [];
+    let currentRoundId: number | null = undefined as unknown as number | null;
+    let currentTurnGrp: Turn | null = null;
+
+    lines.forEach((line) => {
+      const round = line.round_number;
+      const speaker = line.emcee?.name || line.speaker_label || "Unknown";
+
+      if (round !== currentRoundId) {
+        currentRoundId = round;
+        currentTurnGrp = { speaker, lines: [line] };
+        groups.push({ round, turns: [currentTurnGrp] });
+      } else if (currentTurnGrp && speaker === currentTurnGrp.speaker) {
+        currentTurnGrp.lines.push(line);
+      } else {
+        currentTurnGrp = { speaker, lines: [line] };
+        groups[groups.length - 1].turns.push(currentTurnGrp);
+      }
+    });
+
+    return { roundGroups: groups, speakerSet: speakers };
+  }, [lines]);
 
   // ── Loading ──
   if (loading) {
@@ -646,42 +912,6 @@ export default function BattlePage() {
       </div>
     );
   }
-
-  const { battle, lines } = data;
-
-  // ────────────────────────────────────────────────────────────────────────────
-  // Render Logic
-  // ────────────────────────────────────────────────────────────────────────────
-
-  // Build speaker color map
-  const speakerSet = [
-    ...new Set(lines.map((l) => l.emcee?.name || l.speaker_label || "Unknown")),
-  ];
-  speakerSet.forEach((s, i) => getSpeakerColor(s, i));
-
-  // Group lines by round and speaker turns
-  type Turn = { speaker: string; lines: BattleLine[] };
-  type RoundGroup = { round: number | null; turns: Turn[] };
-  const roundGroups: RoundGroup[] = [];
-
-  let currentRound: number | null = undefined as unknown as number | null;
-  let currentTurn: Turn | null = null;
-
-  lines.forEach((line) => {
-    const round = line.round_number;
-    const speaker = line.emcee?.name || line.speaker_label || "Unknown";
-
-    if (round !== currentRound) {
-      currentRound = round;
-      currentTurn = { speaker, lines: [line] };
-      roundGroups.push({ round, turns: [currentTurn] });
-    } else if (currentTurn && speaker === currentTurn.speaker) {
-      currentTurn.lines.push(line);
-    } else {
-      currentTurn = { speaker, lines: [line] };
-      roundGroups[roundGroups.length - 1].turns.push(currentTurn);
-    }
-  });
 
   // ────────────────────────────────────────────────────────────────────────────
   // Render Layout
@@ -847,10 +1077,16 @@ export default function BattlePage() {
                   <Button
                     variant={editMode ? "default" : "outline"}
                     size="sm"
+                    disabled={isPending}
                     onClick={handleToggleEditMode}
                     className="h-7 px-3 text-[10px] font-bold uppercase tracking-wider underline-none cursor-pointer"
                   >
-                    {editMode ? (
+                    {isPending ? (
+                      <div className="flex items-center gap-2">
+                        <div className="h-3 w-3 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
+                        <span>Switching...</span>
+                      </div>
+                    ) : editMode ? (
                       <>
                         <X className="mr-1.5 h-3 w-3" />
                         Exit Edit
@@ -897,13 +1133,13 @@ export default function BattlePage() {
               className="flex-1 overflow-y-auto pr-1 [scrollbar-width:thin] [scrollbar-color:var(--muted)_transparent] [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-muted"
             >
               <div className="space-y-1">
-                {roundGroups.map((group, gi) => {
+                {roundGroups.map((group: RoundGroup, gi: number) => {
                   const isRoundCollapsed = collapsedRounds.has(gi);
                   const roundLabel = group.round
                     ? `Round ${group.round}`
                     : "Unassigned";
                   const lineCount = group.turns.reduce(
-                    (sum, t) => sum + t.lines.length,
+                    (sum: number, t: Turn) => sum + t.lines.length,
                     0,
                   );
 
@@ -933,7 +1169,7 @@ export default function BattlePage() {
                       {/* Round children */}
                       {!isRoundCollapsed && (
                         <div className="ml-2 border-l-2 border-border/40 pl-3 space-y-0.5">
-                          {group.turns.map((turn, ti) => {
+                          {group.turns.map((turn: Turn, ti: number) => {
                             const turnKey = `${gi}-${ti}`;
                             const isTurnCollapsed = collapsedTurns.has(turnKey);
                             const speakerColor = getSpeakerColor(
@@ -942,7 +1178,9 @@ export default function BattlePage() {
                             );
                             const turnAllSelected =
                               editMode &&
-                              turn.lines.every((l) => selectedIds.has(l.id));
+                              turn.lines.every((l: BattleLine) =>
+                                selectedIds.has(l.id),
+                              );
 
                             return (
                               <div key={ti}>
@@ -980,230 +1218,35 @@ export default function BattlePage() {
                                 {/* Lines */}
                                 {!isTurnCollapsed && (
                                   <div className="ml-2 border-l border-border/20 pl-3 py-0.5">
-                                    {turn.lines.map((line, li) => {
-                                      const isSelected = selectedIds.has(
-                                        line.id,
-                                      );
-                                      const isPlaying =
-                                        activeTime >= line.start_time &&
-                                        activeTime <
-                                          (line.end_time ||
-                                            line.start_time + 5);
-
-                                      return (
-                                        <Fragment key={line.id}>
-                                          {/* First line of the very first turn needs an insert button above it if it's the start of the transcript */}
-                                          {gi === 0 &&
-                                            ti === 0 &&
-                                            li === 0 &&
-                                            editMode && (
-                                              <div className="relative h-4 w-full group/insert flex items-center justify-center -mt-2 mb-2 z-20">
-                                                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                                                  <div className="w-full border-t border-dashed border-primary/20 lg:border-primary/0 lg:group-hover/insert:border-primary/30 transition-colors" />
-                                                </div>
-                                                <Button
-                                                  variant="ghost"
-                                                  size="icon"
-                                                  onClick={() => {
-                                                    setAddingLineData({
-                                                      start_time: Math.max(
-                                                        0,
-                                                        line.start_time - 2,
-                                                      ),
-                                                      end_time: line.start_time,
-                                                      round_number:
-                                                        line.round_number,
-                                                      emcee_id: line.emcee?.id,
-                                                    });
-                                                    setAddingLine(true);
-                                                  }}
-                                                  className="h-5 w-5 rounded-full bg-background border border-primary/20 text-primary opacity-100 lg:opacity-0 lg:group-hover/insert:opacity-100 transition-all hover:bg-primary hover:text-primary-foreground scale-100 lg:scale-75 lg:group-hover/insert:scale-100 shadow-md hover:shadow-primary/20 cursor-pointer z-30"
-                                                >
-                                                  <Plus className="h-3.5 w-3.5" />
-                                                </Button>
-                                              </div>
-                                            )}
-
-                                          {editMode ? (
-                                            <div
-                                              data-line-id={line.id}
-                                              className={cn(
-                                                "group/line flex items-start gap-2 rounded-md px-2 py-0.5 transition-all duration-200",
-                                                isSelected || isPlaying
-                                                  ? "bg-primary/10"
-                                                  : "hover:bg-muted/40",
-                                                (lastClickedLineId ===
-                                                  line.id ||
-                                                  isPlaying) &&
-                                                  "border-l-2 border-primary rounded-l-none",
-                                              )}
-                                            >
-                                              {/* Playback indicator in edit mode */}
-                                              {isPlaying && (
-                                                <div className="absolute -left-1.5 top-2.5 h-1.5 w-1.5 rounded-full bg-primary animate-pulse hidden lg:block" />
-                                              )}
-                                              <Checkbox
-                                                checked={isSelected}
-                                                onCheckedChange={() =>
-                                                  toggleSelect(line.id)
-                                                }
-                                                className="mt-1 h-3.5 w-3.5 shrink-0"
-                                              />
-                                              {inlineEditingId === line.id ? (
-                                                <Textarea
-                                                  autoFocus
-                                                  value={inlineContent}
-                                                  onChange={(e) =>
-                                                    setInlineContent(
-                                                      e.target.value,
-                                                    )
-                                                  }
-                                                  onFocus={(e) => {
-                                                    const length =
-                                                      e.target.value.length;
-                                                    e.target.setSelectionRange(
-                                                      length,
-                                                      length,
-                                                    );
-                                                  }}
-                                                  onBlur={() =>
-                                                    handleInlineSave(line.id)
-                                                  }
-                                                  onKeyDown={(e) => {
-                                                    if (
-                                                      e.key === "Enter" &&
-                                                      !e.shiftKey
-                                                    ) {
-                                                      e.preventDefault();
-                                                      handleInlineSave(
-                                                        line.id,
-                                                        true,
-                                                      );
-                                                    } else if (
-                                                      e.key === "Escape"
-                                                    ) {
-                                                      setInlineEditingId(null);
-                                                    }
-                                                  }}
-                                                  className="resize-none min-h-0 flex-1 border-none bg-transparent p-0 text-base md:text-[13px] leading-relaxed shadow-none focus-visible:ring-0 focus-visible:ring-offset-0"
-                                                />
-                                              ) : (
-                                                <span
-                                                  className="flex-1 cursor-text text-[13px] leading-relaxed text-foreground transition-colors hover:text-primary/80"
-                                                  onClick={() =>
-                                                    startInlineEdit(line)
-                                                  }
-                                                >
-                                                  {line.content}
-                                                </span>
-                                              )}
-                                              <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                onClick={() =>
-                                                  setEditingLine(line)
-                                                }
-                                                className="h-5 w-5 shrink-0 text-muted-foreground opacity-100 lg:opacity-0 lg:transition-opacity hover:bg-muted hover:text-foreground lg:group-hover/line:opacity-100 focus:opacity-100"
-                                                title="Edit this line"
-                                              >
-                                                <Pencil className="h-2.5 w-2.5" />
-                                              </Button>
-                                            </div>
-                                          ) : (
-                                            <button
-                                              data-line-id={line.id}
-                                              onClick={() => {
-                                                handleSeek(line.start_time);
-                                                setLastClickedLineId(line.id);
-                                              }}
-                                              className={cn(
-                                                "group/line flex w-full items-baseline gap-3 rounded-md px-1.5 py-0.5 text-left text-[13px] transition-all duration-300 ease-in-out",
-                                                isPlaying
-                                                  ? "bg-primary/10 border-l-2 border-primary rounded-l-none font-semibold"
-                                                  : "hover:bg-muted/30 text-foreground/80 border-l-2 border-transparent",
-                                              )}
-                                            >
-                                              <div className="flex min-w-[32px] items-center gap-1 shrink-0">
-                                                {isPlaying ? (
-                                                  <Play className="h-2 w-2 fill-primary text-primary animate-pulse" />
-                                                ) : (
-                                                  <span className="font-mono text-[9px] tabular-nums text-muted-foreground/30 transition-colors group-hover/line:text-muted-foreground">
-                                                    {formatTime(
-                                                      line.start_time,
-                                                    )}
-                                                  </span>
-                                                )}
-                                              </div>
-                                              <span
-                                                className={cn(
-                                                  "leading-relaxed transition-colors",
-                                                  isPlaying
-                                                    ? "text-foreground"
-                                                    : "group-hover/line:text-foreground",
-                                                )}
-                                              >
-                                                {line.content}
-                                              </span>
-                                            </button>
-                                          )}
-
-                                          {/* Insert Line button - after every line in edit mode */}
-                                          {editMode && (
-                                            <div className="relative h-4 w-full group/insert flex items-center justify-center -my-0.5 z-10">
-                                              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                                                <div className="w-full border-t border-dashed border-primary/20 lg:border-primary/0 lg:group-hover/insert:border-primary/30 transition-colors" />
-                                              </div>
-                                              <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                onClick={() => {
-                                                  const turnsInRound =
-                                                    group.turns;
-                                                  const turnsTotal =
-                                                    roundGroups.flatMap(
-                                                      (rg) => rg.turns,
-                                                    );
-                                                  const lineIdxInTurn =
-                                                    turn.lines.indexOf(line);
-                                                  const isLastInTurn =
-                                                    lineIdxInTurn ===
-                                                    turn.lines.length - 1;
-
-                                                  // Find the next line globally if possible
-                                                  const allLines = lines;
-                                                  const currentGlobalIdx =
-                                                    allLines.findIndex(
-                                                      (l) => l.id === line.id,
-                                                    );
-                                                  const nextLine =
-                                                    allLines[
-                                                      currentGlobalIdx + 1
-                                                    ];
-
-                                                  setAddingLineData({
-                                                    start_time:
-                                                      line.end_time ||
-                                                      line.start_time + 1,
-                                                    end_time:
-                                                      nextLine?.start_time ||
-                                                      (line.end_time ||
-                                                        line.start_time + 1) +
-                                                        2,
-                                                    round_number:
-                                                      line.round_number,
-                                                    emcee_id: line.emcee?.id,
-                                                  });
-                                                  setAddingLine(true);
-                                                }}
-                                                className="h-5 w-5 rounded-full bg-background border border-primary/20 text-primary opacity-100 lg:opacity-0 lg:group-hover/insert:opacity-100 transition-all hover:bg-primary hover:text-primary-foreground scale-100 lg:scale-75 lg:group-hover/insert:scale-100 shadow-md hover:shadow-primary/20 cursor-pointer z-30"
-                                              >
-                                                <Plus className="h-3.5 w-3.5" />
-                                              </Button>
-                                            </div>
-                                          )}
-                                        </Fragment>
-                                      );
-                                    })}
+                                    {turn.lines.map(
+                                      (line: BattleLine, li: number) => (
+                                        <LineItem
+                                          key={line.id}
+                                          line={line}
+                                          editMode={editMode}
+                                          isSelected={selectedIds.has(line.id)}
+                                          isActive={activeLineId === line.id}
+                                          isLastClicked={
+                                            lastClickedLineId === line.id
+                                          }
+                                          inlineEditingId={inlineEditingId}
+                                          inlineContent={inlineContent}
+                                          onToggleSelect={toggleSelect}
+                                          onStartInlineEdit={startInlineEdit}
+                                          onInlineSave={handleInlineSave}
+                                          onSetInlineEditingId={
+                                            setInlineEditingId
+                                          }
+                                          onSetInlineContent={setInlineContent}
+                                          onSeek={handleSeek}
+                                          onEditClick={setEditingLine}
+                                          onAddClick={handleAddLineAt}
+                                          showBeforeInsert={
+                                            gi === 0 && ti === 0 && li === 0
+                                          }
+                                        />
+                                      ),
+                                    )}
                                   </div>
                                 )}
                               </div>
