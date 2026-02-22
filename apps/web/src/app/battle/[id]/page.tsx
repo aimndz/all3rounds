@@ -189,6 +189,9 @@ export default function BattlePage() {
   // -- Edit Mode State --
   const [editMode, setEditMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [lastClickedLineId, setLastClickedLineId] = useState<number | null>(
+    null,
+  );
   const [editingLine, setEditingLine] = useState<BattleLine | null>(null);
   const [addingLine, setAddingLine] = useState(false);
   const [addingLineData, setAddingLineData] = useState<{
@@ -382,6 +385,22 @@ export default function BattlePage() {
     };
   }, [activeLineId, editMode]);
 
+  // Scroll to last clicked line when entering edit mode
+  useEffect(() => {
+    if (editMode && lastClickedLineId && transcriptContainerRef.current) {
+      const container = transcriptContainerRef.current;
+      // Wait a tiny bit for the DOM to switch to edit mode render
+      setTimeout(() => {
+        const targetEl = container.querySelector(
+          `[data-line-id="${lastClickedLineId}"]`,
+        ) as HTMLElement;
+        if (targetEl) {
+          targetEl.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+      }, 50);
+    }
+  }, [editMode, lastClickedLineId]);
+
   // ────────────────────────────────────────────────────────────────────────────
   // Event Handlers
   // ────────────────────────────────────────────────────────────────────────────
@@ -479,6 +498,13 @@ export default function BattlePage() {
       setEditMode(false);
     } else {
       setEditMode(true);
+      // Prioritize the currently playing line, fallback to last clicked
+      const targetId = activeLineId || lastClickedLineId;
+      if (targetId) {
+        setSelectedIds(new Set([targetId]));
+        // Update lastClickedLineId so the effect scrolls to it
+        setLastClickedLineId(targetId);
+      }
     }
   };
   // ────────────────────────────────────────────────────────────────────────────
@@ -516,6 +542,7 @@ export default function BattlePage() {
   const startInlineEdit = (line: BattleLine) => {
     setInlineEditingId(line.id);
     setInlineContent(line.content);
+    setLastClickedLineId(line.id);
   };
 
   /**
@@ -999,12 +1026,22 @@ export default function BattlePage() {
 
                                           {editMode ? (
                                             <div
-                                              className={`group/line flex items-start gap-2 rounded-md px-2 py-0.5 transition-colors ${
-                                                isSelected
+                                              data-line-id={line.id}
+                                              className={cn(
+                                                "group/line flex items-start gap-2 rounded-md px-2 py-0.5 transition-all duration-200",
+                                                isSelected || isPlaying
                                                   ? "bg-primary/10"
-                                                  : "hover:bg-muted/40"
-                                              }`}
+                                                  : "hover:bg-muted/40",
+                                                (lastClickedLineId ===
+                                                  line.id ||
+                                                  isPlaying) &&
+                                                  "border-l-2 border-primary rounded-l-none",
+                                              )}
                                             >
+                                              {/* Playback indicator in edit mode */}
+                                              {isPlaying && (
+                                                <div className="absolute -left-1.5 top-2.5 h-1.5 w-1.5 rounded-full bg-primary animate-pulse hidden lg:block" />
+                                              )}
                                               <Checkbox
                                                 checked={isSelected}
                                                 onCheckedChange={() =>
@@ -1075,9 +1112,10 @@ export default function BattlePage() {
                                           ) : (
                                             <button
                                               data-line-id={line.id}
-                                              onClick={() =>
-                                                handleSeek(line.start_time)
-                                              }
+                                              onClick={() => {
+                                                handleSeek(line.start_time);
+                                                setLastClickedLineId(line.id);
+                                              }}
                                               className={cn(
                                                 "group/line flex w-full items-baseline gap-3 rounded-md px-1.5 py-0.5 text-left text-[13px] transition-all duration-300 ease-in-out",
                                                 isPlaying
