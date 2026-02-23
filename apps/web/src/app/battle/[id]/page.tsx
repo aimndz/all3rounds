@@ -10,7 +10,7 @@ import {
   memo,
   Fragment,
 } from "react";
-import { useParams, useSearchParams } from "next/navigation";
+import { useParams, useSearchParams, useRouter } from "next/navigation";
 import Header from "@/components/Header";
 import Link from "next/link";
 import Image from "next/image";
@@ -340,6 +340,7 @@ export default function BattlePage() {
   // -- Hooks & Params --
   const params = useParams();
   const searchParams = useSearchParams();
+  const router = useRouter();
   const battleId = params.id as string;
 
   // -- Data State --
@@ -962,13 +963,13 @@ export default function BattlePage() {
         <div className="flex h-full min-h-0 flex-col gap-6 pt-4 lg:grid lg:grid-cols-12 lg:gap-8 lg:pt-6">
           {/* Left Column: Video (Sticky/Docked) */}
           <div className="z-30 lg:col-span-7 xl:col-span-8">
-            <Link
-              href="/battles"
-              className="mb-3 ml-1 inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground/60 transition-colors hover:text-foreground sm:ml-0 lg:mb-4"
+            <button
+              onClick={() => router.back()}
+              className="mb-3 ml-1 inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground/60 transition-colors hover:text-foreground sm:ml-0 lg:mb-4 cursor-pointer"
             >
               <ArrowLeft className="h-3 w-3" />
-              All battles
-            </Link>
+              Go Back
+            </button>
             <div className="overflow-hidden border-b border-border bg-card/95 shadow-sm backdrop-blur-sm transition-all duration-500 -mx-4 sm:mx-0 sm:rounded-xl sm:border sm:shadow-lg sm:hover:shadow-xl">
               {/* Player Container */}
               <div
