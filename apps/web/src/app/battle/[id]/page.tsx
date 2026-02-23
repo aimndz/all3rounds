@@ -1107,7 +1107,7 @@ export default function BattlePage() {
           <div className="flex flex-1 flex-col min-h-0 lg:col-span-5 lg:h-full lg:pb-6 xl:col-span-4">
             <div
               className={cn(
-                "flex h-full flex-col overflow-hidden bg-card/50 transition-colors duration-300 sm:rounded-xl sm:border sm:border-border/50",
+                "flex h-full flex-col overflow-hidden transition-colors duration-300",
                 isTranscriptExpanded
                   ? "fixed inset-0 z-50 bg-background p-4 pt-12 pb-8 animate-in slide-in-from-bottom-full duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] sm:p-8"
                   : "relative pb-4",
