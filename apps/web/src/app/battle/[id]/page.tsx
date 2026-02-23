@@ -355,6 +355,7 @@ export default function BattlePage() {
   const transcriptContainerRef = useRef<HTMLDivElement>(null);
   const scrollAnimationFrameRef = useRef<number | null>(null);
   const ytPlayerInstance = useRef<any>(null);
+  const lastUrlSeek = useRef<string | null>(null);
 
   // -- Active Line Logic --
   const activeLineId = useMemo(() => {
@@ -364,9 +365,6 @@ export default function BattlePage() {
         activeTime < (l.end_time || l.start_time + 1),
     )?.id;
   }, [activeTime, data?.lines]);
-
-  // -- Navigation State --
-  const [hasInitialSeeked, setHasInitialSeeked] = useState(false);
 
   // -- Edit Mode State --
   const [editMode, setEditMode] = useState(false);
@@ -479,21 +477,27 @@ export default function BattlePage() {
           events: {
             onReady: (event: any) => {
               setPlayer(event.target);
-              const t = searchParams.get("t");
-              if (t && !hasInitialSeeked) {
-                const seconds = parseInt(t);
-                if (!isNaN(seconds)) {
-                  event.target.seekTo(seconds, true);
-                  event.target.playVideo();
-                  setHasInitialSeeked(true);
-                }
-              }
             },
           },
         },
       );
     }
-  }, [data?.battle.youtube_id, searchParams, hasInitialSeeked]);
+  }, [data?.battle.youtube_id]);
+
+  // -- Handle initial seek or URL-based seeking --
+  useEffect(() => {
+    if (!player || typeof player.seekTo !== "function") return;
+    const t = searchParams.get("t");
+    // Only seek if 't' is present and it's different from our last URL-triggered seek
+    if (t && t !== lastUrlSeek.current) {
+      const seconds = parseInt(t);
+      if (!isNaN(seconds)) {
+        player.seekTo(seconds, true);
+        player.playVideo();
+        lastUrlSeek.current = t;
+      }
+    }
+  }, [player, searchParams]);
 
   // -- Player Playback Sync --
   useEffect(() => {

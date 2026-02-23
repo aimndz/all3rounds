@@ -68,7 +68,11 @@ export default function ResultCard({
   return (
     <>
       <div
-        onClick={() => router.push(`/battle/${result.battle.id}`)}
+        onClick={() =>
+          router.push(
+            `/battle/${result.battle.id}?t=${Math.floor(result.start_time)}`,
+          )
+        }
         className="group block cursor-pointer overflow-hidden rounded-xl border border-border bg-card transition-colors hover:border-border/60"
       >
         <div className="relative flex min-h-[120px]">
