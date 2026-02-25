@@ -16,14 +16,11 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { Trash2, X, Search, User } from "lucide-react";
-import type { Emcee } from "@/lib/types";
-import EmceeSearchModal from "./EmceeSearchModal";
-
+import { Trash2, X } from "lucide-react";
 export default function BatchActionBar({
   selectedCount,
   selectedIds,
-  emcees: externalEmcees,
+  participants,
   onAction,
   onClear,
   saving,
@@ -31,7 +28,10 @@ export default function BatchActionBar({
 }: {
   selectedCount: number;
   selectedIds: Set<number>;
-  emcees?: Emcee[];
+  participants?: {
+    label: string;
+    emcee: { id: string; name: string } | null;
+  }[];
   onAction: (
     action: "set_round" | "set_emcee" | "delete",
     value?: string,
@@ -40,26 +40,8 @@ export default function BatchActionBar({
   saving: boolean;
   canDelete?: boolean;
 }) {
-  const [emcees, setEmcees] = useState<Emcee[]>(externalEmcees || []);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [isEmceeModalOpen, setIsEmceeModalOpen] = useState(false);
-
-  // Sync local state when externalEmcees prop changes
-  useEffect(() => {
-    if (externalEmcees && externalEmcees.length > 0) {
-      setEmcees(externalEmcees);
-    }
-  }, [externalEmcees]);
-
-  // Fetch emcees if not provided or empty
-  useEffect(() => {
-    if (!externalEmcees || externalEmcees.length === 0) {
-      fetch("/api/emcees")
-        .then((r) => r.json())
-        .then(setEmcees)
-        .catch(() => {});
-    }
-  }, [externalEmcees]);
+  const [activeEmceeId, setActiveEmceeId] = useState<string>("");
 
   if (selectedCount === 0) return null;
 
@@ -101,17 +83,28 @@ export default function BatchActionBar({
             </Select>
 
             {/* Set Emcee */}
-            <button
-              disabled={saving}
-              onClick={() => setIsEmceeModalOpen(true)}
-              className="flex cursor-pointer h-8 flex-1 md:h-9 md:w-[150px] md:flex-none items-center justify-between rounded-md border border-input bg-transparent px-3 py-2 text-xs md:text-sm shadow-sm hover:bg-muted/50 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              <div className="flex items-center gap-2 truncate">
-                <User className="h-3 w-3 md:h-3.5 md:w-3.5 text-muted-foreground" />
-                <span className="truncate">Emcee</span>
-              </div>
-              <Search className="h-3 w-3 md:h-3.5 md:w-3.5 text-muted-foreground shrink-0" />
-            </button>
+            {/* Set Emcee Chips */}
+            <div className="flex flex-wrap items-center gap-1">
+              {participants?.map((p) => {
+                if (!p.emcee) return null;
+                const isActive = activeEmceeId === p.emcee.id;
+                return (
+                  <Button
+                    key={p.emcee.id}
+                    variant={isActive ? "default" : "outline"}
+                    size="sm"
+                    disabled={saving}
+                    onClick={() => {
+                      setActiveEmceeId(p.emcee!.id);
+                      onAction("set_emcee", p.emcee!.id);
+                    }}
+                    className="h-8 md:h-9 text-[11px] md:text-xs font-semibold px-3"
+                  >
+                    {p.emcee.name}
+                  </Button>
+                );
+              })}
+            </div>
 
             {/* Delete */}
             {canDelete && (
@@ -138,14 +131,6 @@ export default function BatchActionBar({
               <span>Cancel</span>
             </Button>
           </div>
-
-          <EmceeSearchModal
-            isOpen={isEmceeModalOpen}
-            onClose={() => setIsEmceeModalOpen(false)}
-            emcees={emcees}
-            selectedId=""
-            onSelect={(val) => onAction("set_emcee", val)}
-          />
         </div>
       </div>
 

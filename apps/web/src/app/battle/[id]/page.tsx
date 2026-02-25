@@ -388,7 +388,6 @@ export default function BattlePage() {
   const canBatchEdit = ["superadmin", "admin"].includes(userRole);
   const canDelete = userRole === "superadmin";
   const [batchSaving, setBatchSaving] = useState(false);
-  const [emcees, setEmcees] = useState<Emcee[]>([]);
   const [updatingStatus, setUpdatingStatus] = useState(false);
 
   // -- Collapsible UI State --
@@ -429,15 +428,6 @@ export default function BattlePage() {
       })
       .catch(() => {});
   }, []);
-
-  useEffect(() => {
-    if (editMode && emcees.length === 0) {
-      fetch("/api/emcees")
-        .then((r) => r.json())
-        .then(setEmcees)
-        .catch(() => {});
-    }
-  }, [editMode, emcees.length]);
 
   useEffect(() => {
     if (isTranscriptExpanded) {
@@ -1358,7 +1348,7 @@ export default function BattlePage() {
         <BatchActionBar
           selectedCount={selectedIds.size}
           selectedIds={selectedIds}
-          emcees={emcees}
+          participants={data?.participants}
           onAction={handleBatchAction}
           onClear={() => setSelectedIds(new Set())}
           saving={batchSaving}
@@ -1370,7 +1360,7 @@ export default function BattlePage() {
       {editingLine && (
         <BattleEditModal
           line={editingLine as BattleLine}
-          emcees={emcees}
+          participants={data?.participants}
           onClose={() => setEditingLine(null)}
           onSaved={() => {
             setEditingLine(null);
@@ -1383,7 +1373,7 @@ export default function BattlePage() {
         <BattleAddLineModal
           battleId={battleId}
           currentTime={activeTime}
-          emcees={emcees}
+          participants={data?.participants}
           initialData={addingLineData || undefined}
           onClose={() => {
             setAddingLine(false);

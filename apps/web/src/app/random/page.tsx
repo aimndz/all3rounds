@@ -14,6 +14,7 @@ import {
   Mic2,
   ExternalLink,
   Loader2,
+  Search,
 } from "lucide-react";
 import Link from "next/link";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -379,20 +380,31 @@ export default function RandomPage() {
             <div className="w-full">
               <div className="grid gap-6">
                 <div>
-                  <h2 className="text-xs font-bold text-muted-foreground mb-2 flex items-center gap-2 uppercase tracking-widest">
+                  <h2 className="text-xs font-bold text-muted-foreground mb-3 flex items-center gap-2 uppercase tracking-widest">
                     Emcee
                   </h2>
-                  <Button
-                    variant="outline"
-                    className="w-full justify-between px-4 h-11 border-border bg-card/50 hover:bg-muted/50 transition-all rounded-xl shadow-sm"
-                    onClick={() => canEdit && setIsEmceeModalOpen(true)}
-                    disabled={!canEdit}
-                  >
-                    <span className="text-sm font-medium truncate">
-                      {speaker}
-                    </span>
-                    <Shuffle className="h-4 w-4 text-muted-foreground ml-2 opacity-50" />
-                  </Button>
+                  <div className="flex flex-wrap gap-2">
+                    {line.battle.participants?.map((p) => {
+                      if (!p.emcee) return null;
+                      const isActive = emceeId === p.emcee.id;
+                      return (
+                        <Button
+                          key={p.emcee.id}
+                          type="button"
+                          variant={isActive ? "default" : "outline"}
+                          size="sm"
+                          disabled={!canEdit}
+                          onClick={() => setEmceeId(p.emcee!.id)}
+                          className={cn(
+                            "rounded-lg px-3 h-9 text-xs font-semibold shadow-sm transition-all",
+                            isActive && "ring-2 ring-primary/20",
+                          )}
+                        >
+                          {p.emcee.name}
+                        </Button>
+                      );
+                    })}
+                  </div>
                 </div>
 
                 <div>

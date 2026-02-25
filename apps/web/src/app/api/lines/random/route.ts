@@ -57,12 +57,24 @@ export async function GET() {
   }
 
   const rawLine = data[0];
+  const battle = Array.isArray(rawLine.battle)
+    ? rawLine.battle[0]
+    : rawLine.battle;
+
+  // Fetch battle participants
+  const { data: participants } = await adminClient
+    .from("battle_participants")
+    .select("label, emcee:emcees ( id, name )")
+    .eq("battle_id", battle.id);
 
   // Handle single relation vs array (Supabase might return an array or object depending on relation)
   const line = {
     ...rawLine,
     emcee: Array.isArray(rawLine.emcee) ? rawLine.emcee[0] : rawLine.emcee,
-    battle: Array.isArray(rawLine.battle) ? rawLine.battle[0] : rawLine.battle,
+    battle: {
+      ...battle,
+      participants: participants || [],
+    },
   };
 
   return NextResponse.json({ line });

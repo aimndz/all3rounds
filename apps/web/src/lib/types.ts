@@ -17,6 +17,10 @@ export type SearchResult = {
     event_date: string | null;
     url: string;
     status: BattleStatus;
+    participants?: {
+      label: string;
+      emcee: { id: string; name: string } | null;
+    }[];
   };
 };
 

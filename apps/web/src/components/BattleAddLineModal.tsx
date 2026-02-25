@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -19,21 +19,21 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { Search, User, Clock, Plus } from "lucide-react";
-import type { Emcee } from "@/lib/types";
-import EmceeSearchModal from "./EmceeSearchModal";
-
+import { Clock, Plus } from "lucide-react";
 export default function BattleAddLineModal({
   battleId,
   currentTime,
-  emcees,
+  participants,
   onClose,
   onSaved,
   initialData,
 }: {
   battleId: string;
   currentTime: number;
-  emcees: Emcee[];
+  participants?: {
+    label: string;
+    emcee: { id: string; name: string } | null;
+  }[];
   onClose: () => void;
   onSaved: () => void;
   initialData?: {
@@ -54,14 +54,8 @@ export default function BattleAddLineModal({
     initialData?.round_number?.toString() || "1",
   );
   const [emceeId, setEmceeId] = useState(initialData?.emcee_id || "none");
-  const [isEmceeModalOpen, setIsEmceeModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-
-  const selectedEmcee = useMemo(() => {
-    if (emceeId === "none") return null;
-    return emcees.find((e) => e.id === emceeId);
-  }, [emceeId, emcees]);
 
   const handleSave = async () => {
     if (!content.trim()) {
@@ -81,8 +75,8 @@ export default function BattleAddLineModal({
           content: content.trim(),
           start_time: parseFloat(startTime),
           end_time: parseFloat(endTime),
-          emcee_id: emceeId,
-          round_number: roundNumber,
+          emcee_id: emceeId === "none" ? "" : emceeId,
+          round_number: roundNumber === "none" ? "" : roundNumber,
         }),
       });
 
@@ -179,19 +173,24 @@ export default function BattleAddLineModal({
             {/* Emcee Trigger */}
             <div className="space-y-2">
               <Label>Emcee</Label>
-              <button
-                type="button"
-                onClick={() => setIsEmceeModalOpen(true)}
-                className="flex items-center justify-between w-full px-3 h-9 text-sm border rounded-md bg-background hover:bg-muted/50 transition-colors cursor-pointer"
-              >
-                <div className="flex items-center gap-2 truncate">
-                  <User className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                  <span className="truncate">
-                    {selectedEmcee?.name || "Unknown"}
-                  </span>
-                </div>
-                <Search className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-              </button>
+              <div className="flex flex-wrap gap-2">
+                {participants?.map((p) => {
+                  if (!p.emcee) return null;
+                  const isActive = emceeId === p.emcee.id;
+                  return (
+                    <Button
+                      key={p.emcee.id}
+                      type="button"
+                      variant={isActive ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setEmceeId(p.emcee!.id)}
+                      className="h-9 px-3 text-xs font-semibold shadow-sm"
+                    >
+                      {p.emcee.name}
+                    </Button>
+                  );
+                })}
+              </div>
             </div>
           </div>
         </div>
@@ -204,14 +203,6 @@ export default function BattleAddLineModal({
             {saving ? "Saving..." : "Add Line"}
           </Button>
         </DialogFooter>
-
-        <EmceeSearchModal
-          isOpen={isEmceeModalOpen}
-          onClose={() => setIsEmceeModalOpen(false)}
-          emcees={emcees}
-          selectedId={emceeId}
-          onSelect={setEmceeId}
-        />
       </DialogContent>
     </Dialog>
   );

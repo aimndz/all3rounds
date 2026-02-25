@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -17,9 +17,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import type { Emcee } from "@/lib/types";
-import EmceeSearchModal from "./EmceeSearchModal";
-import { Search, User } from "lucide-react";
 
 type BattleLine = {
   id: number;
@@ -33,12 +30,15 @@ type BattleLine = {
 
 export default function BattleEditModal({
   line,
-  emcees: externalEmcees,
+  participants,
   onClose,
   onSaved,
 }: {
   line: BattleLine;
-  emcees?: Emcee[];
+  participants?: {
+    label: string;
+    emcee: { id: string; name: string } | null;
+  }[];
   onClose: () => void;
   onSaved: () => void;
 }) {
@@ -47,45 +47,8 @@ export default function BattleEditModal({
     line.round_number?.toString() || "none",
   );
   const [emceeId, setEmceeId] = useState(line.emcee?.id || "none");
-  const [emcees, setEmcees] = useState<Emcee[]>(externalEmcees || []);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  const [isEmceeModalOpen, setIsEmceeModalOpen] = useState(false);
-
-  const selectedEmcee = useMemo(() => {
-    if (emceeId === "none") return null;
-    return emcees.find((e) => e.id === emceeId) || line.emcee;
-  }, [emceeId, emcees, line.emcee]);
-
-  useEffect(() => {
-    if (!externalEmcees) {
-      fetch("/api/emcees")
-        .then((r) => r.json())
-        .then(setEmcees)
-        .catch(() => {});
-    }
-  }, [externalEmcees]);
-
-  const handleSave = async (field: string, value: string | number) => {
-    setSaving(true);
-    setError("");
-
-    const res = await fetch("/api/lines", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ lineId: line.id, field, value }),
-    });
-
-    if (!res.ok) {
-      const data = await res.json();
-      setError(data.error || "Failed to save.");
-      setSaving(false);
-      return;
-    }
-
-    setSaving(false);
-    onSaved();
-  };
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
@@ -111,50 +74,29 @@ export default function BattleEditModal({
               rows={3}
               className="resize-none"
             />
-            <Button
-              size="sm"
-              onClick={() => handleSave("content", content)}
-              disabled={saving || content === line.content}
-            >
-              Save Content
-            </Button>
           </div>
 
           {/* Emcee */}
           <div className="space-y-2">
             <Label>Emcee</Label>
-            <div className="flex flex-col gap-2">
-              <button
-                type="button"
-                onClick={() => setIsEmceeModalOpen(true)}
-                className="flex items-center justify-between w-full px-3 py-2 text-sm border rounded-md bg-background hover:bg-muted/50 transition-colors"
-              >
-                <div className="flex items-center gap-2">
-                  <User className="h-3.5 w-3.5 text-muted-foreground" />
-                  <span>{selectedEmcee?.name || "Unknown / No Emcee"}</span>
-                </div>
-                <Search className="h-3.5 w-3.5 text-muted-foreground" />
-              </button>
-
-              <Button
-                size="sm"
-                className="w-fit"
-                onClick={() =>
-                  handleSave("emcee_id", emceeId === "none" ? "" : emceeId)
-                }
-                disabled={saving || emceeId === (line.emcee?.id || "none")}
-              >
-                Save Emcee
-              </Button>
+            <div className="flex flex-wrap gap-2">
+              {participants?.map((p) => {
+                if (!p.emcee) return null;
+                const isActive = emceeId === p.emcee.id;
+                return (
+                  <Button
+                    key={p.emcee.id}
+                    type="button"
+                    variant={isActive ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setEmceeId(p.emcee!.id)}
+                    className="h-9 px-3 text-xs font-semibold shadow-sm transition-all"
+                  >
+                    {p.emcee.name}
+                  </Button>
+                );
+              })}
             </div>
-
-            <EmceeSearchModal
-              isOpen={isEmceeModalOpen}
-              onClose={() => setIsEmceeModalOpen(false)}
-              emcees={emcees}
-              selectedId={emceeId}
-              onSelect={setEmceeId}
-            />
           </div>
 
           {/* Round */}
@@ -171,22 +113,74 @@ export default function BattleEditModal({
                 <SelectItem value="3">Round 3</SelectItem>
               </SelectContent>
             </Select>
-            <Button
-              size="sm"
-              onClick={() =>
-                handleSave(
-                  "round_number",
-                  roundNumber !== "none" ? parseInt(roundNumber) : "",
-                )
-              }
-              disabled={
-                saving ||
-                roundNumber === (line.round_number?.toString() || "none")
-              }
-            >
-              Save Round
-            </Button>
           </div>
+        </div>
+
+        <div className="flex justify-end gap-2 mt-6 pt-4 border-t">
+          <Button variant="outline" onClick={onClose} disabled={saving}>
+            Cancel
+          </Button>
+          <Button
+            onClick={async () => {
+              setSaving(true);
+              setError("");
+              try {
+                // Save content if changed
+                if (content !== line.content) {
+                  const res = await fetch("/api/lines", {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      lineId: line.id,
+                      field: "content",
+                      value: content,
+                    }),
+                  });
+                  if (!res.ok) throw new Error("Failed to save content");
+                }
+                // Save emcee if changed
+                if (emceeId !== (line.emcee?.id || "none")) {
+                  const res = await fetch("/api/lines", {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      lineId: line.id,
+                      field: "emcee_id",
+                      value: emceeId === "none" ? "" : emceeId,
+                    }),
+                  });
+                  if (!res.ok) throw new Error("Failed to save emcee");
+                }
+                // Save round if changed
+                const currentRound =
+                  roundNumber !== "none" ? parseInt(roundNumber) : null;
+                if (currentRound !== line.round_number) {
+                  const res = await fetch("/api/lines", {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      lineId: line.id,
+                      field: "round_number",
+                      value: currentRound === null ? "" : currentRound,
+                    }),
+                  });
+                  if (!res.ok) throw new Error("Failed to save round");
+                }
+                onSaved();
+              } catch (err: any) {
+                setError(err.message);
+                setSaving(false);
+              }
+            }}
+            disabled={
+              saving ||
+              (content === line.content &&
+                emceeId === (line.emcee?.id || "none") &&
+                roundNumber === (line.round_number?.toString() || "none"))
+            }
+          >
+            {saving ? "Saving..." : "Save Changes"}
+          </Button>
         </div>
       </DialogContent>
     </Dialog>
