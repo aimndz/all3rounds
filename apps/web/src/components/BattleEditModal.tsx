@@ -102,17 +102,29 @@ export default function BattleEditModal({
           {/* Round */}
           <div className="space-y-2">
             <Label>Round Number</Label>
-            <Select value={roundNumber} onValueChange={setRoundNumber}>
-              <SelectTrigger>
-                <SelectValue placeholder="Unknown" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">Unknown</SelectItem>
-                <SelectItem value="1">Round 1</SelectItem>
-                <SelectItem value="2">Round 2</SelectItem>
-                <SelectItem value="3">Round 3</SelectItem>
-              </SelectContent>
-            </Select>
+            <div className="flex flex-wrap gap-2">
+              {[
+                { id: "none", label: "Unk" },
+                { id: "1", label: "R1" },
+                { id: "2", label: "R2" },
+                { id: "3", label: "R3" },
+                { id: "4", label: "OT" },
+              ].map((r) => {
+                const isActive = roundNumber === r.id;
+                return (
+                  <Button
+                    key={r.id}
+                    type="button"
+                    variant={isActive ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setRoundNumber(r.id)}
+                    className="h-9 px-3 text-xs font-semibold shadow-sm transition-all"
+                  >
+                    {r.label}
+                  </Button>
+                );
+              })}
+            </div>
           </div>
         </div>
 

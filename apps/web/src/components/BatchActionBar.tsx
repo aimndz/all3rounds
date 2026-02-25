@@ -42,6 +42,14 @@ export default function BatchActionBar({
 }) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [activeEmceeId, setActiveEmceeId] = useState<string>("");
+  const [activeRound, setActiveRound] = useState<string>("");
+
+  useEffect(() => {
+    if (selectedCount === 0) {
+      setActiveRound("");
+      setActiveEmceeId("");
+    }
+  }, [selectedCount]);
 
   if (selectedCount === 0) return null;
 
@@ -66,23 +74,48 @@ export default function BatchActionBar({
           </div>
 
           <div className="flex flex-1 flex-wrap items-center gap-1.5 md:gap-2">
-            {/* Set Round */}
-            <Select
-              disabled={saving}
-              onValueChange={(val) => onAction("set_round", val)}
-            >
-              <SelectTrigger className="h-8 flex-1 md:h-9 md:w-[130px] md:flex-none">
-                <SelectValue placeholder="Round" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">Clear Round</SelectItem>
-                <SelectItem value="1">Round 1</SelectItem>
-                <SelectItem value="2">Round 2</SelectItem>
-                <SelectItem value="3">Round 3</SelectItem>
-              </SelectContent>
-            </Select>
+            {/* Set Round Chips */}
+            <div className="flex items-center gap-1">
+              {[
+                { id: "1", label: "R1" },
+                { id: "2", label: "R2" },
+                { id: "3", label: "R3" },
+                { id: "4", label: "OT" },
+              ].map((r) => {
+                const isActive = activeRound === r.id;
+                return (
+                  <Button
+                    key={r.id}
+                    variant={isActive ? "default" : "outline"}
+                    size="sm"
+                    disabled={saving}
+                    onClick={() => {
+                      setActiveRound(r.id);
+                      onAction("set_round", r.id);
+                    }}
+                    className="h-8 md:h-9 text-[11px] md:text-xs font-bold px-2.5 min-w-[36px]"
+                  >
+                    {r.label}
+                  </Button>
+                );
+              })}
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={saving}
+                onClick={() => {
+                  setActiveRound("none");
+                  onAction("set_round", "none");
+                }}
+                className="h-8 md:h-9 text-[10px] px-2 opacity-50 hover:opacity-100"
+                title="Clear Round"
+              >
+                Clear
+              </Button>
+            </div>
 
-            {/* Set Emcee */}
+            <div className="mx-1 h-6 w-px bg-border/50 hidden md:block" />
+
             {/* Set Emcee Chips */}
             <div className="flex flex-wrap items-center gap-1">
               {participants?.map((p) => {

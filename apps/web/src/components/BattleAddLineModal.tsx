@@ -153,24 +153,36 @@ export default function BattleAddLineModal({
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-4">
             {/* Round */}
             <div className="space-y-2">
               <Label>Round</Label>
-              <Select value={roundNumber} onValueChange={setRoundNumber}>
-                <SelectTrigger className="w-full cursor-pointer">
-                  <SelectValue placeholder="Select Round" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">Unknown</SelectItem>
-                  <SelectItem value="1">Round 1</SelectItem>
-                  <SelectItem value="2">Round 2</SelectItem>
-                  <SelectItem value="3">Round 3</SelectItem>
-                </SelectContent>
-              </Select>
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { id: "none", label: "Unk" },
+                  { id: "1", label: "R1" },
+                  { id: "2", label: "R2" },
+                  { id: "3", label: "R3" },
+                  { id: "4", label: "OT" },
+                ].map((r) => {
+                  const isActive = roundNumber === r.id;
+                  return (
+                    <Button
+                      key={r.id}
+                      type="button"
+                      variant={isActive ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setRoundNumber(r.id)}
+                      className="h-8 px-2.5 text-xs font-semibold shadow-sm"
+                    >
+                      {r.label}
+                    </Button>
+                  );
+                })}
+              </div>
             </div>
 
-            {/* Emcee Trigger */}
+            {/* Emcee */}
             <div className="space-y-2">
               <Label>Emcee</Label>
               <div className="flex flex-wrap gap-2">
@@ -184,7 +196,7 @@ export default function BattleAddLineModal({
                       variant={isActive ? "default" : "outline"}
                       size="sm"
                       onClick={() => setEmceeId(p.emcee!.id)}
-                      className="h-9 px-3 text-xs font-semibold shadow-sm"
+                      className="h-8 px-3 text-xs font-semibold shadow-sm"
                     >
                       {p.emcee.name}
                     </Button>

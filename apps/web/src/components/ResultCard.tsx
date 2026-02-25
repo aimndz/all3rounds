@@ -120,7 +120,9 @@ export default function ResultCard({
                 <>
                   <span className="text-border">·</span>
                   <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium">
-                    Round {result.round_number}
+                    {result.round_number === 4
+                      ? "OT"
+                      : `Round ${result.round_number}`}
                   </span>
                 </>
               )}

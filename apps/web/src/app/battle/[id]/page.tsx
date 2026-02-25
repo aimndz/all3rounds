@@ -776,7 +776,9 @@ export default function BattlePage() {
         alert(d.error || "Batch operation failed.");
         return;
       }
-      setSelectedIds(new Set());
+      if (action === "delete") {
+        setSelectedIds(new Set());
+      }
       fetchBattle();
     } finally {
       setBatchSaving(false);
@@ -1214,9 +1216,12 @@ export default function BattlePage() {
                 <div className="space-y-1">
                   {roundGroups.map((group: RoundGroup, gi: number) => {
                     const isRoundCollapsed = collapsedRounds.has(gi);
-                    const roundLabel = group.round
-                      ? `Round ${group.round}`
-                      : "Unassigned";
+                    const roundLabel =
+                      group.round === 4
+                        ? "OT"
+                        : group.round
+                          ? `Round ${group.round}`
+                          : "Unassigned";
                     const lineCount = group.turns.reduce(
                       (sum: number, t: Turn) => sum + t.lines.length,
                       0,
