@@ -17,6 +17,12 @@ export default function Header() {
           </div>
           <div className="flex items-center gap-6">
             <Link
+              href="/random"
+              className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground inline-flex items-center gap-1.5"
+            >
+              Random Play
+            </Link>
+            <Link
               href="/battles"
               className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
             >
