@@ -14,12 +14,24 @@ import Link from "next/link";
 export default function LoginPage() {
   const handleLogin = async () => {
     const supabase = createClient();
+
+    // Safety check: Only redirect back to our own site
+    let nextPath = "/";
+    try {
+      if (typeof document !== "undefined" && document.referrer) {
+        const referrerUrl = new URL(document.referrer);
+        if (referrerUrl.origin === window.location.origin) {
+          nextPath = referrerUrl.pathname + referrerUrl.search;
+        }
+      }
+    } catch (e) {
+      console.error("Referrer parsing error:", e);
+    }
+
     await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(
-          document.referrer || "/",
-        )}`,
+        redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(nextPath)}`,
       },
     });
   };

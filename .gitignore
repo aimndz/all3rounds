@@ -1,0 +1,61 @@
+# Environment files
+.env
+.env.local
+.env.*.local
+.env.production
+.env.development
+
+# Python
+venv/
+.venv/
+env/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+pip-log.txt
+pip-delete-this-directory.txt
+.tox/
+.coverage
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.log
+.mypy_cache/
+.pytest_cache/
+.hypothesis/
+
+# Node
+node_modules/
+dist/
+build/
+.next/
+out/
+.vercel
+*.tsbuildinfo
+next-env.d.ts
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Project specific
+audio_downloads/
+output.json
+*.wav
+*.mp3
+*.mp4
+*.webm

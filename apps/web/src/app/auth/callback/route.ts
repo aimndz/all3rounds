@@ -11,8 +11,12 @@ export async function GET(request: NextRequest) {
     const supabase = await createClient();
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
-      // Use the origin from the request to ensure we stay on the same domain
-      return NextResponse.redirect(`${requestUrl.origin}${next}`);
+      // Validate 'next' to prevent open redirect vulnerabilities
+      // Ensure it's a relative path starting with / but NOT // (protocol-relative)
+      const safeNext =
+        next.startsWith("/") && !next.startsWith("//") ? next : "/";
+
+      return NextResponse.redirect(`${requestUrl.origin}${safeNext}`);
     }
   }
 
