@@ -77,9 +77,18 @@ export async function PATCH(
     const body = await request.json();
     const { status } = body;
 
-    if (!status) {
+    const VALID_STATUSES = [
+      "raw",
+      "arranged",
+      "reviewing",
+      "reviewed",
+      "excluded",
+    ];
+    if (!status || !VALID_STATUSES.includes(status)) {
       return NextResponse.json(
-        { error: "Status is required" },
+        {
+          error: `Invalid status. Must be one of: ${VALID_STATUSES.join(", ")}`,
+        },
         { status: 400 },
       );
     }
@@ -96,7 +105,7 @@ export async function PATCH(
     if (error) {
       console.error("Battle status update failed:", error);
       return NextResponse.json(
-        { error: `Database error: ${error.message}` },
+        { error: "Failed to update battle status." },
         { status: 500 },
       );
     }
@@ -105,7 +114,7 @@ export async function PATCH(
   } catch (err: any) {
     console.error("PATCH /api/battles/[id] error:", err);
     return NextResponse.json(
-      { error: err.message || "Internal Server Error" },
+      { error: "Internal Server Error" },
       { status: 500 },
     );
   }
@@ -131,11 +140,19 @@ export async function DELETE(
     const supabaseAdmin = createAdminClient();
 
     // First, clear the lines and participants (the heavy data)
-    await supabaseAdmin.from("lines").delete().eq("battle_id", id);
-    await supabaseAdmin
+    const { error: deleteLinesError } = await supabaseAdmin
+      .from("lines")
+      .delete()
+      .eq("battle_id", id);
+    if (deleteLinesError)
+      console.error("Line deletion failed:", deleteLinesError);
+
+    const { error: deletePartsError } = await supabaseAdmin
       .from("battle_participants")
       .delete()
       .eq("battle_id", id);
+    if (deletePartsError)
+      console.error("Participants deletion failed:", deletePartsError);
 
     // Then, update the status to 'excluded' so the pipeline skips it in the future
     const { error } = await supabaseAdmin
@@ -146,7 +163,7 @@ export async function DELETE(
     if (error) {
       console.error("Battle exclusion failed:", error);
       return NextResponse.json(
-        { error: `Database error: ${error.message}` },
+        { error: "Failed to delete/exclude battle data." },
         { status: 500 },
       );
     }
@@ -158,7 +175,7 @@ export async function DELETE(
   } catch (err: any) {
     console.error("DELETE /api/battles/[id] error:", err);
     return NextResponse.json(
-      { error: err.message || "Internal Server Error" },
+      { error: "Internal Server Error" },
       { status: 500 },
     );
   }

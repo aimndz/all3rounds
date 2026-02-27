@@ -28,16 +28,17 @@ export async function POST(request: NextRequest) {
   const { battle_id, content, start_time, end_time, emcee_id, round_number } =
     body;
 
-  if (
-    !battle_id ||
-    !content ||
-    start_time === undefined ||
-    end_time === undefined
-  ) {
+  // Validation: Check required fields and formats
+  const UUID_REGEX =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (!battle_id || !UUID_REGEX.test(battle_id)) {
+    return NextResponse.json({ error: "Invalid battle ID." }, { status: 400 });
+  }
+
+  if (!content || start_time === undefined || end_time === undefined) {
     return NextResponse.json(
       {
-        error:
-          "Missing required fields (battle_id, content, start_time, end_time).",
+        error: "Missing required fields (content, start_time, end_time).",
       },
       { status: 400 },
     );
@@ -91,9 +92,14 @@ export async function PATCH(request: NextRequest) {
   const body = await request.json();
   const { lineId, field, value } = body;
 
-  if (!lineId || !field || value === undefined) {
+  // Validation: lineId must be an integer
+  if (!lineId || typeof lineId !== "number" || !Number.isInteger(lineId)) {
+    return NextResponse.json({ error: "Invalid line ID." }, { status: 400 });
+  }
+
+  if (!field || value === undefined) {
     return NextResponse.json(
-      { error: "Missing lineId, field, or value." },
+      { error: "Missing field or value." },
       { status: 400 },
     );
   }

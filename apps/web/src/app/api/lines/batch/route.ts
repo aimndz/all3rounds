@@ -35,6 +35,14 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ error: "No lines selected." }, { status: 400 });
   }
 
+  // Validation: Ensure all IDs are integers
+  if (!lineIds.every((id) => typeof id === "number" && Number.isInteger(id))) {
+    return NextResponse.json(
+      { error: "Invalid line IDs provided." },
+      { status: 400 },
+    );
+  }
+
   if (lineIds.length > 200) {
     return NextResponse.json(
       { error: "Too many lines selected (max 200)." },
@@ -61,10 +69,12 @@ export async function PATCH(request: NextRequest) {
           ? null
           : Number(value);
 
-      const { data: existing } = await adminClient
+      const { data: existing, error: selectError } = await adminClient
         .from("lines")
         .select("id, round_number")
         .in("id", lineIds);
+
+      if (selectError) throw selectError;
 
       if (existing) {
         const historyRows = existing.map((line) => ({
@@ -87,10 +97,12 @@ export async function PATCH(request: NextRequest) {
       const emceeVal =
         value === "none" || value === "" || value === null ? null : value;
 
-      const { data: existing } = await adminClient
+      const { data: existing, error: selectError } = await adminClient
         .from("lines")
         .select("id, emcee_id")
         .in("id", lineIds);
+
+      if (selectError) throw selectError;
 
       if (existing) {
         const historyRows = existing.map((line) => ({
@@ -110,10 +122,12 @@ export async function PATCH(request: NextRequest) {
 
       if (updateError) throw updateError;
     } else if (action === "delete") {
-      const { data: existing } = await adminClient
+      const { data: existing, error: selectError } = await adminClient
         .from("lines")
         .select("id, content")
         .in("id", lineIds);
+
+      if (selectError) throw selectError;
 
       if (existing) {
         const historyRows = existing.map((line) => ({
