@@ -5,6 +5,7 @@ import { Menu } from "lucide-react";
 import {
   Sheet,
   SheetContent,
+  SheetDescription,
   SheetHeader,
   SheetTitle,
   SheetTrigger,
@@ -56,6 +57,12 @@ export default function Header() {
                 side="right"
                 className="flex flex-col w-[280px] sm:w-[350px] p-0 border-l border-border/40"
               >
+                <SheetHeader className="sr-only">
+                  <SheetTitle>Navigation Menu</SheetTitle>
+                  <SheetDescription>
+                    Access site navigation links and community features.
+                  </SheetDescription>
+                </SheetHeader>
                 <div className="flex flex-col h-full bg-card/50 backdrop-blur-xl">
                   {/* Navigation Links */}
                   <nav className="flex-1 px-4 py-12 flex flex-col gap-2">
