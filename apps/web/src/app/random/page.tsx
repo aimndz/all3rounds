@@ -19,8 +19,6 @@ import {
 import Link from "next/link";
 import { StatusBadge } from "@/components/StatusBadge";
 import { cn } from "@/lib/utils";
-import EmceeSearchModal from "@/components/EmceeSearchModal";
-import type { Emcee } from "@/lib/types";
 
 function formatTime(seconds: number): string {
   const m = Math.floor(seconds / 60);
@@ -37,35 +35,21 @@ export default function RandomPage() {
   const [error, setError] = useState("");
   const [canEdit, setCanEdit] = useState(false);
 
-  // Emcee state
-  const [emcees, setEmcees] = useState<Emcee[]>([]);
-  const [emceeId, setEmceeId] = useState<string>("none");
-  const [isEmceeModalOpen, setIsEmceeModalOpen] = useState(false);
-  const [savingEmcee, setSavingEmcee] = useState(false);
   const saveInProgress = useRef(false);
 
-  // Refs to track latest state for auto-save
+  // Emcee state
   const contentRef = useRef(content);
-  const emceeIdRef = useRef(emceeId);
   const lineRef = useRef(line);
 
   useEffect(() => {
     contentRef.current = content;
   }, [content]);
   useEffect(() => {
-    emceeIdRef.current = emceeId;
-  }, [emceeId]);
-  useEffect(() => {
     lineRef.current = line;
   }, [line]);
 
   const ytPlayerInstance = useRef<any>(null);
   const playInterval = useRef<NodeJS.Timeout | null>(null);
-
-  const selectedEmcee = React.useMemo(() => {
-    if (emceeId === "none") return null;
-    return emcees.find((e) => e.id === emceeId) || line?.emcee;
-  }, [emceeId, emcees, line?.emcee]);
 
   // Check auth for edit permissions
   useEffect(() => {
@@ -86,13 +70,11 @@ export default function RandomPage() {
     if (!lineRef.current || !canEdit || saveInProgress.current) return;
 
     const currentContent = contentRef.current;
-    const currentEmceeId = emceeIdRef.current;
     const originalLine = lineRef.current;
 
     const contentChanged = currentContent !== originalLine.content;
-    const emceeChanged = currentEmceeId !== (originalLine.emcee?.id || "none");
 
-    if (!contentChanged && !emceeChanged) return;
+    if (!contentChanged) return;
 
     saveInProgress.current = true;
     setSaving(true);
@@ -113,30 +95,12 @@ export default function RandomPage() {
         if (!res.ok) throw new Error("Failed to save content");
       }
 
-      if (emceeChanged) {
-        const res = await fetch("/api/lines", {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            lineId: originalLine.id,
-            field: "emcee_id",
-            value: currentEmceeId === "none" ? "" : currentEmceeId,
-          }),
-        });
-        if (!res.ok) throw new Error("Failed to save emcee");
-      }
-
       setSaved(true);
-      // We don't update 'line' state here because it might trigger another effect loop
-      // instead we just update the ref and the visual state
       setLine((prev) =>
         prev
           ? {
               ...prev,
               content: currentContent,
-              emcee:
-                emcees.find((e) => e.id === currentEmceeId) ||
-                (currentEmceeId === "none" ? null : prev.emcee),
             }
           : null,
       );
@@ -147,15 +111,11 @@ export default function RandomPage() {
       setSaving(false);
       saveInProgress.current = false;
     }
-  }, [canEdit, emcees]);
+  }, [canEdit]);
 
   const loadRandomLine = useCallback(async () => {
     // Force save if pending changes before moving to next
-    if (
-      lineRef.current &&
-      (contentRef.current !== lineRef.current.content ||
-        emceeIdRef.current !== (lineRef.current.emcee?.id || "none"))
-    ) {
+    if (lineRef.current && contentRef.current !== lineRef.current.content) {
       await performAutoSave();
     }
 
@@ -168,7 +128,6 @@ export default function RandomPage() {
       const data = await res.json();
       setLine(data.line);
       setContent(data.line.content);
-      setEmceeId(data.line.emcee?.id || "none");
     } catch (err) {
       setError("Failed to fetch random line. Try again.");
     } finally {
@@ -179,16 +138,6 @@ export default function RandomPage() {
   useEffect(() => {
     loadRandomLine();
   }, [loadRandomLine]);
-
-  // Load emcees for editing
-  useEffect(() => {
-    if (canEdit && emcees.length === 0) {
-      fetch("/api/emcees")
-        .then((r) => r.json())
-        .then(setEmcees)
-        .catch(() => {});
-    }
-  }, [canEdit, emcees.length]);
 
   // YouTube IFrame API Initialization
   useEffect(() => {
@@ -274,13 +223,6 @@ export default function RandomPage() {
     };
   }, [line]);
 
-  // Handle Emcee change (immediate save)
-  useEffect(() => {
-    if (line && emceeId !== (line.emcee?.id || "none")) {
-      performAutoSave();
-    }
-  }, [emceeId, line, performAutoSave]);
-
   // Handle Content change (debounced save)
   useEffect(() => {
     if (!line || content === line.content) return;
@@ -290,7 +232,7 @@ export default function RandomPage() {
     return () => clearTimeout(timer);
   }, [content, line, performAutoSave]);
 
-  const speaker = selectedEmcee?.name || line?.speaker_label || "Unknown";
+  const speaker = line?.emcee?.name || line?.speaker_label || "Unknown";
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -380,34 +322,6 @@ export default function RandomPage() {
             <div className="w-full">
               <div className="grid gap-6">
                 <div>
-                  <h2 className="text-xs font-bold text-muted-foreground mb-3 flex items-center gap-2 uppercase tracking-widest">
-                    Emcee
-                  </h2>
-                  <div className="flex flex-wrap gap-2">
-                    {line.battle.participants?.map((p) => {
-                      if (!p.emcee) return null;
-                      const isActive = emceeId === p.emcee.id;
-                      return (
-                        <Button
-                          key={p.emcee.id}
-                          type="button"
-                          variant={isActive ? "default" : "outline"}
-                          size="sm"
-                          disabled={!canEdit}
-                          onClick={() => setEmceeId(p.emcee!.id)}
-                          className={cn(
-                            "rounded-lg px-3 h-9 text-xs font-semibold shadow-sm transition-all",
-                            isActive && "ring-2 ring-primary/20",
-                          )}
-                        >
-                          {p.emcee.name}
-                        </Button>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                <div>
                   <div className="flex items-center justify-between mb-2">
                     <h2 className="text-xs font-bold text-muted-foreground flex items-center gap-2 uppercase tracking-widest">
                       Line Transcript
@@ -454,11 +368,7 @@ export default function RandomPage() {
                 )}
 
                 {canEdit &&
-                  (saving ||
-                    saved ||
-                    error ||
-                    content !== line.content ||
-                    emceeId !== (line.emcee?.id || "none")) && (
+                  (saving || saved || error || content !== line.content) && (
                     <div className="flex flex-col gap-4">
                       <div className="flex items-center justify-between pt-2 border-t border-dashed border-border/50">
                         <div className="flex items-center gap-2">
@@ -491,14 +401,6 @@ export default function RandomPage() {
                     </div>
                   )}
               </div>
-
-              <EmceeSearchModal
-                isOpen={isEmceeModalOpen}
-                onClose={() => setIsEmceeModalOpen(false)}
-                emcees={emcees}
-                selectedId={emceeId}
-                onSelect={setEmceeId}
-              />
             </div>
           </div>
         ) : null}
