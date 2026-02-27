@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import { Button } from "@/components/ui/button";
+import { LogOut } from "lucide-react";
 
 export default function AuthButton() {
   const [user, setUser] = useState<User | null>(null);
@@ -39,11 +40,17 @@ export default function AuthButton() {
   if (user) {
     return (
       <div className="flex items-center gap-3">
-        <span className="text-sm text-muted-foreground">
+        <span className="text-sm text-muted-foreground hidden sm:inline">
           {user.email?.split("@")[0]}
         </span>
-        <Button variant="outline" size="sm" onClick={handleLogout}>
-          Logout
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleLogout}
+          className="px-2 sm:px-3"
+        >
+          <LogOut className="h-4 w-4 sm:mr-2" />
+          <span className="hidden sm:inline">Logout</span>
         </Button>
       </div>
     );

@@ -9,7 +9,7 @@ export default function Footer() {
             </h3>
             <p className="max-w-md text-[10px] leading-relaxed text-muted-foreground/60">
               This is a non-profit passion project created for educational
-              purposes only. Dataverse is{" "}
+              purposes only. All3Rounds is{" "}
               <span className="text-foreground/40 font-bold underline decoration-primary/20">
                 not affiliated
               </span>{" "}
@@ -20,8 +20,7 @@ export default function Footer() {
 
           <div className="flex items-center gap-6">
             <p className="text-[10px] font-medium tracking-tight text-muted-foreground/30">
-              © {new Date().getFullYear()} Dataverse. Passionately built for the
-              culture.
+              © {new Date().getFullYear()} All3Rounds.
             </p>
           </div>
         </div>

@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Dataverse — FlipTop Verse Directory",
+  title: "All3Rounds — Filipino Battle Rap Archive",
   description:
     "Search any FlipTop battle line. Find out who said it, which battle, and watch it instantly.",
 };

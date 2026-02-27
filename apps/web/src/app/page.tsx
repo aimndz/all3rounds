@@ -12,7 +12,7 @@ export default function Home() {
           {/* Hero Content */}
           <div className="space-y-4 max-w-2xl">
             <h1 className="text-5xl font-black tracking-tight sm:text-7xl uppercase">
-              Dataverse
+              All3Rounds
             </h1>
 
             <p className="mx-auto max-w-xl text-lg text-muted-foreground leading-relaxed">

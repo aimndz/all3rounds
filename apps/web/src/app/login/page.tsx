@@ -28,8 +28,8 @@ export default function LoginPage() {
     <div className="flex min-h-screen flex-col items-center justify-center bg-background px-4">
       <Card className="w-full max-w-sm">
         <CardHeader className="text-center">
-          <CardTitle className="text-3xl font-bold tracking-tight">
-            dataverse
+          <CardTitle className="text-3xl font-bold tracking-tight uppercase">
+            A3R
           </CardTitle>
           <CardDescription>
             Login to help improve FlipTop transcriptions.
