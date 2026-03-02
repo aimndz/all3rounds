@@ -4,7 +4,12 @@ import { createClient, createAdminClient } from "@/lib/supabase/server";
 // Types
 // ============================================================================
 
-export type UserRole = "superadmin" | "admin" | "editor" | "viewer";
+export type UserRole =
+  | "superadmin"
+  | "admin"
+  | "moderator"
+  | "verified_emcee"
+  | "viewer";
 
 export type AuthUser = {
   id: string;
@@ -18,12 +23,12 @@ export type AuthUser = {
 // ============================================================================
 
 const PERMISSIONS: Record<string, UserRole[]> = {
-  "lines:edit": ["superadmin", "admin", "editor"],
+  "lines:edit": ["superadmin", "admin", "moderator", "verified_emcee"],
   "lines:batch_edit": ["superadmin", "admin"],
   "lines:delete": ["superadmin"],
   "users:manage": ["superadmin"],
   "battles:manage": ["superadmin", "admin"],
-  "battles:edit_status": ["superadmin", "admin", "editor"],
+  "battles:edit_status": ["superadmin", "admin", "moderator"],
   "battles:delete": ["superadmin"],
 };
 

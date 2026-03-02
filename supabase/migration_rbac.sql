@@ -6,7 +6,7 @@
 CREATE TABLE IF NOT EXISTS user_profiles (
   id           UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   role         TEXT NOT NULL DEFAULT 'viewer'
-               CHECK (role IN ('superadmin', 'admin', 'editor', 'viewer')),
+               CHECK (role IN ('superadmin', 'admin', 'moderator', 'verified_emcee', 'viewer')),
   display_name TEXT,
   created_at   TIMESTAMPTZ DEFAULT now(),
   updated_at   TIMESTAMPTZ DEFAULT now()

@@ -25,7 +25,11 @@ function SearchResults() {
     fetch("/api/me")
       .then((r) => r.json())
       .then((data) => {
-        setCanEdit(["superadmin", "admin", "editor"].includes(data.role));
+        setCanEdit(
+          ["superadmin", "admin", "moderator", "verified_emcee"].includes(
+            data.role,
+          ),
+        );
       })
       .catch(() => {});
   }, []);

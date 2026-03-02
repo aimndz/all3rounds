@@ -94,7 +94,9 @@ export default function RandomPage() {
       .then((data) => {
         if (
           data.role &&
-          ["superadmin", "admin", "editor"].includes(data.role)
+          ["superadmin", "admin", "moderator", "verified_emcee"].includes(
+            data.role,
+          )
         ) {
           setCanEdit(true);
         }
@@ -396,8 +398,7 @@ export default function RandomPage() {
 
                 {!canEdit && (
                   <p className="text-center text-muted-foreground bg-muted/30 py-4 rounded-xl border border-dashed text-xs px-4">
-                    Log in with editor permissions to suggest or make
-                    corrections.
+                    Log in with edit permissions to suggest or make corrections.
                   </p>
                 )}
 

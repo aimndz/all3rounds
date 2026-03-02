@@ -408,7 +408,12 @@ export default function BattlePage() {
     emcee_id?: string | null;
   } | null>(null);
   const [userRole, setUserRole] = useState<UserRole>("viewer");
-  const canEdit = ["superadmin", "admin", "editor"].includes(userRole);
+  const canEdit = [
+    "superadmin",
+    "admin",
+    "moderator",
+    "verified_emcee",
+  ].includes(userRole);
   const canBatchEdit = ["superadmin", "admin"].includes(userRole);
   const canDelete = userRole === "superadmin";
   const [batchSaving, setBatchSaving] = useState(false);
