@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { requirePermission } from "@/lib/auth";
+import { invalidateCache } from "@/lib/cache";
 
 export async function PATCH(
   request: NextRequest,
@@ -72,14 +73,19 @@ export async function PATCH(
     : review_note || null;
 
   try {
+    let updatedBattleId = null;
+
     if (finalStatus === "approved") {
       // 2a. Update the line content
-      const { error: lineUpdateError } = await adminClient
+      const { data: updatedLine, error: lineUpdateError } = await adminClient
         .from("lines")
         .update({ content: suggestion.suggested_content })
-        .eq("id", suggestion.line_id);
+        .eq("id", suggestion.line_id)
+        .select("battle_id")
+        .single();
 
       if (lineUpdateError) throw lineUpdateError;
+      updatedBattleId = updatedLine?.battle_id;
 
       // 2b. Log to edit history
       await adminClient.from("edit_history").insert({
@@ -103,6 +109,12 @@ export async function PATCH(
       .eq("id", id);
 
     if (updateError) throw updateError;
+
+    if (finalStatus === "approved" && updatedBattleId) {
+      await invalidateCache(`battle:${updatedBattleId}`);
+    }
+
+    await invalidateCache("admin:stats");
 
     return NextResponse.json({ success: true });
   } catch (error) {

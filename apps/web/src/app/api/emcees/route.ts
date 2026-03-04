@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import {
-  checkRateLimit,
-  getRateLimitHeaders,
-} from "@/lib/rate-limit";
+import { checkRateLimit, getRateLimitHeaders } from "@/lib/rate-limit";
+import { getCached, setCached } from "@/lib/cache";
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -21,6 +19,13 @@ export async function GET(request: NextRequest) {
         headers: getRateLimitHeaders(rateRes),
       },
     );
+  }
+
+  // --- Cache check ---
+  const cacheKey = query ? `emcees:q:${query}` : "emcees:all";
+  const cachedData = await getCached(cacheKey);
+  if (cachedData) {
+    return NextResponse.json(cachedData);
   }
 
   const supabase = await createClient();
@@ -42,5 +47,9 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  return NextResponse.json(data || []);
+  // --- Cache store ---
+  const result = data || [];
+  await setCached(cacheKey, result, 600); // 10 minutes
+
+  return NextResponse.json(result);
 }

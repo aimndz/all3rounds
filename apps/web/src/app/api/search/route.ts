@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import {
-  checkRateLimit,
-  getRateLimitHeaders,
-} from "@/lib/rate-limit";
+import { checkRateLimit, getRateLimitHeaders } from "@/lib/rate-limit";
+import { getCached, setCached } from "@/lib/cache";
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -62,6 +60,13 @@ export async function GET(request: NextRequest) {
     }
   }
 
+  // --- Cache check ---
+  const cacheKey = `search:${query}:${page}`;
+  const cachedData = await getCached(cacheKey);
+  if (cachedData) {
+    return NextResponse.json(cachedData);
+  }
+
   // --- Search ---
   // Using the hybrid search RPC function that combines FTS and Trigrams
   const { data, error, count } = await supabase
@@ -98,10 +103,15 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  return NextResponse.json({
+  const result = {
     results: formattedData || [],
     total: count || 0,
     page,
     totalPages: Math.ceil((count || 0) / limit),
-  });
+  };
+
+  // --- Cache store ---
+  await setCached(cacheKey, result, 120); // 2 minutes
+
+  return NextResponse.json(result);
 }

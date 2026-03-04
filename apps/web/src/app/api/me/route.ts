@@ -5,16 +5,30 @@ export async function GET() {
   const { user, role } = await getUserWithRole();
 
   if (!user) {
-    return NextResponse.json({ user: null, role: "viewer" });
+    return NextResponse.json(
+      { user: null, role: "viewer" },
+      {
+        headers: {
+          "Cache-Control": "private, max-age=60, stale-while-revalidate=120",
+        },
+      },
+    );
   }
 
-  return NextResponse.json({
-    user: {
-      id: user.id,
-      email: user.email,
-      displayName: user.displayName,
-      role: user.role,
+  return NextResponse.json(
+    {
+      user: {
+        id: user.id,
+        email: user.email,
+        displayName: user.displayName,
+        role: user.role,
+      },
+      role,
     },
-    role,
-  });
+    {
+      headers: {
+        "Cache-Control": "private, max-age=60, stale-while-revalidate=120",
+      },
+    },
+  );
 }

@@ -1,10 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { requirePermission, hasPermission } from "@/lib/auth";
-import {
-  checkRateLimit,
-  getRateLimitHeaders,
-} from "@/lib/rate-limit";
+import { checkRateLimit, getRateLimitHeaders } from "@/lib/rate-limit";
+import { invalidateCache } from "@/lib/cache";
 
 // Helper for basic CSRF protection
 function verifyCsrf(request: NextRequest): boolean {
@@ -90,6 +88,8 @@ export async function PATCH(request: NextRequest) {
   }
 
   try {
+    const battleIds = new Set<string>();
+
     if (action === "set_round") {
       const roundVal =
         value === null || value === "" || value === "none"
@@ -98,7 +98,7 @@ export async function PATCH(request: NextRequest) {
 
       const { data: existing, error: selectError } = await adminClient
         .from("lines")
-        .select("id, round_number")
+        .select("id, round_number, battle_id")
         .in("id", lineIds);
 
       if (selectError) throw selectError;
@@ -112,6 +112,9 @@ export async function PATCH(request: NextRequest) {
           new_value: String(roundVal ?? ""),
         }));
         await adminClient.from("edit_history").insert(historyRows);
+        existing.forEach(
+          (line: any) => line.battle_id && battleIds.add(line.battle_id),
+        );
       }
 
       const { error: updateError } = await adminClient
@@ -126,7 +129,7 @@ export async function PATCH(request: NextRequest) {
 
       const { data: existing, error: selectError } = await adminClient
         .from("lines")
-        .select("id, emcee_id")
+        .select("id, emcee_id, battle_id")
         .in("id", lineIds);
 
       if (selectError) throw selectError;
@@ -140,6 +143,9 @@ export async function PATCH(request: NextRequest) {
           new_value: String(emceeVal ?? ""),
         }));
         await adminClient.from("edit_history").insert(historyRows);
+        existing.forEach(
+          (line: any) => line.battle_id && battleIds.add(line.battle_id),
+        );
       }
 
       const { error: updateError } = await adminClient
@@ -151,7 +157,7 @@ export async function PATCH(request: NextRequest) {
     } else if (action === "delete") {
       const { data: existing, error: selectError } = await adminClient
         .from("lines")
-        .select("id, content")
+        .select("id, content, battle_id")
         .in("id", lineIds);
 
       if (selectError) throw selectError;
@@ -165,6 +171,9 @@ export async function PATCH(request: NextRequest) {
           new_value: "",
         }));
         await adminClient.from("edit_history").insert(historyRows);
+        existing.forEach(
+          (line: any) => line.battle_id && battleIds.add(line.battle_id),
+        );
       }
 
       const { error: deleteError } = await adminClient
@@ -173,6 +182,10 @@ export async function PATCH(request: NextRequest) {
         .in("id", lineIds);
 
       if (deleteError) throw deleteError;
+    }
+
+    for (const bId of battleIds) {
+      await invalidateCache(`battle:${bId}`);
     }
 
     return NextResponse.json({ success: true, count: lineIds.length });

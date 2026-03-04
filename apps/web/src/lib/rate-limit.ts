@@ -26,6 +26,7 @@ export const RATE_LIMITS = {
   // General browsing / API access
   anonymous: { maxRequests: 20, window: "60 s" },
   authenticated: { maxRequests: 60, window: "60 s" },
+  directory: { maxRequests: 100, window: "60 s" },
 
   // Search (heavier DB queries)
   search: { maxRequests: 30, window: "60 s" },
@@ -50,6 +51,13 @@ const limiters = redis
         limiter: Ratelimit.slidingWindow(
           RATE_LIMITS.authenticated.maxRequests,
           RATE_LIMITS.authenticated.window as any,
+        ),
+      }),
+      directory: new Ratelimit({
+        redis,
+        limiter: Ratelimit.slidingWindow(
+          RATE_LIMITS.directory.maxRequests,
+          RATE_LIMITS.directory.window as any,
         ),
       }),
       search: new Ratelimit({

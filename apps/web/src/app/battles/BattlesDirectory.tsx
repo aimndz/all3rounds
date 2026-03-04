@@ -2,7 +2,6 @@
 
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
-import { createClient } from "@/lib/supabase/client";
 import {
   Suspense,
   useEffect,
@@ -360,62 +359,42 @@ export default function BattlesDirectory({
     }
 
     try {
-      const supabase = createClient();
-      let query = supabase
-        .from("battles")
-        .select("id, title, youtube_id, event_name, event_date, status, url", {
-          count: "exact",
-        })
-        .neq("status", "excluded");
+      // Build query string
+      const params = new URLSearchParams();
+      params.set("page", currentPage.toString());
+      if (currentFilters.q) params.set("q", currentFilters.q);
+      if (currentFilters.status && currentFilters.status !== "all")
+        params.set("status", currentFilters.status);
+      if (currentFilters.year && currentFilters.year !== "all")
+        params.set("year", currentFilters.year);
+      if (currentFilters.sort && currentFilters.sort !== "latest")
+        params.set("sort", currentFilters.sort);
 
-      // Apply Search
-      if (currentFilters.q) {
-        // Escape special ILIKE characters (%) and (_) to prevent pattern injection
-        const safeQ = currentFilters.q
-          .replace(/%/g, "\\%")
-          .replace(/_/g, "\\_");
-        query = query.or(`title.ilike.%${safeQ}%,event_name.ilike.%${safeQ}%`);
+      const res = await fetch(`/api/battles?${params.toString()}`);
+
+      if (!res.ok) {
+        let msg = "Failed to fetch battles.";
+        if (res.status === 429)
+          msg = "Too many requests. Please wait a moment.";
+        throw new Error(msg);
       }
 
-      // Apply Status Filter
-      if (currentFilters.status !== "all") {
-        query = query.eq("status", currentFilters.status);
-      }
-
-      // Apply Year Filter
-      if (currentFilters.year !== "all") {
-        query = query
-          .gte("event_date", `${currentFilters.year}-01-01`)
-          .lte("event_date", `${currentFilters.year}-12-31`);
-      }
-
-      // Apply Sort
-      query = query.order("event_date", {
-        ascending: currentFilters.sort === "oldest",
-        nullsFirst: false,
-      });
-
-      // Apply Pagination
-      const from = currentPage * ITEMS_PER_PAGE;
-      const to = from + ITEMS_PER_PAGE - 1;
-      query = query.range(from, to);
-
-      const { data, error: fetchError, count } = await query;
-
-      if (fetchError) throw fetchError;
+      const { battles: incomingBattles, count, hasMore } = await res.json();
 
       if (isInitial) {
-        setBattles(data || []);
-      } else if (data) {
+        setBattles(incomingBattles || []);
+      } else if (incomingBattles) {
         setBattles((prev) => {
           const existingIds = new Set(prev.map((b) => b.id));
-          const uniqueNewBattles = data.filter((b) => !existingIds.has(b.id));
+          const uniqueNewBattles = incomingBattles.filter(
+            (b: Battle) => !existingIds.has(b.id),
+          );
           return [...prev, ...uniqueNewBattles];
         });
       }
 
       setTotalCount(count);
-      setHasMore((data || []).length === ITEMS_PER_PAGE);
+      setHasMore(hasMore);
     } catch (err) {
       console.error("Fetch error:", err);
       setError(err instanceof Error ? err.message : "Failed to fetch battles.");

@@ -6,6 +6,8 @@ import BattlesDirectory from "./BattlesDirectory";
 // Page Export (Server Component)
 // ============================================================================
 
+export const revalidate = 300; // 5 minutes
+
 export default async function BattlesPage() {
   const supabase = await createClient();
 

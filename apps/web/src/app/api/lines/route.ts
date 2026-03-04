@@ -1,10 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { requirePermission } from "@/lib/auth";
-import {
-  checkRateLimit,
-  getRateLimitHeaders,
-} from "@/lib/rate-limit";
+import { checkRateLimit, getRateLimitHeaders } from "@/lib/rate-limit";
+import { invalidateCache } from "@/lib/cache";
 
 // Helper for basic CSRF protection
 function verifyCsrf(request: NextRequest): boolean {
@@ -183,7 +181,7 @@ export async function PATCH(request: NextRequest) {
   // Get the old value first
   const { data: existing, error: fetchError } = await adminClient
     .from("lines")
-    .select(field)
+    .select("*")
     .eq("id", lineId)
     .single();
 
@@ -220,6 +218,10 @@ export async function PATCH(request: NextRequest) {
       { error: "Failed to update line." },
       { status: 500 },
     );
+  }
+
+  if (existing && existing.battle_id) {
+    await invalidateCache(`battle:${existing.battle_id}`);
   }
 
   return NextResponse.json({ success: true });

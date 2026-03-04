@@ -1,12 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { requirePermission } from "@/lib/auth";
+import {
+  getCached,
+  setCached,
+  invalidateCache,
+  invalidateCachePattern,
+} from "@/lib/cache";
 
 export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
+
+  const cacheKey = `battle:${id}`;
+  const cachedData = await getCached(cacheKey);
+  if (cachedData) {
+    return NextResponse.json(cachedData);
+  }
+
   const supabase = await createClient();
 
   // Fetch battle details
@@ -50,11 +63,15 @@ export async function GET(
     );
   }
 
-  return NextResponse.json({
+  const result = {
     battle,
     participants: participants || [],
     lines: lines || [],
-  });
+  };
+
+  await setCached(cacheKey, result, 300); // 5 minutes
+
+  return NextResponse.json(result);
 }
 
 // Helper for basic CSRF protection
@@ -131,6 +148,9 @@ export async function PATCH(
       );
     }
 
+    await invalidateCache(`battle:${id}`);
+    await invalidateCachePattern("battles:page:*");
+
     return NextResponse.json(updated);
   } catch (err: any) {
     console.error("PATCH /api/battles/[id] error:", err);
@@ -196,6 +216,9 @@ export async function DELETE(
         { status: 500 },
       );
     }
+
+    await invalidateCache(`battle:${id}`);
+    await invalidateCachePattern("battles:page:*");
 
     return NextResponse.json({
       success: true,
