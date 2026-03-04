@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Users, History, BarChart3 } from "lucide-react";
+import { Users, History, BarChart3, Mic2 } from "lucide-react";
 
 export default function AdminNav() {
   const pathname = usePathname();
 
   const links = [
     { href: "/admin/users", label: "Directory", icon: Users },
+    { href: "/admin/emcees", label: "Emcees", icon: Mic2 },
     { href: "/admin/reviews", label: "Audit Log", icon: History },
     { href: "/admin/activity", label: "Activity", icon: BarChart3 },
   ];

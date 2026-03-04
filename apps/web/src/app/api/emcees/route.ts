@@ -30,10 +30,20 @@ export async function GET(request: NextRequest) {
 
   const supabase = await createClient();
 
-  let dbQuery = supabase.from("emcees").select("id, name").order("name");
+  // Fetch emcees along with their battle participation counts for metadata
+  let dbQuery = supabase
+    .from("emcees")
+    .select(
+      `
+      id,
+      name,
+      aka,
+      battle_count:battle_participants(count)
+    `,
+    )
+    .order("name");
 
   if (query) {
-    // Escape special ILIKE characters (%) and (_) to prevent pattern injection
     const safeQ = query.replace(/%/g, "\\%").replace(/_/g, "\\_");
     dbQuery = dbQuery.ilike("name", `%${safeQ}%`);
   }
@@ -41,14 +51,20 @@ export async function GET(request: NextRequest) {
   const { data, error } = await dbQuery;
 
   if (error) {
+    console.error("Error fetching emcees:", error);
     return NextResponse.json(
       { error: "Failed to fetch emcees." },
       { status: 500 },
     );
   }
 
-  // --- Cache store ---
-  const result = data || [];
+  // Flatten the count
+  const result = (data || []).map((e: any) => ({
+    id: e.id,
+    name: e.name,
+    aka: e.aka || [],
+    battle_count: e.battle_count?.[0]?.count || 0,
+  }));
   await setCached(cacheKey, result, 600); // 10 minutes
 
   return NextResponse.json(result);
