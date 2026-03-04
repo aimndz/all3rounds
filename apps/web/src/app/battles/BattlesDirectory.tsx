@@ -75,12 +75,14 @@ type Battle = {
   event_date: string | null;
   url: string;
   status: BattleStatus;
+  score?: number; // Optional relevance score from search API
 };
 
 type EventGroup = {
   name: string;
   date: string | null;
   battles: Battle[];
+  maxScore: number;
 };
 
 // ============================================================================
@@ -104,23 +106,47 @@ function formatEventDate(dateStr: string | null): string {
   });
 }
 
-/** Group battles by event_name, respecting the selected sort order. */
+/**
+ * Groups battles by event name and sorts those groups based on either date or
+ * search relevance scores. If searching, the group with the highest-scoring
+ * battle will bubble to the top.
+ */
 function groupByEvent(
   battles: Battle[],
   sortBy: string = "latest",
+  isSearching: boolean = false,
 ): EventGroup[] {
   const groups = new Map<string, EventGroup>();
 
   for (const battle of battles) {
     const key = battle.event_name || "Other Battles";
     if (!groups.has(key)) {
-      groups.set(key, { name: key, date: battle.event_date, battles: [] });
+      groups.set(key, {
+        name: key,
+        date: battle.event_date,
+        battles: [],
+        maxScore: 0,
+      });
     }
-    groups.get(key)!.battles.push(battle);
+    const group = groups.get(key)!;
+    group.battles.push(battle);
+
+    // Track the highest relevance score in this group to use for group sorting
+    if (battle.score && battle.score > group.maxScore) {
+      group.maxScore = battle.score;
+    }
   }
 
-  // Sort groups: most recent event date first
+  // Sort the resulting event groups
   return Array.from(groups.values()).sort((a, b) => {
+    // If a search is active, prioritize groups with higher relevance scores
+    if (isSearching) {
+      if (b.maxScore !== a.maxScore) {
+        return b.maxScore - a.maxScore;
+      }
+    }
+
+    // Default: Sort by date
     const dateA = a.date ? new Date(a.date).getTime() : 0;
     const dateB = b.date ? new Date(b.date).getTime() : 0;
     return sortBy === "latest" ? dateB - dateA : dateA - dateB;
@@ -632,20 +658,26 @@ export default function BattlesDirectory({
 
   const ITEMS_PER_PAGE = 24;
 
-  // Debounce search effect
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (searchInput !== filter) {
-        updateSearch({ q: searchInput });
-      }
-    }, 500);
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-    return () => clearTimeout(timer);
-  }, [searchInput, filter]);
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newVal = e.target.value;
+    setSearchInput(newVal);
+
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+
+    debounceTimerRef.current = setTimeout(() => {
+      updateSearch({ q: newVal });
+    }, 300);
+  };
 
   useEffect(() => {
-    // Sync search input with URL if changed externally (e.g. back button)
-    setSearchInput(filter);
+    // Only update on initial filter mount or explicit URL changes that don't match the input
+    if (filter !== searchInput && debounceTimerRef.current === null) {
+      setSearchInput(filter);
+    }
   }, [filter]);
 
   useEffect(() => {
@@ -828,12 +860,13 @@ export default function BattlesDirectory({
   const filteredBattles = battles;
 
   const eventGroups = useMemo(
-    () => groupByEvent(filteredBattles, sortBy),
-    [filteredBattles, sortBy],
+    () => groupByEvent(filteredBattles, sortBy, !!filter),
+    [filteredBattles, sortBy, filter],
   );
 
   const clearFilters = () => {
     setSearchInput("");
+    if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
     router.replace(pathname, { scroll: false });
   };
 
@@ -963,15 +996,48 @@ export default function BattlesDirectory({
                   updateSearch({ q: searchInput });
                 }}
               >
-                <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/40" />
-                <input
-                  type="text"
-                  placeholder="Search battles or events..."
-                  className="w-full h-11 rounded-2xl border border-border/50 bg-muted/10 pl-11 pr-4 text-sm text-foreground placeholder:text-muted-foreground/30 outline-none transition-all focus:border-primary/40 focus:bg-muted/20 focus:ring-4 focus:ring-primary/5"
-                  value={searchInput}
-                  onChange={(e) => setSearchInput(e.target.value)}
-                  onBlur={() => updateSearch({ q: searchInput })}
-                />
+                <div className="relative">
+                  <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/40" />
+                  <input
+                    type="text"
+                    placeholder="Search battles or events..."
+                    className="w-full h-11 rounded-2xl border border-border/50 bg-muted/10 pl-11 pr-24 text-sm text-foreground placeholder:text-muted-foreground/30 outline-none transition-all focus:border-primary/40 focus:bg-muted/20 focus:ring-4 focus:ring-primary/5"
+                    value={searchInput}
+                    onChange={handleSearchChange}
+                    onBlur={() => {
+                      if (debounceTimerRef.current) {
+                        clearTimeout(debounceTimerRef.current);
+                        debounceTimerRef.current = null;
+                      }
+                      updateSearch({ q: searchInput });
+                    }}
+                  />
+                  {/* Internal Loading / Clear States */}
+                  <div className="absolute right-3.5 top-1/2 flex -translate-y-1/2 items-center gap-2">
+                    {searchInput && !loading && totalCount !== null && (
+                      <span className="text-[10px] font-medium text-muted-foreground/60 mr-1 hidden sm:inline-block">
+                        {totalCount} results
+                      </span>
+                    )}
+                    {loading && searchInput && (
+                      <Loader2 className="h-4 w-4 animate-spin text-muted-foreground/60" />
+                    )}
+                    {searchInput && !loading && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSearchInput("");
+                          if (debounceTimerRef.current)
+                            clearTimeout(debounceTimerRef.current);
+                          updateSearch({ q: "" });
+                        }}
+                        className="h-4 w-4 rounded-full bg-muted-foreground/20 text-muted-foreground flex justify-center items-center hover:bg-muted-foreground/40 transition-colors"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    )}
+                  </div>
+                </div>
               </form>
 
               <Sheet>
@@ -1031,13 +1097,25 @@ export default function BattlesDirectory({
             ))}
           </div>
         ) : filteredBattles.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20">
-            <Mic2 className="mb-4 h-12 w-12 text-muted-foreground/40" />
-            <p className="text-sm text-muted-foreground">
+          <div className="flex flex-col items-center justify-center py-20 text-center">
+            {filter ? (
+              <Search className="mb-4 h-12 w-12 text-muted-foreground/30" />
+            ) : (
+              <Mic2 className="mb-4 h-12 w-12 text-muted-foreground/40" />
+            )}
+            <h3 className="text-lg font-semibold text-foreground mb-1">
+              {filter ? "No results found" : "No battles yet"}
+            </h3>
+            <p className="text-sm text-muted-foreground max-w-sm">
               {filter
-                ? `No battles found matching "${filter}"`
+                ? `We couldn't find anything matching "${filter}". Try adjusting your spellings or using fewer keywords.`
                 : "No battles have been transcribed yet."}
             </p>
+            {hasActiveFilters && (
+              <Button variant="outline" className="mt-6" onClick={clearFilters}>
+                <X className="mr-2 h-4 w-4" /> Clear all filters
+              </Button>
+            )}
           </div>
         ) : (
           <div className="space-y-10">
@@ -1045,7 +1123,7 @@ export default function BattlesDirectory({
               <EventSection
                 key={group.name}
                 group={group}
-                defaultOpen={expandedGroups.has(group.name)}
+                defaultOpen={filter ? true : expandedGroups.has(group.name)}
                 onToggle={handleToggleGroup}
                 isSuperadmin={userRole === "superadmin"}
                 allEventNames={initialEventNames}

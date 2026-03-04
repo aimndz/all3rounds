@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getCached, setCached } from "@/lib/cache";
 import { checkRateLimit, getRateLimitHeaders } from "@/lib/rate-limit";
+import { parseSearchTokens, scoreBattle } from "@/lib/fuzzy-utils";
 
 // Use same constant as frontend
 const ITEMS_PER_PAGE = 24;
@@ -44,44 +45,120 @@ export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient();
 
-    let query = supabase
-      .from("battles")
-      .select("id, title, youtube_id, event_name, event_date, status, url", {
-        count: "exact",
-      })
-      .neq("status", "excluded");
+    let data, error, count;
 
-    // Apply Search
     if (q) {
-      // Escape special ILIKE characters (%) and (_) to prevent pattern injection
-      const safeQ = q.replace(/%/g, "\\%").replace(/_/g, "\\_");
-      query = query.or(`title.ilike.%${safeQ}%,event_name.ilike.%${safeQ}%`);
+      // 1. Parse search query into meaningful tokens (stripping "vs", etc.)
+      const tokens = parseSearchTokens(q);
+
+      if (tokens.length === 0) {
+        data = [];
+        count = 0;
+      } else {
+        // 2. Broad Candidate Fetch
+        // We fetch matches for ANY token to ensure we don't miss reversed names or partials.
+        // We fetch up to 500 candidates to re-rank in-memory for precision.
+        let query = supabase
+          .from("battles")
+          .select("id, title, youtube_id, event_name, event_date, status, url")
+          .neq("status", "excluded");
+
+        if (status !== "all") {
+          query = query.eq("status", status);
+        }
+
+        if (year !== "all") {
+          query = query
+            .gte("event_date", `${year}-01-01`)
+            .lte("event_date", `${year}-12-31`);
+        }
+
+        // Combine all tokens into a single OR query for efficiency
+        const orConditions = tokens
+          .map((token) => {
+            const safeToken = token.replace(/%/g, "\\%").replace(/_/g, "\\_");
+            return `title.ilike.%${safeToken}%,event_name.ilike.%${safeToken}%`;
+          })
+          .join(",");
+
+        query = query.or(orConditions).limit(500);
+
+        const broadResult = await query;
+        if (broadResult.error) {
+          error = broadResult.error;
+        } else {
+          // 3. Precision Scoring & Re-ranking
+          // The database handles the broad filtering, but we handle the sorting Logic
+          // (order independent matching, sequence bonuses, and typos) in TypeScript.
+          const candidates = broadResult.data || [];
+
+          const scored = candidates
+            .map((battle) => ({
+              battle,
+              score: scoreBattle(battle as any, tokens),
+            }))
+            .filter((b) => b.score > 0) // Filter out noise matches
+            .sort((a, b) => {
+              // Primary sort: Search Relevance Score
+              if (b.score !== a.score) {
+                return b.score - a.score;
+              }
+              // Secondary sort: Recency (date)
+              const dateA = a.battle.event_date
+                ? new Date(a.battle.event_date).getTime()
+                : 0;
+              const dateB = b.battle.event_date
+                ? new Date(b.battle.event_date).getTime()
+                : 0;
+              if (sort === "oldest") return dateA - dateB;
+              return dateB - dateA;
+            });
+
+          // 4. Pagination
+          count = scored.length;
+          const from = page * ITEMS_PER_PAGE;
+          data = scored
+            .slice(from, from + ITEMS_PER_PAGE)
+            .map((s) => ({ ...s.battle, score: s.score }));
+        }
+      }
+    } else {
+      // Standard fetch when no search query
+      let query = supabase
+        .from("battles")
+        .select("id, title, youtube_id, event_name, event_date, status, url", {
+          count: "exact",
+        })
+        .neq("status", "excluded");
+
+      // Apply Status Filter
+      if (status !== "all") {
+        query = query.eq("status", status);
+      }
+
+      // Apply Year Filter
+      if (year !== "all") {
+        query = query
+          .gte("event_date", `${year}-01-01`)
+          .lte("event_date", `${year}-12-31`);
+      }
+
+      // Apply Sort
+      query = query.order("event_date", {
+        ascending: sort === "oldest",
+        nullsFirst: false,
+      });
+
+      // Apply Pagination
+      const from = page * ITEMS_PER_PAGE;
+      const to = from + ITEMS_PER_PAGE - 1;
+      query = query.range(from, to);
+
+      const result = await query;
+      data = result.data;
+      error = result.error;
+      count = result.count;
     }
-
-    // Apply Status Filter
-    if (status !== "all") {
-      query = query.eq("status", status);
-    }
-
-    // Apply Year Filter
-    if (year !== "all") {
-      query = query
-        .gte("event_date", `${year}-01-01`)
-        .lte("event_date", `${year}-12-31`);
-    }
-
-    // Apply Sort
-    query = query.order("event_date", {
-      ascending: sort === "oldest",
-      nullsFirst: false,
-    });
-
-    // Apply Pagination
-    const from = page * ITEMS_PER_PAGE;
-    const to = from + ITEMS_PER_PAGE - 1;
-    query = query.range(from, to);
-
-    const { data, error, count } = await query;
 
     if (error) {
       console.error("DB Fetch Error:", error);
