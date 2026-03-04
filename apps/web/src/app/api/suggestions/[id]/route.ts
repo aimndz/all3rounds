@@ -44,12 +44,35 @@ export async function PATCH(
     );
   }
 
-  if (suggestion.status !== "pending") {
+  if (suggestion.status !== "pending" && suggestion.status !== "flagged") {
     return NextResponse.json({ error: "Already reviewed." }, { status: 400 });
   }
 
+  // 1b. Fetch the reviewer's trust level
+  const { data: reviewerProfile } = await adminClient
+    .from("user_profiles")
+    .select("trust_level, role")
+    .eq("id", user.id)
+    .single();
+
+  const isTrusted =
+    reviewerProfile?.trust_level === "trusted" ||
+    reviewerProfile?.trust_level === "senior" ||
+    ["superadmin", "admin"].includes(reviewerProfile?.role || "");
+
+  const autoFlag = action === "approve" && !isTrusted;
+  const finalStatus = autoFlag
+    ? "flagged"
+    : action === "approve"
+      ? "approved"
+      : "rejected";
+  const finalNote = autoFlag
+    ? (review_note ? review_note + "\n" : "") +
+      "[Auto-flagged: Approved by new moderator, pending senior review]"
+    : review_note || null;
+
   try {
-    if (action === "approve") {
+    if (finalStatus === "approved") {
       // 2a. Update the line content
       const { error: lineUpdateError } = await adminClient
         .from("lines")
@@ -72,10 +95,10 @@ export async function PATCH(
     const { error: updateError } = await adminClient
       .from("suggestions")
       .update({
-        status: action === "approve" ? "approved" : "rejected",
+        status: finalStatus,
         reviewed_by: user.id,
         reviewed_at: new Date().toISOString(),
-        review_note: review_note || null,
+        review_note: finalNote,
       })
       .eq("id", id);
 

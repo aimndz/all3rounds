@@ -3,7 +3,7 @@
 import AuthButton from "@/components/AuthButton";
 import Link from "next/link";
 import { Separator } from "@/components/ui/separator";
-import { Menu, ClipboardList } from "lucide-react";
+import { Menu, ClipboardList, ShieldAlert } from "lucide-react";
 import {
   Sheet,
   SheetContent,
@@ -48,6 +48,15 @@ export default function Header() {
               >
                 <ClipboardList className="h-4 w-4" />
                 Reviews
+              </Link>
+            )}
+            {role === "superadmin" && (
+              <Link
+                href="/admin/users"
+                className="flex items-center gap-1.5 text-sm font-bold text-destructive transition-colors hover:text-destructive/80"
+              >
+                <ShieldAlert className="h-4 w-4" />
+                Admin
               </Link>
             )}
             <Link
@@ -124,6 +133,17 @@ export default function Header() {
                           Reviews
                         </span>
                         <ClipboardList className="h-4 w-4 text-primary" />
+                      </Link>
+                    )}
+                    {role === "superadmin" && (
+                      <Link
+                        href="/admin/users"
+                        className="group flex items-center justify-between px-4 py-3 rounded-lg hover:bg-destructive/10 transition-all duration-200"
+                      >
+                        <span className="text-lg font-bold tracking-tight text-destructive transition-colors">
+                          Admin
+                        </span>
+                        <ShieldAlert className="h-4 w-4 text-destructive" />
                       </Link>
                     )}
                   </nav>

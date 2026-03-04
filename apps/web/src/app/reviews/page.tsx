@@ -53,7 +53,7 @@ export default function ReviewsPage() {
   const fetchSuggestions = async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/suggestions?status=pending");
+      const res = await fetch("/api/suggestions?status=pending,flagged");
       if (!res.ok) throw new Error("Failed to fetch suggestions.");
       const data = await res.json();
       setSuggestions(data);

@@ -66,9 +66,33 @@ export async function GET(request: NextRequest) {
   }
 
   const { searchParams } = new URL(request.url);
-  const status = searchParams.get("status") || "pending";
+  const statusString = searchParams.get("status") || "pending";
+  const requestedStatuses = statusString.split(",");
 
   const adminClient = createAdminClient();
+
+  // 1. Fetch the reviewer's trust level
+  const { data: reviewerProfile } = await adminClient
+    .from("user_profiles")
+    .select("trust_level, role")
+    .eq("id", auth.user.id) // using auth.user instead of user
+    .single();
+
+  const isTrusted =
+    reviewerProfile?.trust_level === "trusted" ||
+    reviewerProfile?.trust_level === "senior" ||
+    ["superadmin", "admin"].includes(reviewerProfile?.role || "");
+
+  // If not trusted, strictly restrict to requestedStatuses minus flagged
+  // Alternatively, just force 'pending' if they aren't trusted.
+  const filterStatuses = isTrusted
+    ? requestedStatuses
+    : requestedStatuses.filter((s) => s !== "flagged");
+
+  // If they asked for flagged but aren't trusted, they get an empty array.
+  if (filterStatuses.length === 0) {
+    return NextResponse.json([]);
+  }
 
   // Fetch suggestions with line context and suggester info
   // Note: user_profiles is joined via user_id
@@ -86,7 +110,7 @@ export async function GET(request: NextRequest) {
       user:user_profiles!suggestions_user_id_fkey ( display_name )
     `,
     )
-    .eq("status", status)
+    .in("status", filterStatuses)
     .order("created_at", { ascending: false });
 
   if (error) {
