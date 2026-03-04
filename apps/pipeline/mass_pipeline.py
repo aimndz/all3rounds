@@ -21,7 +21,9 @@ import os
 import json
 import argparse
 import subprocess
-from datetime import datetime
+import socket
+import uuid
+from datetime import datetime, timedelta
 from dotenv import load_dotenv
 
 # Reuse core logic from transcribe.py
@@ -53,22 +55,29 @@ YT_DLP_COMMON_ARGS = [
 
 
 # ============================================================================
-# Deduplication
+# Distributed Locking & Deduplication
 # ============================================================================
 
-def get_existing_youtube_ids() -> set[str]:
+# Unique identifier for this worker (e.g., 'colab-1234')
+WORKER_ID = f"{socket.gethostname()}-{str(uuid.uuid4())[:8]}"
+
+
+def get_existing_ids() -> set[str]:
     """
-    Fetch all youtube_ids currently in the database.
-    Used to skip videos that have already been processed (idempotency).
+    Fetch all youtube_ids that are either:
+      1. Already in the 'battles' table (completed)
+      2. Currently being processed or marked as completed in 'video_processing_status'
+    Used to skip videos that don't need work.
     """
     if not supabase:
         return set()
 
-    print("[1] Fetching existing battles from Supabase...")
+    print(f"[1] Fetching existing work (Worker: {WORKER_ID})...")
     existing_ids = set()
+    
+    # ── 1. Fetch from 'battles' table ──
     page = 0
     page_size = 1000
-
     while True:
         try:
             response = (
@@ -77,18 +86,126 @@ def get_existing_youtube_ids() -> set[str]:
                 .range(page * page_size, (page + 1) * page_size - 1)
                 .execute()
             )
-        except Exception:
-            break
+            if not response.data: break
+            for row in response.data:
+                existing_ids.add(row["youtube_id"])
+            page += 1
+        except Exception: break
 
-        if not response.data:
-            break
-
+    # ── 2. Fetch from 'video_processing_status' table ──
+    # Skip videos that are currently 'processing' or 'completed'
+    try:
+        response = (
+            supabase.table("video_processing_status")
+            .select("youtube_id, status")
+            .in_("status", ["processing", "completed"])
+            .execute()
+        )
         for row in response.data:
             existing_ids.add(row["youtube_id"])
-        page += 1
+    except Exception as e:
+        print(f"    Warning: Could not fetch processing status: {e}")
 
-    print(f"    Found {len(existing_ids)} existing battles.")
+    print(f"    Found {len(existing_ids)} active/completed tasks.")
     return existing_ids
+
+
+def claim_video(yt_id: str) -> bool:
+    """
+    Attempt to claim a video for this worker.
+    Returns True if claimed successfully, False otherwise.
+    """
+    try:
+        # Step 1: Check if already in battles (safety double-check)
+        battles_res = supabase.table("battles").select("id").eq("youtube_id", yt_id).execute()
+        if battles_res.data:
+            return False
+
+        # Step 2: Atomic UPSERT with worker_id claim
+        # We use a trick: only allow claim if status is 'failed' or record doesn't exist.
+        # But for simplicity here, we'll try to insert first.
+        data = {
+            "youtube_id": yt_id,
+            "status": "processing",
+            "worker_id": WORKER_ID,
+            "updated_at": "now()"
+        }
+        
+        # Check if it exists first to handle 'failed' retries
+        existing = supabase.table("video_processing_status").select("status").eq("youtube_id", yt_id).execute()
+        
+        if not existing.data:
+            # New task
+            supabase.table("video_processing_status").insert(data).execute()
+            return True
+        else:
+            status = existing.data[0]["status"]
+            if status == "failed":
+                # Retry a failed task
+                supabase.table("video_processing_status").update(data).eq("youtube_id", yt_id).execute()
+                return True
+            return False # Already processing or completed
+            
+    except Exception as e:
+        # print(f"    DEBUG: Claim failed for {yt_id}: {e}")
+        return False
+
+
+def mark_completed(yt_id: str):
+    """Mark a video as completed in the locking table."""
+    try:
+        supabase.table("video_processing_status").update({
+            "status": "completed",
+            "updated_at": "now()"
+        }).eq("youtube_id", yt_id).execute()
+    except Exception as e:
+        print(f"    Warning: Could not mark {yt_id} as completed: {e}")
+
+
+def mark_failed(yt_id: str):
+    """Mark a video as failed in the locking table."""
+    try:
+        supabase.table("video_processing_status").update({
+            "status": "failed",
+            "updated_at": "now()"
+        }).eq("youtube_id", yt_id).execute()
+    except Exception as e:
+        print(f"    Warning: Could not mark {yt_id} as failed: {e}")
+
+
+def cleanup_stale_locks():
+    """
+    Reset locks for tasks that have been in 'processing' status for too long (e.g., 4 hours).
+    This handles cases where a Colab instance crashed or was disconnected.
+    """
+    stale_threshold = (datetime.now() - timedelta(hours=4)).isoformat()
+    try:
+        print("[0] Cleaning up stale locks (older than 4 hours)...")
+        # Find stale records
+        res = (
+            supabase.table("video_processing_status")
+            .select("youtube_id")
+            .eq("status", "processing")
+            .lt("updated_at", stale_threshold)
+            .execute()
+        )
+        if res.data:
+            ids = [r["youtube_id"] for r in res.data]
+            print(f"    Found {len(ids)} stale tasks. Resetting to 'failed'...")
+            supabase.table("video_processing_status").update({
+                "status": "failed",
+                "updated_at": "now()"
+            }).in_("youtube_id", ids).execute()
+    except Exception as e:
+        print(f"    Warning: Stale lock cleanup failed: {e}")
+
+
+# ============================================================================
+# Deduplication (DEPRECATED - Replaced by Distributed Locking)
+# ============================================================================
+
+def get_existing_youtube_ids() -> set[str]:
+    return get_existing_ids()
 
 
 # ============================================================================
@@ -188,7 +305,10 @@ def run_pipeline(limit: int | None = None, fast_test: bool = False):
         print("ERROR: Missing SUPABASE_SERVICE_KEY or HF_TOKEN in environment variables.")
         return
 
-    existing_ids = get_existing_youtube_ids()
+    # Cleanup stale locks before starting
+    cleanup_stale_locks()
+
+    existing_ids = get_existing_ids()
 
     # ── Fetch channel video list ──
     print(f"\n[2] Fetching video list from {CHANNEL_URL}...")
@@ -206,14 +326,22 @@ def run_pipeline(limit: int | None = None, fast_test: bool = False):
         yt_id = entry.get("id", entry.get("url", ""))
         flat_title = entry.get("title", "Unknown Title")
 
-        # Skip: already in database
+        # Skip: already in database or currently processing
         if yt_id in existing_ids:
-            print(f"[-] Skipping (Already in DB): {flat_title}")
+            # (Silently skip to keep output clean, but occasionally log progress)
+            if idx % 50 == 0:
+                print(f"[-] Still scanning channel list... ({idx}/{len(entries)})")
             continue
 
         # Skip: not a battle video (no "vs" in title)
         if not is_battle_video(flat_title):
-            print(f"[-] Skipping (Not a battle): {flat_title}")
+            # Mark it as 'completed' in locking table so we never scan it again
+            # mark_completed(yt_id) # Optional: could help speed up future scans
+            continue
+
+        # ── CLAIM VIDEO (DISTRIBUTED LOCK) ──
+        if not claim_video(yt_id):
+            print(f"[-] Skipping (Currently being processed by another worker): {flat_title}")
             continue
 
         # Stop: reached test limit
@@ -276,12 +404,16 @@ def run_pipeline(limit: int | None = None, fast_test: bool = False):
                 participants=participants,
             )
 
+            # ── Mark as Completed ──
+            mark_completed(yt_id)
+
             # ── Cleanup ──
             if os.path.exists(audio_path):
                 os.remove(audio_path)
 
         except Exception as e:
             print(f"  ❌ ERROR processing {yt_id}: {e}")
+            mark_failed(yt_id)
 
     print(f"\n{'='*60}")
     print(f"✅ Mass Pipeline Finished — Processed {processed_count} battles")
