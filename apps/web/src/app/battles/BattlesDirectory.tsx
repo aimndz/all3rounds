@@ -23,8 +23,24 @@ import {
   ArrowUpDown,
   X,
   ListFilter,
+  Edit2,
+  Loader2,
+  Check,
+  MousePointerClick,
+  Ban,
+  ChevronUp,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { StatusBadge, STATUS_CONFIG } from "@/components/StatusBadge";
@@ -115,47 +131,98 @@ function groupByEvent(
 // Battle Card
 // ============================================================================
 
-function BattleCard({ battle }: { battle: Battle }) {
-  return (
-    <Link href={`/battle/${battle.id}`} className="group block">
-      <div className="overflow-hidden rounded-lg border border-border bg-card transition-all duration-200 hover:border-primary/50 hover:shadow-md">
-        {/* Thumbnail */}
-        <div className="relative aspect-video w-full overflow-hidden bg-black">
-          <Image
-            src={`https://img.youtube.com/vi/${battle.youtube_id}/mqdefault.jpg`}
-            alt={battle.title}
-            fill
-            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
-            className="object-cover transition-transform duration-300 group-hover:scale-[1.03]"
-          />
-          {/* Top-right scrim for badge legibility */}
-          <div className="absolute inset-0 bg-linear-to-bl from-black/40 via-transparent to-transparent pointer-events-none" />
+function BattleCard({
+  battle,
+  selectable = false,
+  selected = false,
+  onToggleSelect,
+}: {
+  battle: Battle;
+  selectable?: boolean;
+  selected?: boolean;
+  onToggleSelect?: (id: string) => void;
+}) {
+  const card = (
+    <div
+      className={cn(
+        "overflow-hidden rounded-lg border bg-card transition-all duration-200 hover:shadow-md",
+        selectable && selected
+          ? "border-primary ring-2 ring-primary/30"
+          : selectable
+            ? "border-border hover:border-primary/50 cursor-pointer"
+            : "border-border hover:border-primary/50",
+      )}
+      onClick={
+        selectable
+          ? (e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onToggleSelect?.(battle.id);
+            }
+          : undefined
+      }
+    >
+      {/* Thumbnail */}
+      <div className="relative aspect-video w-full overflow-hidden bg-black">
+        <Image
+          src={`https://img.youtube.com/vi/${battle.youtube_id}/mqdefault.jpg`}
+          alt={battle.title}
+          fill
+          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+          className="object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+        />
+        <div className="absolute inset-0 bg-linear-to-bl from-black/40 via-transparent to-transparent pointer-events-none" />
 
-          {/* Status Badge Over Image */}
-          <div className="absolute right-2 top-2">
-            <StatusBadge
-              status={battle.status}
-              noTooltip
-              className="backdrop-blur-xl"
-            />
-          </div>
+        {/* Status Badge */}
+        <div className="absolute right-2 top-2">
+          <StatusBadge
+            status={battle.status}
+            noTooltip
+            className="backdrop-blur-xl"
+          />
         </div>
 
-        {/* Info */}
-        <div className="p-3.5">
-          <h3 className="line-clamp-2 text-sm font-semibold leading-snug text-foreground transition-colors group-hover:text-primary">
-            {battle.title}
-          </h3>
-          <div className="mt-2 flex items-center gap-3 text-xs text-muted-foreground">
-            {battle.event_date && (
-              <span className="flex items-center gap-1">
-                <Calendar className="h-3 w-3 shrink-0" />
-                {formatDate(battle.event_date)}
-              </span>
-            )}
+        {/* Selection checkbox */}
+        {selectable && (
+          <div className="absolute left-2 top-2">
+            <div
+              className={cn(
+                "flex h-5 w-5 items-center justify-center rounded-md border-2 transition-all",
+                selected
+                  ? "bg-primary border-primary text-primary-foreground"
+                  : "bg-black/40 border-white/60 backdrop-blur-sm",
+              )}
+            >
+              {selected && <Check className="h-3 w-3" />}
+            </div>
           </div>
+        )}
+      </div>
+
+      {/* Info */}
+      <div className="p-3.5">
+        <h3 className="line-clamp-2 text-sm font-semibold leading-snug text-foreground transition-colors group-hover:text-primary">
+          {battle.title}
+        </h3>
+        <div className="mt-2 flex items-center gap-3 text-xs text-muted-foreground">
+          {battle.event_date && (
+            <span className="flex items-center gap-1">
+              <Calendar className="h-3 w-3 shrink-0" />
+              {formatDate(battle.event_date)}
+            </span>
+          )}
         </div>
       </div>
+    </div>
+  );
+
+  if (selectable) {
+    return <div className="group block">{card}</div>;
+  }
+
+  return (
+    <Link href={`/battle/${battle.id}`} className="group block">
+      {card}
     </Link>
   );
 }
@@ -168,14 +235,29 @@ function EventSection({
   group,
   defaultOpen = true,
   onToggle,
+  isSuperadmin = false,
+  onRenameGroup,
+  allEventNames = [],
+  selectionMode = false,
+  selectedIds,
+  onToggleSelect,
 }: {
   group: EventGroup;
   defaultOpen?: boolean;
   onToggle?: (name: string, isOpen: boolean) => void;
+  isSuperadmin?: boolean;
+  onRenameGroup?: (oldName: string, newName: string) => void;
+  allEventNames?: string[];
+  selectionMode?: boolean;
+  selectedIds?: Set<string>;
+  onToggleSelect?: (id: string) => void;
 }) {
   const [isOpen, setIsOpen] = useState(defaultOpen);
+  const [isRenameOpen, setIsRenameOpen] = useState(false);
+  const [newName, setNewName] = useState(group.name);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { toast } = useToast();
 
-  // Sync internal state with prop changes (for URL sync)
   useEffect(() => {
     setIsOpen(defaultOpen);
   }, [defaultOpen]);
@@ -184,6 +266,39 @@ function EventSection({
     const next = !isOpen;
     setIsOpen(next);
     onToggle?.(group.name, next);
+  };
+
+  const handleRename = async () => {
+    if (!newName.trim() || newName.trim() === group.name) return;
+    setIsSubmitting(true);
+    try {
+      const res = await fetch("/api/battles/event-name", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ oldName: group.name, newName: newName.trim() }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to rename");
+      }
+      const finalName =
+        newName.trim() === "Other Battles" ? "" : newName.trim();
+      onRenameGroup?.(group.name, finalName);
+      toast({
+        title: "Event renamed",
+        description: `Renamed ${group.battles.length} battle(s).`,
+      });
+      setIsRenameOpen(false);
+    } catch (err) {
+      toast({
+        title: "Error",
+        description:
+          err instanceof Error ? err.message : "Something went wrong",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -198,7 +313,6 @@ function EventSection({
         )}
       >
         <div className="flex items-center gap-4 flex-1">
-          {/* Accent Line + Chevron */}
           <div className="flex items-center gap-3">
             <div
               className={cn(
@@ -221,7 +335,6 @@ function EventSection({
             </div>
           </div>
 
-          {/* Event Info */}
           <div className="flex flex-col gap-0.5">
             <div className="flex items-center gap-3">
               <h2
@@ -233,7 +346,22 @@ function EventSection({
                 {group.name}
               </h2>
 
-              {/* Battle Count Tag - Moved here */}
+              {isSuperadmin && !selectionMode && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setNewName(
+                      group.name === "Other Battles" ? "" : group.name,
+                    );
+                    setIsRenameOpen(true);
+                  }}
+                  className="rounded-full p-1.5 text-muted-foreground/40 hover:bg-primary/10 hover:text-primary transition-all"
+                  title="Rename event"
+                >
+                  <Edit2 className="h-3 w-3" />
+                </button>
+              )}
+
               <div
                 className={cn(
                   "flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 transition-all duration-500",
@@ -269,11 +397,74 @@ function EventSection({
         <div className="min-h-0">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 pb-12">
             {group.battles.map((battle) => (
-              <BattleCard key={battle.id} battle={battle} />
+              <BattleCard
+                key={battle.id}
+                battle={battle}
+                selectable={selectionMode}
+                selected={selectedIds?.has(battle.id) ?? false}
+                onToggleSelect={onToggleSelect}
+              />
             ))}
           </div>
         </div>
       </div>
+
+      {/* Rename Dialog */}
+      {isSuperadmin && (
+        <Dialog open={isRenameOpen} onOpenChange={setIsRenameOpen}>
+          <DialogContent onClick={(e) => e.stopPropagation()}>
+            <DialogHeader>
+              <DialogTitle>Rename Event</DialogTitle>
+              <DialogDescription>
+                This will update the event name for all{" "}
+                <strong>{group.battles.length}</strong> battle
+                {group.battles.length !== 1 && "s"} in &quot;{group.name}&quot;.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="py-4">
+              <Input
+                list="event-suggestions"
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+                placeholder='e.g. "Ahon 16"'
+                disabled={isSubmitting}
+                autoFocus
+              />
+              <datalist id="event-suggestions">
+                {allEventNames.map((name) => (
+                  <option key={name} value={name} />
+                ))}
+              </datalist>
+            </div>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setIsRenameOpen(false)}
+                disabled={isSubmitting}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleRename}
+                disabled={
+                  isSubmitting ||
+                  !newName.trim() ||
+                  newName.trim() === group.name
+                }
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  "Rename"
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </section>
   );
 }
@@ -286,10 +477,12 @@ export default function BattlesDirectory({
   initialBattles,
   initialCount,
   initialYears,
+  initialEventNames = [],
 }: {
   initialBattles: Battle[];
   initialCount: number;
   initialYears: string[];
+  initialEventNames?: string[];
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -305,6 +498,16 @@ export default function BattlesDirectory({
   );
   const [totalCount, setTotalCount] = useState<number | null>(initialCount);
   const [dbYears, setDbYears] = useState<string[]>(initialYears);
+  const [userRole, setUserRole] = useState("viewer");
+
+  useEffect(() => {
+    fetch("/api/me")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.role) setUserRole(data.role);
+      })
+      .catch(() => {});
+  }, []);
 
   // -- Filter State from URL --
   const filter = searchParams.get("q") || "";
@@ -316,6 +519,116 @@ export default function BattlesDirectory({
   const [searchInput, setSearchInput] = useState(filter);
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const observerTarget = useRef<HTMLDivElement>(null);
+
+  // -- Superadmin: Global Battle Selection --
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedBattleIds, setSelectedBattleIds] = useState<Set<string>>(
+    new Set(),
+  );
+  const [isMoveDialogOpen, setIsMoveDialogOpen] = useState(false);
+  const [moveTargetName, setMoveTargetName] = useState("");
+  const [isMoving, setIsMoving] = useState(false);
+  const { toast } = useToast();
+
+  const toggleBattleSelection = (id: string) => {
+    setSelectedBattleIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const handleMoveSelected = async () => {
+    if (!moveTargetName.trim() || selectedBattleIds.size === 0) return;
+    setIsMoving(true);
+    try {
+      const res = await fetch("/api/battles/event-name", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          battleIds: Array.from(selectedBattleIds),
+          newName: moveTargetName.trim(),
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to move battles");
+      }
+      const finalName =
+        moveTargetName.trim() === "Other Battles" ? "" : moveTargetName.trim();
+      setBattles((prev) =>
+        prev.map((b) =>
+          selectedBattleIds.has(b.id) ? { ...b, event_name: finalName } : b,
+        ),
+      );
+      toast({
+        title: "Battles moved",
+        description: `Moved ${selectedBattleIds.size} battle(s) to "${moveTargetName.trim()}".`,
+      });
+      setSelectedBattleIds(new Set());
+      setIsMoveDialogOpen(false);
+      setSelectionMode(false);
+      setMoveTargetName("");
+    } catch (err) {
+      toast({
+        title: "Error",
+        description:
+          err instanceof Error ? err.message : "Something went wrong",
+        variant: "destructive",
+      });
+    } finally {
+      setIsMoving(false);
+    }
+  };
+
+  // -- Exclude Selected --
+  const [isExcludeDialogOpen, setIsExcludeDialogOpen] = useState(false);
+  const [isExcluding, setIsExcluding] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
+
+  const handleExcludeSelected = async () => {
+    if (selectedBattleIds.size === 0) return;
+    setIsExcluding(true);
+    try {
+      const res = await fetch("/api/battles/batch-status", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          battleIds: Array.from(selectedBattleIds),
+          status: "excluded",
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to exclude battles");
+      }
+      // Remove excluded battles from the local list
+      setBattles((prev) => prev.filter((b) => !selectedBattleIds.has(b.id)));
+      toast({
+        title: "Battles excluded",
+        description: `Excluded ${selectedBattleIds.size} battle(s).`,
+      });
+      setSelectedBattleIds(new Set());
+      setIsExcludeDialogOpen(false);
+      setSelectionMode(false);
+    } catch (err) {
+      toast({
+        title: "Error",
+        description:
+          err instanceof Error ? err.message : "Something went wrong",
+        variant: "destructive",
+      });
+    } finally {
+      setIsExcluding(false);
+    }
+  };
+
+  // Get selected battles info for preview
+  const selectedBattlesInfo = useMemo(
+    () => battles.filter((b) => selectedBattleIds.has(b.id)),
+    [battles, selectedBattleIds],
+  );
 
   const ITEMS_PER_PAGE = 24;
 
@@ -728,12 +1041,27 @@ export default function BattlesDirectory({
           </div>
         ) : (
           <div className="space-y-10">
-            {eventGroups.map((group, idx) => (
+            {eventGroups.map((group) => (
               <EventSection
                 key={group.name}
                 group={group}
                 defaultOpen={expandedGroups.has(group.name)}
                 onToggle={handleToggleGroup}
+                isSuperadmin={userRole === "superadmin"}
+                allEventNames={initialEventNames}
+                selectionMode={selectionMode}
+                selectedIds={selectedBattleIds}
+                onToggleSelect={toggleBattleSelection}
+                onRenameGroup={(oldName: string, newName: string) => {
+                  setBattles((prev) =>
+                    prev.map((b) =>
+                      b.event_name === oldName ||
+                      (!b.event_name && oldName === "Other Battles")
+                        ? { ...b, event_name: newName }
+                        : b,
+                    ),
+                  );
+                }}
               />
             ))}
 
@@ -763,6 +1091,255 @@ export default function BattlesDirectory({
         )}
       </main>
       <Footer />
+
+      {/* ── Superadmin: Floating Selection Bar ── */}
+      {userRole === "superadmin" && (
+        <>
+          {/* Toggle Selection Mode Button — in bottom-right */}
+          {!selectionMode && (
+            <button
+              onClick={() => setSelectionMode(true)}
+              className="fixed bottom-6 right-6 z-40 flex items-center gap-2 rounded-full bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-lg hover:bg-primary/90 transition-all"
+            >
+              <MousePointerClick className="h-4 w-4" />
+              Select Battles
+            </button>
+          )}
+
+          {/* Floating Action Bar */}
+          {selectionMode && (
+            <div className="fixed bottom-0 inset-x-0 z-50 border-t border-border/50 bg-background/95 backdrop-blur-xl shadow-2xl">
+              {/* Preview Panel */}
+              {previewOpen && selectedBattlesInfo.length > 0 && (
+                <div className="border-b border-border/30 bg-muted/20">
+                  <div className="mx-auto max-w-7xl px-4 py-3 sm:px-6 lg:px-8">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                        Selected Battles
+                      </span>
+                      <button
+                        onClick={() => setPreviewOpen(false)}
+                        className="text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                    <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+                      {selectedBattlesInfo.map((battle) => (
+                        <div
+                          key={battle.id}
+                          className="flex items-center gap-2 shrink-0 rounded-lg border border-border/50 bg-background px-2.5 py-1.5 group/preview"
+                        >
+                          <Image
+                            src={`https://img.youtube.com/vi/${battle.youtube_id}/default.jpg`}
+                            alt={battle.title}
+                            width={40}
+                            height={30}
+                            className="rounded object-cover"
+                          />
+                          <span className="text-xs font-medium max-w-[140px] truncate">
+                            {battle.title}
+                          </span>
+                          <button
+                            onClick={() => toggleBattleSelection(battle.id)}
+                            className="text-muted-foreground/40 hover:text-destructive transition-colors"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Action Bar */}
+              <div className="mx-auto max-w-7xl flex items-center justify-between px-4 py-3 sm:px-6 lg:px-8">
+                <div className="flex items-center gap-3">
+                  <span className="text-sm font-semibold">
+                    {selectedBattleIds.size} battle
+                    {selectedBattleIds.size !== 1 && "s"} selected
+                  </span>
+                  {selectedBattleIds.size > 0 && (
+                    <>
+                      <button
+                        onClick={() => setPreviewOpen(!previewOpen)}
+                        className="flex items-center gap-1 text-xs text-primary hover:text-primary/80 transition-colors"
+                      >
+                        <ChevronUp
+                          className={cn(
+                            "h-3 w-3 transition-transform",
+                            previewOpen && "rotate-180",
+                          )}
+                        />
+                        {previewOpen ? "Hide" : "Preview"}
+                      </button>
+                      <button
+                        onClick={() => setSelectedBattleIds(new Set())}
+                        className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        Clear
+                      </button>
+                    </>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setSelectionMode(false);
+                      setSelectedBattleIds(new Set());
+                      setPreviewOpen(false);
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    disabled={selectedBattleIds.size === 0}
+                    onClick={() => setIsExcludeDialogOpen(true)}
+                  >
+                    <Ban className="mr-1.5 h-3.5 w-3.5" />
+                    Exclude
+                  </Button>
+                  <Button
+                    size="sm"
+                    disabled={selectedBattleIds.size === 0}
+                    onClick={() => {
+                      setMoveTargetName("");
+                      setIsMoveDialogOpen(true);
+                    }}
+                  >
+                    Change Event
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Move Dialog */}
+          <Dialog open={isMoveDialogOpen} onOpenChange={setIsMoveDialogOpen}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Change Event Name</DialogTitle>
+                <DialogDescription>
+                  Assign {selectedBattleIds.size} selected battle
+                  {selectedBattleIds.size !== 1 && "s"} to a new event.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="py-4">
+                <Input
+                  list="move-event-suggestions"
+                  value={moveTargetName}
+                  onChange={(e) => setMoveTargetName(e.target.value)}
+                  placeholder='e.g. "Ahon 16"'
+                  disabled={isMoving}
+                  autoFocus
+                />
+                <datalist id="move-event-suggestions">
+                  {initialEventNames.map((name) => (
+                    <option key={name} value={name} />
+                  ))}
+                </datalist>
+              </div>
+              <DialogFooter>
+                <Button
+                  variant="outline"
+                  onClick={() => setIsMoveDialogOpen(false)}
+                  disabled={isMoving}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleMoveSelected}
+                  disabled={isMoving || !moveTargetName.trim()}
+                >
+                  {isMoving ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Moving...
+                    </>
+                  ) : (
+                    `Move ${selectedBattleIds.size} Battle${selectedBattleIds.size !== 1 ? "s" : ""}`
+                  )}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          {/* Exclude Confirmation Dialog */}
+          <Dialog
+            open={isExcludeDialogOpen}
+            onOpenChange={setIsExcludeDialogOpen}
+          >
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Exclude Battles</DialogTitle>
+                <DialogDescription>
+                  Are you sure you want to exclude{" "}
+                  <strong>{selectedBattleIds.size}</strong> battle
+                  {selectedBattleIds.size !== 1 && "s"}? They will be hidden
+                  from the directory and skipped by the pipeline.
+                </DialogDescription>
+              </DialogHeader>
+              {/* Preview in dialog */}
+              <div className="max-h-48 overflow-y-auto rounded-lg border border-border/50 divide-y divide-border/30">
+                {selectedBattlesInfo.map((battle) => (
+                  <div
+                    key={battle.id}
+                    className="flex items-center gap-3 px-3 py-2"
+                  >
+                    <Image
+                      src={`https://img.youtube.com/vi/${battle.youtube_id}/default.jpg`}
+                      alt={battle.title}
+                      width={48}
+                      height={36}
+                      className="rounded object-cover shrink-0"
+                    />
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium truncate">
+                        {battle.title}
+                      </p>
+                      <p className="text-[10px] text-muted-foreground">
+                        {battle.event_name || "Other Battles"}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <DialogFooter>
+                <Button
+                  variant="outline"
+                  onClick={() => setIsExcludeDialogOpen(false)}
+                  disabled={isExcluding}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={handleExcludeSelected}
+                  disabled={isExcluding}
+                >
+                  {isExcluding ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Excluding...
+                    </>
+                  ) : (
+                    <>
+                      <Ban className="mr-2 h-4 w-4" />
+                      Exclude {selectedBattleIds.size} Battle
+                      {selectedBattleIds.size !== 1 && "s"}
+                    </>
+                  )}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </>
+      )}
     </div>
   );
 }

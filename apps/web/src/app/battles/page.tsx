@@ -26,17 +26,26 @@ export default async function BattlesPage() {
     .order("event_date", { ascending: false, nullsFirst: false })
     .range(0, 23);
 
-  // Fetch all years once for the filter dropdown
-  const { data: yearData } = await supabase
+  // Fetch all filter data once
+  const { data: filterData } = await supabase
     .from("battles")
-    .select("event_date")
-    .not("event_date", "is", null)
+    .select("event_date, event_name")
     .neq("status", "excluded");
 
-  const initialYears = yearData
+  const initialYears = filterData
     ? Array.from(
-        new Set(yearData.map((d) => d.event_date!.split("-")[0])),
+        new Set(
+          filterData
+            .filter((d) => d.event_date)
+            .map((d) => d.event_date!.split("-")[0]),
+        ),
       ).sort((a, b) => b.localeCompare(a))
+    : [];
+
+  const initialEventNames = filterData
+    ? Array.from(new Set(filterData.map((d) => d.event_name).filter(Boolean)))
+        .sort((a, b) => a!.localeCompare(b!))
+        .filter((n): n is string => n !== null)
     : [];
 
   if (error) {
@@ -55,6 +64,7 @@ export default async function BattlesPage() {
         initialBattles={initialBattles || []}
         initialCount={count || 0}
         initialYears={initialYears}
+        initialEventNames={initialEventNames}
       />
     </Suspense>
   );
