@@ -629,60 +629,62 @@ export default function BattlesDirectory({
       <Header />
 
       <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 flex-1 w-full">
-        <div className="mb-8 flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
-          <div className="space-y-1">
-            <h1 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-              Battles
-            </h1>
-            <p className="text-xs sm:text-sm text-muted-foreground font-medium uppercase tracking-wider opacity-60">
-              {totalCount !== null ? totalCount : battles.length} battles •{" "}
-              {new Set(battles.map((b) => b.event_name).filter(Boolean)).size}{" "}
-              events
-            </p>
-          </div>
+        <div className="sticky top-14 z-30 -mx-4 mb-8 bg-background/95 px-4 py-4 backdrop-blur-sm border-b border-border/10 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+            <div className="space-y-1">
+              <h1 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+                Battles
+              </h1>
+              <p className="text-xs sm:text-sm text-muted-foreground font-medium uppercase tracking-wider opacity-60">
+                {totalCount !== null ? totalCount : battles.length} battles •{" "}
+                {new Set(battles.map((b) => b.event_name).filter(Boolean)).size}{" "}
+                events
+              </p>
+            </div>
 
-          <div className="flex items-center gap-2 sm:gap-3 w-full lg:w-auto">
-            <form
-              className="relative flex-1 lg:w-[320px]"
-              onSubmit={(e) => {
-                e.preventDefault();
-                updateSearch({ q: searchInput });
-              }}
-            >
-              <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/40" />
-              <input
-                type="text"
-                placeholder="Search battles or events..."
-                className="w-full h-11 rounded-2xl border border-border/50 bg-muted/10 pl-11 pr-4 text-sm text-foreground placeholder:text-muted-foreground/30 outline-none transition-all focus:border-primary/40 focus:bg-muted/20 focus:ring-4 focus:ring-primary/5"
-                value={searchInput}
-                onChange={(e) => setSearchInput(e.target.value)}
-                onBlur={() => updateSearch({ q: searchInput })}
-              />
-            </form>
-
-            <Sheet>
-              <SheetTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="lg:hidden h-11 w-11 shrink-0 bg-muted/10 border-border/50 rounded-2xl hover:bg-muted/20 transition-all"
-                >
-                  <ListFilter className="h-5 w-5 text-muted-foreground/60" />
-                </Button>
-              </SheetTrigger>
-              <SheetContent
-                side="bottom"
-                className="h-auto max-h-[70vh] border-t border-border/10 bg-background/95 backdrop-blur-3xl p-6 pb-10 shadow-2xl"
+            <div className="flex items-center gap-2 sm:gap-3 w-full lg:w-auto">
+              <form
+                className="relative flex-1 lg:w-[320px]"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  updateSearch({ q: searchInput });
+                }}
               >
-                <SheetTitle className="sr-only">Filters</SheetTitle>
-                <div className="mt-2">
-                  <FilterContent mobile />
-                </div>
-              </SheetContent>
-            </Sheet>
+                <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/40" />
+                <input
+                  type="text"
+                  placeholder="Search battles or events..."
+                  className="w-full h-11 rounded-2xl border border-border/50 bg-muted/10 pl-11 pr-4 text-sm text-foreground placeholder:text-muted-foreground/30 outline-none transition-all focus:border-primary/40 focus:bg-muted/20 focus:ring-4 focus:ring-primary/5"
+                  value={searchInput}
+                  onChange={(e) => setSearchInput(e.target.value)}
+                  onBlur={() => updateSearch({ q: searchInput })}
+                />
+              </form>
 
-            <div className="hidden lg:block ml-2">
-              <FilterContent />
+              <Sheet>
+                <SheetTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="lg:hidden h-11 w-11 shrink-0 bg-muted/10 border-border/50 rounded-2xl hover:bg-muted/20 transition-all"
+                  >
+                    <ListFilter className="h-5 w-5 text-muted-foreground/60" />
+                  </Button>
+                </SheetTrigger>
+                <SheetContent
+                  side="bottom"
+                  className="h-auto max-h-[70vh] border-t border-border/10 bg-background/95 backdrop-blur-3xl p-6 pb-10 shadow-2xl"
+                >
+                  <SheetTitle className="sr-only">Filters</SheetTitle>
+                  <div className="mt-2">
+                    <FilterContent mobile />
+                  </div>
+                </SheetContent>
+              </Sheet>
+
+              <div className="hidden lg:block ml-2">
+                <FilterContent />
+              </div>
             </div>
           </div>
         </div>
@@ -730,10 +732,7 @@ export default function BattlesDirectory({
               <EventSection
                 key={group.name}
                 group={group}
-                defaultOpen={
-                  expandedGroups.has(group.name) ||
-                  (expandedGroups.size === 0 && idx === 0)
-                }
+                defaultOpen={expandedGroups.has(group.name)}
                 onToggle={handleToggleGroup}
               />
             ))}
