@@ -5,7 +5,7 @@ import { checkRateLimit, getRateLimitHeaders } from "@/lib/rate-limit";
 import { parseSearchTokens, scoreBattle } from "@/lib/fuzzy-utils";
 
 // Use same constant as frontend
-const ITEMS_PER_PAGE = 24;
+const ITEMS_PER_PAGE = 48;
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -175,7 +175,11 @@ export async function GET(request: NextRequest) {
     // Cache for 5 minutes (300 seconds) to match SSR reval
     await setCached(cacheKey, payload, 300);
 
-    return NextResponse.json(payload);
+    return NextResponse.json(payload, {
+      headers: {
+        "Cache-Control": "public, s-maxage=300, stale-while-revalidate=59",
+      },
+    });
   } catch (error) {
     console.error("Battles fetch route error:", error);
     return NextResponse.json(

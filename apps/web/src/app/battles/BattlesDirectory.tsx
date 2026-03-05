@@ -510,7 +510,7 @@ export default function BattlesDirectory({
   const [error, setError] = useState("");
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(
-    initialBattles.length === 24 ? true : false,
+    initialBattles.length === 48 ? true : false,
   );
   const [totalCount, setTotalCount] = useState<number | null>(initialCount);
   const [dbYears, setDbYears] = useState<string[]>(initialYears);
@@ -655,7 +655,7 @@ export default function BattlesDirectory({
     [selectedBattles],
   );
 
-  const ITEMS_PER_PAGE = 24;
+  const ITEMS_PER_PAGE = 48;
 
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
 
