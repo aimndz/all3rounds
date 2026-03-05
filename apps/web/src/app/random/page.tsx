@@ -83,6 +83,7 @@ export default function RandomPage() {
   // Emcee state
   const contentRef = useRef(content);
   const lineRef = useRef(line);
+  const loadRandomLineRef = useRef<() => Promise<void>>(async () => {});
 
   useEffect(() => {
     contentRef.current = content;
@@ -112,57 +113,68 @@ export default function RandomPage() {
       .catch(() => {});
   }, []);
 
-  const performAutoSave = useCallback(async () => {
-    if (!lineRef.current || !canEdit || saveInProgress.current) return;
+  const performAutoSave = useCallback(
+    async (shouldNext = false) => {
+      if (!lineRef.current || !canEdit || saveInProgress.current) return;
 
-    const currentContent = contentRef.current;
-    const originalLine = lineRef.current;
+      const currentContent = contentRef.current;
+      const originalLine = lineRef.current;
 
-    const contentChanged = currentContent !== originalLine.content;
+      const contentChanged = currentContent !== originalLine.content;
 
-    if (!contentChanged) return;
+      if (!contentChanged) return;
 
-    saveInProgress.current = true;
-    setSaving(true);
-    setSaved(false);
-    setError("");
+      saveInProgress.current = true;
+      setSaving(true);
+      setSaved(false);
+      setError("");
 
-    try {
-      if (contentChanged) {
-        const res = await fetch("/api/lines", {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            lineId: originalLine.id,
-            field: "content",
-            value: currentContent,
-          }),
-        });
-        if (!res.ok) throw new Error("Failed to save content");
+      try {
+        if (contentChanged) {
+          const res = await fetch("/api/lines", {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              lineId: originalLine.id,
+              field: "content",
+              value: currentContent,
+            }),
+          });
+          if (!res.ok) throw new Error("Failed to save content");
+        }
+
+        setSaved(true);
+        setLine((prev) =>
+          prev
+            ? {
+                ...prev,
+                content: currentContent,
+              }
+            : null,
+        );
+
+        if (shouldNext) {
+          setTimeout(() => {
+            setSaved(false);
+            loadRandomLineRef.current();
+          }, 2000);
+        } else {
+          setTimeout(() => setSaved(false), 2000);
+        }
+      } catch (err: any) {
+        setError("Auto-save failed");
+      } finally {
+        setSaving(false);
+        saveInProgress.current = false;
       }
-
-      setSaved(true);
-      setLine((prev) =>
-        prev
-          ? {
-              ...prev,
-              content: currentContent,
-            }
-          : null,
-      );
-      setTimeout(() => setSaved(false), 2000);
-    } catch (err: any) {
-      setError("Auto-save failed");
-    } finally {
-      setSaving(false);
-      saveInProgress.current = false;
-    }
-  }, [canEdit]);
+    },
+    [canEdit],
+  );
 
   const loadRandomLine = useCallback(async () => {
     // Force save if pending changes before moving to next
     if (lineRef.current && contentRef.current !== lineRef.current.content) {
-      await performAutoSave();
+      await performAutoSave(false);
     }
 
     setLoading(true);
@@ -179,7 +191,11 @@ export default function RandomPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [performAutoSave]);
+
+  useEffect(() => {
+    loadRandomLineRef.current = loadRandomLine;
+  }, [loadRandomLine]);
 
   useEffect(() => {
     loadRandomLine();
@@ -544,7 +560,11 @@ export default function RandomPage() {
                         </Button>
                       ) : (
                         <Button
-                          onClick={canEdit ? performAutoSave : submitSuggestion}
+                          onClick={
+                            canEdit
+                              ? () => performAutoSave(true)
+                              : submitSuggestion
+                          }
                           disabled={saving}
                           className="gap-2 font-bold h-9 px-4"
                         >
