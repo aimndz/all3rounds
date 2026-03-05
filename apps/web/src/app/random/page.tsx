@@ -11,13 +11,20 @@ import {
   CheckCircle2,
   ChevronRight,
   Loader2,
-  MessageSquarePlus,
+  Repeat,
+  HelpCircle,
+  Info,
 } from "lucide-react";
 import Link from "next/link";
 import { StatusBadge } from "@/components/StatusBadge";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
-import SuggestCorrectionModal from "@/components/SuggestCorrectionModal";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 function formatTime(seconds: number): string {
   const m = Math.floor(seconds / 60);
@@ -69,7 +76,7 @@ export default function RandomPage() {
   const [error, setError] = useState("");
   const [canEdit, setCanEdit] = useState(false);
   const [isUserLoggedIn, setIsUserLoggedIn] = useState(false);
-  const [showSuggest, setShowSuggest] = useState(false);
+  const [isLooping, setIsLooping] = useState(true);
 
   const saveInProgress = useRef(false);
 
@@ -246,6 +253,8 @@ export default function RandomPage() {
       clearInterval(playInterval.current);
     }
 
+    if (!isLooping) return;
+
     playInterval.current = setInterval(() => {
       const player = ytPlayerInstance.current;
       if (player && typeof player.getCurrentTime === "function") {
@@ -260,7 +269,7 @@ export default function RandomPage() {
     return () => {
       if (playInterval.current) clearInterval(playInterval.current);
     };
-  }, [line]);
+  }, [line, isLooping]);
 
   const submitSuggestion = useCallback(async () => {
     if (!line || content === line.content || saveInProgress.current) return;
@@ -298,16 +307,6 @@ export default function RandomPage() {
     }
   }, [line, content, loadRandomLine]);
 
-  // Handle Content change (debounced save for editors)
-  useEffect(() => {
-    if (!line || content === line.content) return;
-    if (!canEdit) return; // Don't auto-save for simple viewers doing suggestions
-    const timer = setTimeout(() => {
-      performAutoSave();
-    }, 1000);
-    return () => clearTimeout(timer);
-  }, [content, line, canEdit, performAutoSave]);
-
   const speaker = line?.emcee?.name || line?.speaker_label || "Unknown";
 
   return (
@@ -324,10 +323,6 @@ export default function RandomPage() {
               battles.
             </p>
           </div>
-          <Button onClick={loadRandomLine} disabled={loading} className="gap-2">
-            <Shuffle className="h-4 w-4" />
-            <span className="hidden sm:inline">Next</span> Random
-          </Button>
         </div>
 
         {loading ? (
@@ -393,37 +388,99 @@ export default function RandomPage() {
 
             {/* Right: Editing & Info */}
             <div className="w-full">
-              <div className="grid gap-6">
+              <div className="grid gap-4">
                 <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <h2 className="text-xs font-bold text-muted-foreground flex items-center gap-2 uppercase tracking-widest">
-                      Line Transcript
-                    </h2>
-                    <button
-                      onClick={() => {
-                        if (
-                          ytPlayerInstance.current &&
-                          typeof ytPlayerInstance.current.seekTo === "function"
-                        ) {
-                          ytPlayerInstance.current.seekTo(
-                            line.start_time,
-                            true,
-                          );
-                          ytPlayerInstance.current.playVideo();
+                  <div className="flex gap-2 sm:flex-row flex-col justify-between items-start sm:items-center mb-3">
+                    <div className="space-y-1.5">
+                      <div className="flex items-center gap-2">
+                        <h2 className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em] leading-none">
+                          Line Transcript
+                        </h2>
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button className="text-muted-foreground/50 hover:text-primary transition-colors outline-none">
+                                <HelpCircle className="h-3 w-3" />
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent
+                              side="right"
+                              className="max-w-[240px] p-3 space-y-2 bg-popover border-border/50"
+                            >
+                              <h4 className="font-bold text-[10px] uppercase tracking-wider flex items-center gap-2 text-foreground">
+                                <Info className="h-3 w-3 text-primary" />
+                                Transcription Tips
+                              </h4>
+                              <ul className="text-[11px] list-disc list-inside space-y-1.5 text-muted-foreground border-t pt-2 border-border/40">
+                                <li>Only edit text within the timestamp.</li>
+                                <li>
+                                  Enable{" "}
+                                  <span className="font-medium text-foreground">
+                                    Loop Mode
+                                  </span>{" "}
+                                  to repeat the audio.
+                                </li>
+                                <li>Just click next if unsure.</li>
+                              </ul>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </div>
+                      {!canEdit && isUserLoggedIn && (
+                        <p className="text-[10px] text-muted-foreground/70 flex items-center gap-1 font-medium">
+                          Edit the text to submit a suggestion.
+                        </p>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => setIsLooping(!isLooping)}
+                        className={cn(
+                          "h-8 w-8 transition-all cursor-pointer",
+                          isLooping
+                            ? "text-primary bg-primary/10 hover:bg-primary/20"
+                            : "text-muted-foreground hover:text-foreground hover:bg-muted",
+                        )}
+                        title={
+                          isLooping ? "Looping enabled" : "Looping disabled"
                         }
-                      }}
-                      className="bg-primary/10 text-primary px-2 py-0.5 rounded-full text-[10px] font-mono leading-none hover:bg-primary/20 transition-colors cursor-pointer"
-                      title={`Jump to ${formatTime(line.start_time)}`}
-                    >
-                      {formatTime(line.start_time)} -{" "}
-                      {formatTime(line.end_time)}
-                    </button>
+                      >
+                        <Repeat
+                          className={cn("h-4 w-4", !isLooping && "opacity-60")}
+                        />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          if (
+                            ytPlayerInstance.current &&
+                            typeof ytPlayerInstance.current.seekTo ===
+                              "function"
+                          ) {
+                            ytPlayerInstance.current.seekTo(
+                              line.start_time,
+                              true,
+                            );
+                            ytPlayerInstance.current.playVideo();
+                          }
+                        }}
+                        className="h-8 px-2.5 text-[10px] font-mono font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-all cursor-pointer"
+                        title={`Jump to ${formatTime(line.start_time)}`}
+                      >
+                        {formatTime(line.start_time)} -{" "}
+                        {formatTime(line.end_time)}
+                      </Button>
+                    </div>
                   </div>
 
                   <Textarea
                     value={content}
                     onChange={(e) => setContent(e.target.value)}
                     disabled={!isUserLoggedIn}
+                    spellCheck={false}
                     className={cn(
                       "min-h-[140px] text-base leading-relaxed resize-none p-4 bg-card/50 border-border rounded-xl focus:bg-card transition-all shadow-inner",
                       !isUserLoggedIn &&
@@ -431,108 +488,78 @@ export default function RandomPage() {
                     )}
                     placeholder="Line content..."
                   />
-                  {!canEdit && isUserLoggedIn && (
-                    <div className="mt-2 text-xs text-muted-foreground flex items-center gap-1.5">
-                      <MessageSquarePlus className="h-3.5 w-3.5" />
-                      Edit the text above to submit a suggestion.
-                    </div>
-                  )}
                 </div>
 
-                {!isUserLoggedIn && (
-                  <div className="text-center text-muted-foreground bg-muted/30 py-6 rounded-xl border border-dashed text-xs px-4 flex flex-col items-center gap-3">
-                    <p>Log in to suggest or make corrections.</p>
-                  </div>
-                )}
-
-                {canEdit &&
-                  (saving || saved || error || content !== line.content) && (
-                    <div className="flex flex-col gap-4">
-                      <div className="flex items-center justify-between pt-2 border-t border-dashed border-border/50">
-                        <div className="flex items-center gap-2">
-                          {saving ? (
-                            <div className="flex items-center gap-2 text-primary font-medium text-xs animate-pulse">
-                              <Loader2 className="h-3 w-3 animate-spin" />
-                              Saving changes...
-                            </div>
-                          ) : saved ? (
-                            <div className="flex items-center gap-2 text-green-600 dark:text-green-500 font-medium text-xs">
-                              <CheckCircle2 className="h-3 w-3" />
-                              Saved to database
-                            </div>
-                          ) : error ? (
-                            <div className="text-red-500 text-xs font-medium">
-                              {error}
-                            </div>
-                          ) : (
-                            <div className="text-amber-600 dark:text-amber-500 text-xs font-medium flex items-center gap-2">
-                              <div className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse" />
-                              Unsaved changes
-                            </div>
-                          )}
+                <div className="flex flex-col gap-4">
+                  <div className="flex items-center justify-between transition-all">
+                    <div className="flex items-center gap-2">
+                      {!isUserLoggedIn ? (
+                        <div className="text-[10px] text-muted-foreground font-medium">
+                          <Link
+                            href="/login"
+                            className="text-primary hover:underline"
+                          >
+                            Log in
+                          </Link>{" "}
+                          to suggest corrections.
                         </div>
-
-                        <div className="text-[10px] text-muted-foreground/50 font-medium">
-                          Auto-saving...
+                      ) : saving ? (
+                        <div className="flex items-center gap-2 text-primary font-medium text-xs animate-pulse">
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                          {canEdit ? "Saving changes..." : "Submitting..."}
                         </div>
-                      </div>
+                      ) : saved ? (
+                        <div className="flex items-center gap-2 text-green-600 dark:text-green-500 font-medium text-xs">
+                          <CheckCircle2 className="h-3 w-3" />
+                          {canEdit ? "Saved to database" : "Submitted!"}
+                        </div>
+                      ) : error ? (
+                        <div className="text-red-500 text-xs font-medium">
+                          {error}
+                        </div>
+                      ) : null}
                     </div>
-                  )}
 
-                {isUserLoggedIn && !canEdit && content !== line.content && (
-                  <div className="flex flex-col gap-4">
-                    <div className="flex items-center justify-between pt-2 border-t border-dashed border-border/50">
-                      <div className="flex items-center gap-2">
-                        {saving ? (
-                          <div className="flex items-center gap-2 text-primary font-medium text-xs animate-pulse">
-                            <Loader2 className="h-3 w-3 animate-spin" />
-                            Submitting...
-                          </div>
-                        ) : saved ? (
-                          <div className="flex items-center gap-2 text-green-600 dark:text-green-500 font-medium text-xs">
-                            Suggestion Submitted!
-                          </div>
-                        ) : error ? (
-                          <div className="text-red-500 text-xs font-medium">
-                            {error}
-                          </div>
-                        ) : null}
-                      </div>
-
-                      <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2">
+                      {content !== line.content && (
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={() => setContent(line.content)}
                           disabled={saving}
+                          className="text-xs h-9"
                         >
                           Discard
                         </Button>
+                      )}
+
+                      {content === line.content ? (
                         <Button
-                          size="sm"
-                          onClick={submitSuggestion}
-                          disabled={saving || content === line.content}
-                          className="gap-2 font-bold"
+                          onClick={loadRandomLine}
+                          disabled={loading || saving}
+                          className="gap-2 font-bold h-9 px-4"
                         >
-                          <MessageSquarePlus className="h-4 w-4" />
-                          Submit Suggestion
+                          <Shuffle className="h-4 w-4" />
+                          Next Random
                         </Button>
-                      </div>
+                      ) : (
+                        <Button
+                          onClick={canEdit ? performAutoSave : submitSuggestion}
+                          disabled={saving}
+                          className="gap-2 font-bold h-9 px-4"
+                        >
+                          <CheckCircle2 className="h-4 w-4" />
+                          {canEdit ? "Submit" : "Submit Suggestion"}
+                        </Button>
+                      )}
                     </div>
                   </div>
-                )}
+                </div>
               </div>
             </div>
           </div>
         ) : null}
       </main>
-
-      {showSuggest && line && (
-        <SuggestCorrectionModal
-          result={line}
-          onClose={() => setShowSuggest(false)}
-        />
-      )}
 
       <Footer />
     </div>
