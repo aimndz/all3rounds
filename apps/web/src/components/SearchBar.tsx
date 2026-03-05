@@ -43,7 +43,9 @@ export default function SearchBar({
           placeholder="Search for a line, verse, or word..."
           autoFocus={autoFocus}
           className={`rounded-xl border-2 transition-all shadow-none focus-visible:ring-0 focus-visible:border-primary ${
-            isLarge ? "h-14 pl-12 pr-32 text-lg" : "h-12 pl-11 pr-24 text-base"
+            isLarge
+              ? "h-14 pl-12 pr-32 text-base"
+              : "h-12 pl-11 pr-24 text-base"
           }`}
         />
         <Button

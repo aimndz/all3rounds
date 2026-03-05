@@ -367,7 +367,7 @@ export default function RandomPage() {
                       className="text-lg font-bold hover:text-primary transition-colors hover:underline flex items-center gap-1 group/link"
                       title="Jump to this line in the full transcript"
                     >
-                      <span className="line-clamp-1">{line.battle.title}</span>
+                      <h1 className="line-clamp-1">{line.battle.title}</h1>
                       <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground group-hover/link:text-primary transition-colors" />
                     </Link>
                   </div>

@@ -921,7 +921,7 @@ export default function BattlesDirectory({
           value={yearFilter}
           onValueChange={(v) => updateSearch({ year: v })}
         >
-          <SelectTrigger className="w-full sm:w-[120px] bg-muted/20 border-border/50 h-10 rounded-xl focus:ring-primary/5 text-white">
+          <SelectTrigger className="w-full bg-muted/20 border-border/50 h-10 rounded-xl focus:ring-primary/5 text-white">
             <SelectValue placeholder="All Years" />
           </SelectTrigger>
           <SelectContent>
@@ -949,8 +949,8 @@ export default function BattlesDirectory({
             </div>
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="latest">Latest First</SelectItem>
-            <SelectItem value="oldest">Oldest First</SelectItem>
+            <SelectItem value="latest">Latest</SelectItem>
+            <SelectItem value="oldest">Oldest</SelectItem>
           </SelectContent>
         </Select>
       </div>
