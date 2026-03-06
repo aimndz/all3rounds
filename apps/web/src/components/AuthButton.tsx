@@ -98,7 +98,7 @@ export default function AuthButton() {
         <DropdownMenuTrigger asChild>
           <Button
             variant="ghost"
-            className="relative h-8 w-8 rounded-full focus-visible:ring-0 hover:bg-transparent hover:opacity-80 transition-opacity p-0"
+            className="relative h-8 w-8 rounded-full focus-visible:ring-0 hover:bg-transparent hover:opacity-80 transition-opacity p-0 cursor-pointer"
             aria-label="User Profile Menu"
           >
             <Avatar className="h-8 w-8 border border-border/50">

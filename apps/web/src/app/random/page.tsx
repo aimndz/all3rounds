@@ -336,14 +336,13 @@ export default function RandomPage() {
     <div className="flex min-h-screen flex-col">
       <Header />
       <main className="flex-1 w-full max-w-6xl mx-auto px-4 py-8">
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center justify-between mb-4 sm:mb-6">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight mb-2">
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight mb-1">
               Random Line
             </h1>
-            <p className="text-muted-foreground w-full max-w-xl">
-              Discover random moments or help correct transcriptions across
-              battles.
+            <p className="text-sm text-muted-foreground w-full max-w-xl">
+              Discover random moments or help improve battle transcriptions.
             </p>
           </div>
         </div>
@@ -380,30 +379,18 @@ export default function RandomPage() {
                   </div>
 
                   <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-sm text-muted-foreground">
-                    <span className="inline-flex items-center gap-1 font-medium text-foreground/80">
-                      {speaker}
-                    </span>
-                    <span className="text-border">•</span>
+                    {line.battle.event_name && (
+                      <>
+                        <span className="line-clamp-1">
+                          {line.battle.event_name}
+                        </span>
+                        <span className="text-border">|</span>
+                      </>
+                    )}
                     <StatusBadge
                       status={line.battle.status}
                       className="scale-90 origin-left"
                     />
-                    {line.round_number && (
-                      <>
-                        <span className="text-border">•</span>
-                        <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium">
-                          Round {line.round_number}
-                        </span>
-                      </>
-                    )}
-                    {line.battle.event_name && (
-                      <>
-                        <span className="text-border">•</span>
-                        <span className="line-clamp-1">
-                          {line.battle.event_name}
-                        </span>
-                      </>
-                    )}
                   </div>
                 </div>
               </div>
@@ -413,11 +400,11 @@ export default function RandomPage() {
             <div className="w-full">
               <div className="grid gap-4">
                 <div>
-                  <div className="flex gap-2 sm:flex-row flex-col justify-between items-start sm:items-center mb-3">
+                  <div className="flex flex-row justify-between items-center gap-2 mb-3">
                     <div className="space-y-1.5">
                       <div className="flex items-center gap-2">
                         <h2 className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em] leading-none">
-                          Line Transcript
+                          Transcript
                         </h2>
                         <TooltipProvider>
                           <Tooltip>
@@ -499,6 +486,12 @@ export default function RandomPage() {
                     </div>
                   </div>
 
+                  <div className="flex items-center gap-2 mb-2 pl-1">
+                    <div className="h-3.5 w-1 bg-primary rounded-full" />
+                    <span className="text-xs font-bold uppercase tracking-widest text-primary">
+                      {speaker}
+                    </span>
+                  </div>
                   <Textarea
                     value={content}
                     onChange={(e) => setContent(e.target.value)}

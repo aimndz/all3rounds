@@ -6,7 +6,6 @@ import { useEffect, useMemo, useState, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import {
-  Calendar,
   ChevronDown,
   Mic2,
   Search,
@@ -42,6 +41,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Sheet,
   SheetContent,
@@ -224,7 +229,6 @@ function BattleCard({
         <div className="mt-2 flex items-center gap-3 text-xs text-muted-foreground">
           {battle.event_date && (
             <span className="flex items-center gap-1">
-              <Calendar className="h-3 w-3 shrink-0" />
               {formatDate(battle.event_date)}
             </span>
           )}
@@ -356,7 +360,7 @@ function EventSection({
             <div className="flex items-center gap-3">
               <h2
                 className={cn(
-                  "text-lg font-black tracking-tight transition-colors duration-300",
+                  "text-lg font-bold tracking-tight transition-colors duration-300",
                   isOpen ? "text-foreground" : "text-foreground/80",
                 )}
               >
@@ -901,10 +905,7 @@ export default function BattlesDirectory({
             <SelectItem value="all">All Status</SelectItem>
             {Object.entries(STATUS_CONFIG).map(([id, config]) => (
               <SelectItem key={id} value={id}>
-                <div className="flex items-center gap-2">
-                  <config.icon className="h-3.5 w-3.5" />
-                  <span>{config.label}</span>
-                </div>
+                <span>{config.label}</span>
               </SelectItem>
             ))}
           </SelectContent>
@@ -918,22 +919,46 @@ export default function BattlesDirectory({
             Year
           </label>
         )}
-        <Select
-          value={yearFilter}
-          onValueChange={(v) => updateSearch({ year: v })}
-        >
-          <SelectTrigger className="w-full bg-muted/20 border-border/50 h-10 rounded-xl focus:ring-primary/5 text-white">
-            <SelectValue placeholder="All Years" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Years</SelectItem>
-            {availableYears.map((y) => (
-              <SelectItem key={y} value={y}>
-                {y}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="outline"
+              className="w-full justify-between bg-muted/20 border-border/50 h-10 rounded-xl focus:ring-primary/5 text-foreground px-3 font-normal cursor-pointer hover:bg-muted/20 transition-all hover:scale-[1.02]"
+            >
+              {yearFilter === "all" ? "All Years" : yearFilter}
+              <ChevronDown className="h-4 w-4 opacity-50" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-[280px] p-2">
+            <div className="grid grid-cols-4 gap-1.5">
+              <DropdownMenuItem
+                className={cn(
+                  "col-span-4 justify-center font-medium cursor-pointer rounded-lg",
+                  yearFilter === "all"
+                    ? "bg-primary text-primary-foreground focus:bg-primary/90 focus:text-primary-foreground"
+                    : "bg-muted/50 focus:bg-muted",
+                )}
+                onClick={() => updateSearch({ year: "all" })}
+              >
+                All Years
+              </DropdownMenuItem>
+              {availableYears.map((y) => (
+                <DropdownMenuItem
+                  key={y}
+                  className={cn(
+                    "justify-center cursor-pointer rounded-lg transition-colors",
+                    yearFilter === y
+                      ? "bg-primary text-primary-foreground focus:bg-primary/90 focus:text-primary-foreground font-bold"
+                      : "text-muted-foreground hover:text-foreground focus:bg-muted/50",
+                  )}
+                  onClick={() => updateSearch({ year: y })}
+                >
+                  {y}
+                </DropdownMenuItem>
+              ))}
+            </div>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       <div className="space-y-2 flex-1">
@@ -961,10 +986,9 @@ export default function BattlesDirectory({
           variant="ghost"
           size="sm"
           onClick={clearFilters}
-          className="h-10 px-4 text-muted-foreground hover:text-foreground hover:bg-muted/30 rounded-xl"
+          className="h-10 px-4 text-muted-foreground cursor-pointer hover:text-foreground hover:bg-muted/30 rounded-xl"
         >
-          <X className="mr-2 h-4 w-4" />
-          Clear Filters
+          <X className="h-4 w-4" />
         </Button>
       )}
     </div>
@@ -978,7 +1002,7 @@ export default function BattlesDirectory({
         <div className="sticky top-14 z-30 -mx-4 mb-8 bg-background/95 px-4 py-4 backdrop-blur-sm border-b border-border/10 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
           <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
             <div className="space-y-1">
-              <h1 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+              <h1 className="text-3xl font-black tracking-tight text-foreground sm:text-4xl">
                 Battles
               </h1>
               <p className="text-xs sm:text-sm text-muted-foreground font-medium uppercase tracking-wider opacity-60">

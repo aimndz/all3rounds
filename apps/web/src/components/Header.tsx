@@ -21,13 +21,13 @@ export default function Header() {
           <div className="flex items-center gap-6">
             <Link
               href="/random"
-              className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+              className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground transition-colors hover:text-foreground"
             >
               Discover
             </Link>
             <Link
               href="/battles"
-              className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+              className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground transition-colors hover:text-foreground"
             >
               Battles
             </Link>
