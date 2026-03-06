@@ -288,7 +288,14 @@ export default function RandomPage() {
   }, [line, isLooping]);
 
   const submitSuggestion = useCallback(async () => {
-    if (!line || content === line.content || saveInProgress.current) return;
+    if (
+      !line ||
+      content === line.content ||
+      saveInProgress.current ||
+      saved ||
+      loading
+    )
+      return;
 
     saveInProgress.current = true;
     setSaving(true);
@@ -321,7 +328,7 @@ export default function RandomPage() {
       setSaving(false);
       saveInProgress.current = false;
     }
-  }, [line, content, loadRandomLine]);
+  }, [line, content, loadRandomLine, saved, loading]);
 
   const speaker = line?.emcee?.name || line?.speaker_label || "Unknown";
 
@@ -495,7 +502,7 @@ export default function RandomPage() {
                   <Textarea
                     value={content}
                     onChange={(e) => setContent(e.target.value)}
-                    disabled={!isUserLoggedIn}
+                    disabled={!isUserLoggedIn || saving || saved || loading}
                     spellCheck={false}
                     className={cn(
                       "min-h-[140px] text-base leading-relaxed resize-none p-4 bg-card/50 border-border rounded-xl focus:bg-card transition-all shadow-inner",
@@ -519,16 +526,6 @@ export default function RandomPage() {
                           </Link>{" "}
                           to suggest corrections.
                         </div>
-                      ) : saving ? (
-                        <div className="flex items-center gap-2 text-primary font-medium text-xs animate-pulse">
-                          <Loader2 className="h-3 w-3 animate-spin" />
-                          {canEdit ? "Saving changes..." : "Submitting..."}
-                        </div>
-                      ) : saved ? (
-                        <div className="flex items-center gap-2 text-green-600 dark:text-green-500 font-medium text-xs">
-                          <CheckCircle2 className="h-3 w-3" />
-                          {canEdit ? "Saved to database" : "Submitted!"}
-                        </div>
                       ) : error ? (
                         <div className="text-red-500 text-xs font-medium">
                           {error}
@@ -542,7 +539,7 @@ export default function RandomPage() {
                           variant="ghost"
                           size="sm"
                           onClick={() => setContent(line.content)}
-                          disabled={saving}
+                          disabled={saving || saved || loading}
                           className="text-xs h-9"
                         >
                           Discard
@@ -552,11 +549,20 @@ export default function RandomPage() {
                       {content === line.content ? (
                         <Button
                           onClick={loadRandomLine}
-                          disabled={loading || saving}
+                          disabled={loading || saving || saved}
                           className="gap-2 font-bold h-9 px-4"
                         >
-                          <Shuffle className="h-4 w-4" />
-                          Next Random
+                          {loading ? (
+                            <>
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                              Loading...
+                            </>
+                          ) : (
+                            <>
+                              <Shuffle className="h-4 w-4" />
+                              Next Random
+                            </>
+                          )}
                         </Button>
                       ) : (
                         <Button
@@ -565,11 +571,30 @@ export default function RandomPage() {
                               ? () => performAutoSave(true)
                               : submitSuggestion
                           }
-                          disabled={saving}
-                          className="gap-2 font-bold h-9 px-4"
+                          disabled={saving || saved || loading}
+                          className="gap-2 font-bold h-9 px-4 transition-all"
                         >
-                          <CheckCircle2 className="h-4 w-4" />
-                          {canEdit ? "Submit" : "Submit Suggestion"}
+                          {loading ? (
+                            <>
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                              Loading...
+                            </>
+                          ) : saving ? (
+                            <>
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                              {canEdit ? "Saving..." : "Submitting..."}
+                            </>
+                          ) : saved ? (
+                            <>
+                              <CheckCircle2 className="h-4 w-4 text-green-500" />
+                              {canEdit ? "Saved!" : "Submitted!"}
+                            </>
+                          ) : (
+                            <>
+                              <CheckCircle2 className="h-4 w-4" />
+                              {canEdit ? "Submit" : "Submit Suggestion"}
+                            </>
+                          )}
                         </Button>
                       )}
                     </div>
