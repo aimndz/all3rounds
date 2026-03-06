@@ -1,21 +1,33 @@
 "use client";
 
-import { useSearchParams } from "next/navigation";
-import { useEffect, useState, useCallback, Suspense } from "react";
+import { useSearchParams, useRouter, usePathname } from "next/navigation";
+import { useEffect, useState, useCallback, Suspense, useRef } from "react";
 import Header from "@/components/Header";
 import SearchBar from "@/components/SearchBar";
 import ResultCard from "@/components/ResultCard";
 import { SearchResult } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Search, AlertCircle } from "lucide-react";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
 
 function SearchResults() {
+  const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
   const query = searchParams.get("q") || "";
+  const initialPage = parseInt(searchParams.get("page") || "1", 10);
 
   const [results, setResults] = useState<SearchResult[]>([]);
   const [total, setTotal] = useState(0);
-  const [page, setPage] = useState(1);
+  const [page, setPage] = useState(initialPage);
   const [totalPages, setTotalPages] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -39,10 +51,16 @@ function SearchResults() {
   }, []);
 
   const doSearch = useCallback(
-    async (p: number) => {
+    async (p: number, updateUrl = false) => {
       if (!query) return;
       setLoading(true);
       setError("");
+
+      if (updateUrl) {
+        const params = new URLSearchParams(searchParams.toString());
+        params.set("page", p.toString());
+        router.push(`${pathname}?${params.toString()}`, { scroll: false });
+      }
 
       try {
         const res = await fetch(
@@ -69,10 +87,18 @@ function SearchResults() {
     [query],
   );
 
+  const lastQuery = useRef("");
+
   useEffect(() => {
-    setPage(1);
-    doSearch(1);
-  }, [query, doSearch]);
+    // Only reset to page 1 if the query actually changed
+    if (query !== lastQuery.current) {
+      setPage(1);
+      doSearch(1);
+      lastQuery.current = query;
+    } else {
+      doSearch(page);
+    }
+  }, [query, page, doSearch]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -158,28 +184,55 @@ function SearchResults() {
 
         {/* Pagination */}
         {!loading && totalPages > 1 && (
-          <div className="mt-8 flex items-center justify-center gap-3">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => doSearch(page - 1)}
-              disabled={page <= 1}
-              className="h-8 text-xs"
-            >
-              ← Previous
-            </Button>
-            <span className="text-xs text-muted-foreground tabular-nums">
-              {page} / {totalPages}
-            </span>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => doSearch(page + 1)}
-              disabled={page >= totalPages}
-              className="h-8 text-xs"
-            >
-              Next →
-            </Button>
+          <div className="mt-12">
+            <Pagination>
+              <PaginationContent>
+                <PaginationItem>
+                  <PaginationPrevious
+                    onClick={() => page > 1 && setPage(page - 1)}
+                    className={`cursor-pointer ${page === 1 ? "pointer-events-none opacity-50" : ""}`}
+                  />
+                </PaginationItem>
+
+                {Array.from({ length: totalPages }).map((_, i) => {
+                  const p = i + 1;
+                  // Show pages around current, plus first and last
+                  if (
+                    p === 1 ||
+                    p === totalPages ||
+                    (p >= page - 2 && p <= page + 2)
+                  ) {
+                    return (
+                      <PaginationItem key={p}>
+                        <PaginationLink
+                          isActive={page === p}
+                          onClick={() => setPage(p)}
+                          className="cursor-pointer"
+                        >
+                          {p}
+                        </PaginationLink>
+                      </PaginationItem>
+                    );
+                  }
+                  // Show ellipsis
+                  if (p === page - 3 || p === page + 3) {
+                    return (
+                      <PaginationItem key={p}>
+                        <PaginationEllipsis />
+                      </PaginationItem>
+                    );
+                  }
+                  return null;
+                })}
+
+                <PaginationItem>
+                  <PaginationNext
+                    onClick={() => page < totalPages && setPage(page + 1)}
+                    className={`cursor-pointer ${page === totalPages ? "pointer-events-none opacity-50" : ""}`}
+                  />
+                </PaginationItem>
+              </PaginationContent>
+            </Pagination>
           </div>
         )}
       </main>

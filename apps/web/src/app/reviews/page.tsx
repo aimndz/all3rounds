@@ -13,6 +13,16 @@ import {
   ExternalLink,
 } from "lucide-react";
 import YouTubeLoopPlayer from "@/components/YouTubeLoopPlayer";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
 import Link from "next/link";
 
 type Suggestion = {
@@ -50,13 +60,21 @@ export default function ReviewsPage() {
   /** Map of unique keys to force re-render specific video players */
   const [playerKeys, setPlayerKeys] = useState<Record<string, number>>({});
 
-  const fetchSuggestions = async () => {
+  /** Pagination State */
+  const [page, setPage] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
+  const itemsPerPage = 10;
+
+  const fetchSuggestions = async (pageNum = page) => {
     setLoading(true);
     try {
-      const res = await fetch("/api/suggestions?status=pending,flagged");
+      const res = await fetch(
+        `/api/suggestions?status=pending,flagged&page=${pageNum}&limit=${itemsPerPage}`,
+      );
       if (!res.ok) throw new Error("Failed to fetch suggestions.");
-      const data = await res.json();
-      setSuggestions(data);
+      const result = await res.json();
+      setSuggestions(result.data);
+      setTotalItems(result.total);
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -65,8 +83,8 @@ export default function ReviewsPage() {
   };
 
   useEffect(() => {
-    fetchSuggestions();
-  }, []);
+    fetchSuggestions(page);
+  }, [page]);
 
   const handleReview = async (id: string, action: "approve" | "reject") => {
     setProcessing(id);
@@ -86,6 +104,12 @@ export default function ReviewsPage() {
       }
 
       setSuggestions((prev) => prev.filter((s) => s.id !== id));
+      setTotalItems((prev) => prev - 1);
+
+      // If we cleared the page, go to previous if possible
+      if (suggestions.length === 1 && page > 1) {
+        setPage(page - 1);
+      }
     } catch (err: any) {
       alert(err.message);
     } finally {
@@ -114,14 +138,14 @@ export default function ReviewsPage() {
               PENDING FIXES
             </h1>
             <div className="h-9 flex items-center bg-white/5 rounded-xl px-4 font-bold text-xs tracking-tighter border border-white/5 text-white/60">
-              {suggestions.length} ITEMS
+              {totalItems} ITEMS
             </div>
           </div>
           <div className="flex items-center gap-3">
             <Button
               variant="outline"
               size="icon"
-              onClick={fetchSuggestions}
+              onClick={() => fetchSuggestions(page)}
               className="h-9 w-9 border-white/10 rounded-xl hover:bg-primary/5 hover:text-primary transition-all active:scale-95 text-white"
             >
               <RotateCcw className="h-4 w-4" />
@@ -137,16 +161,43 @@ export default function ReviewsPage() {
         )}
 
         {loading ? (
-          <div className="flex flex-col items-center justify-center py-24 gap-6">
-            <div className="relative">
-              <div className="h-12 w-12 rounded-2xl border-2 border-primary/20 flex items-center justify-center">
-                <Loader2 className="h-6 w-6 animate-spin text-primary" />
+          <div className="grid gap-3">
+            {[...Array(3)].map((_, i) => (
+              <div
+                key={i}
+                className="flex flex-col md:flex-row gap-0 overflow-hidden rounded-3xl border border-white/5 bg-[#141417]"
+              >
+                <div className="relative aspect-video w-full md:w-[340px] bg-black/20 shrink-0">
+                  <Skeleton className="absolute inset-0 h-full w-full rounded-none" />
+                </div>
+                <div className="flex flex-1 flex-col p-6 lg:px-8 space-y-6">
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-2">
+                      <Skeleton className="h-4 w-48" />
+                      <Skeleton className="h-3 w-24" />
+                    </div>
+                    <div className="space-y-2 flex flex-col items-end">
+                      <Skeleton className="h-2 w-16" />
+                      <Skeleton className="h-2 w-12" />
+                    </div>
+                  </div>
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Skeleton className="h-2 w-12" />
+                      <Skeleton className="h-4 w-full" />
+                    </div>
+                    <div className="space-y-2">
+                      <Skeleton className="h-2 w-16" />
+                      <Skeleton className="h-5 w-3/4" />
+                    </div>
+                  </div>
+                  <div className="flex justify-end gap-3 pt-4 border-t border-white/5">
+                    <Skeleton className="h-8 w-24 rounded-xl" />
+                    <Skeleton className="h-8 w-28 rounded-xl" />
+                  </div>
+                </div>
               </div>
-              <div className="absolute inset-0 h-12 w-12 animate-ping -z-10 bg-primary/5 rounded-2xl" />
-            </div>
-            <p className="text-[10px] font-black uppercase tracking-[0.3em] text-white/20 text-center">
-              Loading
-            </p>
+            ))}
           </div>
         ) : suggestions.length === 0 ? (
           <div className="text-center py-40 rounded-[2.5rem] border border-dashed border-white/10 bg-white/5">
@@ -261,6 +312,65 @@ export default function ReviewsPage() {
                 </div>
               </div>
             ))}
+          </div>
+        )}
+
+        {/* Pagination */}
+        {!loading && totalItems > itemsPerPage && (
+          <div className="mt-12">
+            <Pagination>
+              <PaginationContent>
+                <PaginationItem>
+                  <PaginationPrevious
+                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                    className={`cursor-pointer ${page === 1 ? "pointer-events-none opacity-50" : ""}`}
+                  />
+                </PaginationItem>
+
+                {Array.from({
+                  length: Math.ceil(totalItems / itemsPerPage),
+                }).map((_, i) => {
+                  const p = i + 1;
+                  // Basic pagination logic: show first, last, and around current
+                  if (
+                    p === 1 ||
+                    p === Math.ceil(totalItems / itemsPerPage) ||
+                    (p >= page - 1 && p <= page + 1)
+                  ) {
+                    return (
+                      <PaginationItem key={p}>
+                        <PaginationLink
+                          isActive={page === p}
+                          onClick={() => setPage(p)}
+                          className="cursor-pointer"
+                        >
+                          {p}
+                        </PaginationLink>
+                      </PaginationItem>
+                    );
+                  }
+                  if (p === page - 2 || p === page + 2) {
+                    return (
+                      <PaginationItem key={p}>
+                        <PaginationEllipsis />
+                      </PaginationItem>
+                    );
+                  }
+                  return null;
+                })}
+
+                <PaginationItem>
+                  <PaginationNext
+                    onClick={() =>
+                      setPage((p) =>
+                        Math.min(Math.ceil(totalItems / itemsPerPage), p + 1),
+                      )
+                    }
+                    className={`cursor-pointer ${page === Math.ceil(totalItems / itemsPerPage) ? "pointer-events-none opacity-50" : ""}`}
+                  />
+                </PaginationItem>
+              </PaginationContent>
+            </Pagination>
           </div>
         )}
       </main>

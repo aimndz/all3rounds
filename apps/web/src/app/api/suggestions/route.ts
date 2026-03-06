@@ -94,9 +94,14 @@ export async function GET(request: NextRequest) {
     return NextResponse.json([]);
   }
 
+  const page = parseInt(searchParams.get("page") || "1");
+  const limit = parseInt(searchParams.get("limit") || "10");
+  const from = (page - 1) * limit;
+  const to = from + limit - 1;
+
   // Fetch suggestions with line context and suggester info
   // Note: user_profiles is joined via user_id
-  const { data, error } = await adminClient
+  const { data, error, count } = await adminClient
     .from("suggestions")
     .select(
       `
@@ -109,9 +114,11 @@ export async function GET(request: NextRequest) {
       ),
       user:user_profiles!suggestions_user_id_fkey ( display_name )
     `,
+      { count: "exact" },
     )
     .in("status", filterStatuses)
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .range(from, to);
 
   if (error) {
     console.error("Fetch suggestions error:", error);
@@ -121,5 +128,10 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  return NextResponse.json(data);
+  return NextResponse.json({
+    data,
+    total: count || 0,
+    page,
+    limit,
+  });
 }
