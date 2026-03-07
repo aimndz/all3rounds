@@ -183,8 +183,8 @@ def parse_fliptop_metadata(metadata: dict) -> dict:
 
     # --- Extract event name from description ---
     if description:
-        # Primary: "FlipTop presents: [EVENT] @"
-        match = re.search(r"FlipTop presents:\s*([^@]+)@", description, re.IGNORECASE)
+        # Primary: "FlipTop [REGION] presents: [EVENT] @"
+        match = re.search(r"FlipTop.*?presents:\s*([^@]+)@", description, re.IGNORECASE)
         if match:
             event_name = match.group(1).strip()
         else:
