@@ -1,0 +1,63 @@
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Search } from "lucide-react";
+
+export default function SearchBar({
+  initialQuery = "",
+  autoFocus = false,
+  size = "lg",
+}: {
+  initialQuery?: string;
+  autoFocus?: boolean;
+  size?: "lg" | "sm";
+}) {
+  const [query, setQuery] = useState(initialQuery);
+  const router = useRouter();
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const trimmed = query.trim();
+    if (trimmed) {
+      router.push(`/search?q=${encodeURIComponent(trimmed)}`);
+    }
+  };
+
+  const isLarge = size === "lg";
+
+  return (
+    <form onSubmit={handleSubmit} className="w-full">
+      <div className="group relative">
+        <Search
+          className={`text-muted-foreground group-focus-within:text-primary absolute top-1/2 left-4 -translate-y-1/2 transition-colors ${
+            isLarge ? "h-5 w-5" : "h-4 w-4"
+          }`}
+        />
+        <Input
+          type="text"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search for a line, verse, or word..."
+          autoFocus={autoFocus}
+          className={`focus-visible:border-primary rounded-xl border-2 shadow-none transition-all focus-visible:ring-0 ${
+            isLarge
+              ? "h-14 pr-32 pl-12 text-base"
+              : "h-12 pr-24 pl-11 text-base"
+          }`}
+        />
+        <Button
+          type="submit"
+          size={isLarge ? "default" : "sm"}
+          className={`bg-primary text-primary-foreground hover:bg-primary/90 absolute top-1/2 right-2 -translate-y-1/2 rounded-lg font-bold transition-all ${
+            isLarge ? "px-6" : "px-4"
+          }`}
+        >
+          Search
+        </Button>
+      </div>
+    </form>
+  );
+}
