@@ -3,6 +3,13 @@ import { createAdminClient } from "@/lib/supabase/server";
 import { requirePermission, hasPermission } from "@/lib/auth";
 import { checkRateLimit, getRateLimitHeaders } from "@/lib/rate-limit";
 import { invalidateCache } from "@/lib/cache";
+import { z } from "zod";
+
+const BatchLinesSchema = z.object({
+  lineIds: z.array(z.number().int()).min(1, "No lines selected").max(200, "Too many lines selected (max 200)"),
+  action: z.enum(["set_round", "set_emcee", "delete"], { message: "Invalid action" }),
+  value: z.any().optional()
+});
 
 // Helper for basic CSRF protection
 function verifyCsrf(request: NextRequest): boolean {
@@ -49,35 +56,19 @@ export async function PATCH(request: NextRequest) {
   }
 
   const adminClient = createAdminClient();
-  const body = await request.json();
-  const { lineIds, action, value } = body as {
-    lineIds: number[];
-    action: "set_round" | "set_emcee" | "delete";
-    value?: string | number;
-  };
-
-  if (!Array.isArray(lineIds) || lineIds.length === 0) {
-    return NextResponse.json({ error: "No lines selected." }, { status: 400 });
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  // Validation: Ensure all IDs are integers
-  if (!lineIds.every((id) => typeof id === "number" && Number.isInteger(id))) {
-    return NextResponse.json(
-      { error: "Invalid line IDs provided." },
-      { status: 400 },
-    );
+  const parsed = BatchLinesSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
   }
 
-  if (lineIds.length > 200) {
-    return NextResponse.json(
-      { error: "Too many lines selected (max 200)." },
-      { status: 400 },
-    );
-  }
-
-  if (!["set_round", "set_emcee", "delete"].includes(action)) {
-    return NextResponse.json({ error: "Invalid action." }, { status: 400 });
-  }
+  const { lineIds, action, value } = parsed.data;
 
   // ── Delete requires superadmin ──
   if (action === "delete" && !hasPermission(role, "lines:delete")) {

@@ -2,6 +2,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { requirePermission } from "@/lib/auth";
 import { invalidateCachePattern } from "@/lib/cache";
+import { z } from "zod";
+
+const EventDateSchema = z.object({
+  eventName: z.string().optional(),
+  newDate: z.string().min(1, "New date cannot be empty").max(200, "New date is too long"),
+  battleIds: z.array(z.string().uuid("Invalid battle ID")).optional()
+}).refine(data => data.eventName || (data.battleIds && data.battleIds.length > 0), {
+  message: "Either eventName or battleIds is required."
+});
 
 // Helper for basic CSRF protection
 function verifyCsrf(request: NextRequest): boolean {
@@ -47,16 +56,19 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
-    // 2. Parse body
-    const body = await request.json();
-    const { eventName, newDate, battleIds } = body;
-
-    if (!newDate) {
-      return NextResponse.json(
-        { error: "newDate is required." },
-        { status: 400 },
-      );
+    let body;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
     }
+
+    const parsed = EventDateSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
+    }
+
+    const { eventName, newDate, battleIds } = parsed.data;
 
     const supabaseAdmin = createAdminClient();
 
@@ -91,12 +103,6 @@ export async function PATCH(request: NextRequest) {
     }
 
     // ── Mode 1: All battles in a named event ──
-    if (!eventName || typeof eventName !== "string") {
-      return NextResponse.json(
-        { error: "Either eventName or battleIds is required." },
-        { status: 400 },
-      );
-    }
 
     // Build the update query
     let query = supabaseAdmin

@@ -2,12 +2,24 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { requirePermission } from "@/lib/auth";
 import { invalidateCachePattern } from "@/lib/cache";
+import { verifyCsrf } from "@/lib/csrf";
+import { z } from "zod";
+
+const UpdateEmceeSchema = z.object({
+  name: z.string().min(1, "Name cannot be empty").max(100, "Name too long").optional(),
+  aka: z.array(z.string().max(100, "AKA too long")).optional()
+}).refine(data => data.name !== undefined || data.aka !== undefined, { message: "Nothing to update." });
 
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
+
+  // ── CSRF Check ──
+  if (!verifyCsrf(request)) {
+    return NextResponse.json({ error: "Invalid request origin." }, { status: 403 });
+  }
 
   // ── Auth & Permission Check ──
   const auth = await requirePermission("emcees:manage");
@@ -18,25 +30,25 @@ export async function PATCH(
     );
   }
 
-  const body = await request.json();
-  const { name, aka } = body as { name?: string; aka?: string[] };
-
-  if (!name && !aka) {
-    return NextResponse.json({ error: "Nothing to update." }, { status: 400 });
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
+
+  const parsed = UpdateEmceeSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
+  }
+
+  const { name, aka } = parsed.data;
 
   const adminClient = createAdminClient();
 
   const updateData: any = {};
   if (name !== undefined) {
-    const trimmed = name.trim();
-    if (!trimmed) {
-      return NextResponse.json(
-        { error: "Name cannot be empty." },
-        { status: 400 },
-      );
-    }
-    updateData.name = trimmed;
+    updateData.name = name.trim();
   }
   if (aka !== undefined) updateData.aka = aka;
 
@@ -72,6 +84,11 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
+
+  // ── CSRF Check ──
+  if (!verifyCsrf(request)) {
+    return NextResponse.json({ error: "Invalid request origin." }, { status: 403 });
+  }
 
   // ── Auth & Permission Check ──
   const auth = await requirePermission("emcees:manage");

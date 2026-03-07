@@ -2,6 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { requirePermission } from "@/lib/auth";
 import { invalidateCachePattern } from "@/lib/cache";
+import { z } from "zod";
+
+const BatchStatusSchema = z.object({
+  battleIds: z.array(z.string().uuid("Invalid battle ID")).min(1, "battleIds must be a non-empty array."),
+  status: z.enum(["raw", "arranged", "reviewing", "reviewed", "excluded"], { message: "Invalid status" })
+});
 
 function verifyCsrf(request: NextRequest): boolean {
   const origin = request.headers.get("origin");
@@ -40,23 +46,19 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
-    const body = await request.json();
-    const { battleIds, status } = body;
-
-    if (!Array.isArray(battleIds) || battleIds.length === 0) {
-      return NextResponse.json(
-        { error: "battleIds must be a non-empty array." },
-        { status: 400 },
-      );
+    let body;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
     }
 
-    const VALID = ["raw", "arranged", "reviewing", "reviewed", "excluded"];
-    if (!status || !VALID.includes(status)) {
-      return NextResponse.json(
-        { error: `Invalid status. Must be one of: ${VALID.join(", ")}` },
-        { status: 400 },
-      );
+    const parsed = BatchStatusSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
     }
+
+    const { battleIds, status } = parsed.data;
 
     const supabaseAdmin = createAdminClient();
 

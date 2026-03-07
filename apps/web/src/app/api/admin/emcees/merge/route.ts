@@ -2,8 +2,20 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { requirePermission } from "@/lib/auth";
 import { invalidateCachePattern } from "@/lib/cache";
+import { verifyCsrf } from "@/lib/csrf";
+import { z } from "zod";
+
+const MergeEmceesSchema = z.object({
+  sourceId: z.string().uuid("Invalid source ID"),
+  targetId: z.string().uuid("Invalid target ID")
+}).refine(data => data.sourceId !== data.targetId, { message: "Cannot merge an emcee into itself." });
 
 export async function POST(request: NextRequest) {
+  // ── CSRF Check ──
+  if (!verifyCsrf(request)) {
+    return NextResponse.json({ error: "Invalid request origin." }, { status: 403 });
+  }
+
   // ── Auth & Permission Check ──
   const auth = await requirePermission("emcees:manage");
   if (auth.error) {
@@ -13,22 +25,19 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const body = await request.json();
-  const { sourceId, targetId } = body;
-
-  if (!sourceId || !targetId) {
-    return NextResponse.json(
-      { error: "Both sourceId and targetId are required." },
-      { status: 400 },
-    );
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  if (sourceId === targetId) {
-    return NextResponse.json(
-      { error: "Cannot merge an emcee into itself." },
-      { status: 400 },
-    );
+  const parsed = MergeEmceesSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
   }
+
+  const { sourceId, targetId } = parsed.data;
 
   const adminClient = createAdminClient();
 

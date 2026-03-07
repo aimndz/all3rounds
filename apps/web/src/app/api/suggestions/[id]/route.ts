@@ -2,11 +2,26 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { requirePermission } from "@/lib/auth";
 import { invalidateCache } from "@/lib/cache";
+import { verifyCsrf } from "@/lib/csrf";
+import { z } from "zod";
+
+const ReviewSuggestionSchema = z.object({
+  action: z.enum(["approve", "reject"], { message: "Action is required" }),
+  review_note: z.string().max(2000, "Review note too long").optional(),
+});
 
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  // ── CSRF Check ──
+  if (!verifyCsrf(request)) {
+    return NextResponse.json(
+      { error: "Invalid request origin." },
+      { status: 403 },
+    );
+  }
+
   const { id } = await params;
 
   // ── Auth & Permission Check ──
@@ -19,15 +34,22 @@ export async function PATCH(
   }
   const { user } = auth;
 
-  const body = await request.json();
-  const { action, review_note } = body as {
-    action: "approve" | "reject";
-    review_note?: string;
-  };
-
-  if (!["approve", "reject"].includes(action)) {
-    return NextResponse.json({ error: "Invalid action." }, { status: 400 });
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
+
+  const parsed = ReviewSuggestionSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: parsed.error.issues[0].message },
+      { status: 400 },
+    );
+  }
+
+  const { action, review_note } = parsed.data;
 
   const adminClient = createAdminClient();
 

@@ -1,12 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { requirePermission } from "@/lib/auth";
+import { verifyCsrf } from "@/lib/csrf";
+import { z } from "zod";
+
+const OverrideSchema = z.object({
+  newAction: z.enum(["approve", "reject"], { message: "Invalid action" })
+});
 
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
+
+  // ── CSRF Check ──
+  if (!verifyCsrf(request)) {
+    return NextResponse.json({ error: "Invalid request origin." }, { status: 403 });
+  }
 
   // ── Auth & Permission Check ──
   const auth = await requirePermission("users:manage");
@@ -17,12 +28,19 @@ export async function POST(
     );
   }
 
-  const body = await request.json();
-  const { newAction } = body as { newAction: "approve" | "reject" };
-
-  if (!["approve", "reject"].includes(newAction)) {
-    return NextResponse.json({ error: "Invalid action." }, { status: 400 });
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
+
+  const parsed = OverrideSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
+  }
+
+  const { newAction } = parsed.data;
 
   const adminClient = createAdminClient();
 

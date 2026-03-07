@@ -3,6 +3,22 @@ import { createAdminClient } from "@/lib/supabase/server";
 import { requirePermission } from "@/lib/auth";
 import { checkRateLimit, getRateLimitHeaders } from "@/lib/rate-limit";
 import { invalidateCache } from "@/lib/cache";
+import { z } from "zod";
+
+const AddLineSchema = z.object({
+  battle_id: z.string().uuid("Invalid battle ID"),
+  content: z.string().min(1, "Content cannot be empty").max(5000, "Content too long"),
+  start_time: z.coerce.number(),
+  end_time: z.coerce.number(),
+  emcee_id: z.string().nullable().optional().or(z.literal("none")),
+  round_number: z.coerce.number().nullable().optional().or(z.literal("none")),
+});
+
+const EditLineSchema = z.object({
+  lineId: z.number().int(),
+  field: z.enum(["content", "emcee_id", "round_number", "start_time", "end_time"], { message: "Invalid field" }),
+  value: z.any()
+});
 
 // Helper for basic CSRF protection
 function verifyCsrf(request: NextRequest): boolean {
@@ -48,47 +64,29 @@ export async function POST(request: NextRequest) {
   }
 
   const adminClient = createAdminClient();
-  const body = await request.json();
-  const { battle_id, content, start_time, end_time, emcee_id, round_number } =
-    body;
-
-  // Validation: Check content length
-  if (
-    typeof content !== "string" ||
-    content.length === 0 ||
-    content.length > 5000
-  ) {
-    return NextResponse.json(
-      { error: "Content must be between 1 and 5000 characters." },
-      { status: 400 },
-    );
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  // Validation: Check required fields and formats
-  const UUID_REGEX =
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-  if (!battle_id || !UUID_REGEX.test(battle_id)) {
-    return NextResponse.json({ error: "Invalid battle ID." }, { status: 400 });
+  const parsed = AddLineSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
   }
 
-  if (start_time === undefined || end_time === undefined) {
-    return NextResponse.json(
-      {
-        error: "Missing required fields (start_time, end_time).",
-      },
-      { status: 400 },
-    );
-  }
+  const { battle_id, content, start_time, end_time, emcee_id, round_number } = parsed.data;
 
   const { data, error } = await adminClient
     .from("lines")
     .insert({
       battle_id,
       content,
-      start_time: parseFloat(start_time),
-      end_time: parseFloat(end_time),
+      start_time: start_time,
+      end_time: end_time,
       emcee_id: emcee_id === "none" ? null : emcee_id,
-      round_number: round_number === "none" ? null : parseInt(round_number),
+      round_number: round_number === "none" ? null : round_number,
     })
     .select()
     .single();
@@ -135,20 +133,19 @@ export async function PATCH(request: NextRequest) {
   }
 
   const adminClient = createAdminClient();
-  const body = await request.json();
-  const { lineId, field, value } = body;
-
-  // Validation: lineId must be an integer
-  if (!lineId || typeof lineId !== "number" || !Number.isInteger(lineId)) {
-    return NextResponse.json({ error: "Invalid line ID." }, { status: 400 });
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  if (!field || value === undefined) {
-    return NextResponse.json(
-      { error: "Missing field or value." },
-      { status: 400 },
-    );
+  const parsed = EditLineSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
   }
+
+  const { lineId, field, value } = parsed.data;
 
   // Validation: Check content length if editing content
   if (field === "content") {
@@ -162,20 +159,6 @@ export async function PATCH(request: NextRequest) {
         { status: 400 },
       );
     }
-  }
-
-  const allowedFields = [
-    "content",
-    "emcee_id",
-    "round_number",
-    "start_time",
-    "end_time",
-  ];
-  if (!allowedFields.includes(field)) {
-    return NextResponse.json(
-      { error: `Field "${field}" is not editable.` },
-      { status: 400 },
-    );
   }
 
   // Get the old value first

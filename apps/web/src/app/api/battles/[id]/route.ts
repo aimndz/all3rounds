@@ -7,6 +7,11 @@ import {
   invalidateCache,
   invalidateCachePattern,
 } from "@/lib/cache";
+import { z } from "zod";
+
+const UpdateBattleSchema = z.object({
+  status: z.enum(["raw", "arranged", "reviewing", "reviewed", "excluded"], { message: "Invalid status" })
+});
 
 export async function GET(
   _request: NextRequest,
@@ -111,25 +116,18 @@ export async function PATCH(
       );
     }
 
-    // 2. Parse body
-    const body = await request.json();
-    const { status } = body;
-
-    const VALID_STATUSES = [
-      "raw",
-      "arranged",
-      "reviewing",
-      "reviewed",
-      "excluded",
-    ];
-    if (!status || !VALID_STATUSES.includes(status)) {
-      return NextResponse.json(
-        {
-          error: `Invalid status. Must be one of: ${VALID_STATUSES.join(", ")}`,
-        },
-        { status: 400 },
-      );
+    let body;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
     }
+
+    const parsed = UpdateBattleSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
+    }
+    const { status } = parsed.data;
 
     // 3. Update status using Admin Client to bypass RLS
     const supabaseAdmin = createAdminClient();

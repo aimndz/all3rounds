@@ -2,6 +2,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { requirePermission } from "@/lib/auth";
 import { invalidateCachePattern } from "@/lib/cache";
+import { z } from "zod";
+
+const EventNameSchema = z.object({
+  oldName: z.string().optional(),
+  newName: z.string().min(1, "New name cannot be empty").max(200, "New name is too long"),
+  battleIds: z.array(z.string().uuid("Invalid battle ID")).optional()
+}).refine(data => data.oldName || (data.battleIds && data.battleIds.length > 0), {
+  message: "Either oldName or battleIds is required."
+});
 
 // Helper for basic CSRF protection
 function verifyCsrf(request: NextRequest): boolean {
@@ -47,21 +56,22 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
-    // 2. Parse body
-    const body = await request.json();
-    const { oldName, newName, battleIds } = body;
-
-    const trimmedNewName = newName?.trim();
-    if (!trimmedNewName) {
-      return NextResponse.json(
-        { error: "newName is required." },
-        { status: 400 },
-      );
+    let body;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
     }
 
+    const parsed = EventNameSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
+    }
+
+    const { oldName, newName, battleIds } = parsed.data;
+
     // Map "Other Battles" to null
-    const finalNewName =
-      trimmedNewName === "Other Battles" ? null : trimmedNewName;
+    const finalNewName = newName === "Other Battles" ? null : newName;
 
     const supabaseAdmin = createAdminClient();
 
@@ -96,12 +106,6 @@ export async function PATCH(request: NextRequest) {
     }
 
     // ── Mode 1: Rename all battles in a group ──
-    if (!oldName || typeof oldName !== "string") {
-      return NextResponse.json(
-        { error: "Either oldName or battleIds is required." },
-        { status: 400 },
-      );
-    }
 
     // Build the update query — handle "Other Battles" (null event_name)
     let query = supabaseAdmin

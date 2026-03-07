@@ -1,8 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { requirePermission } from "@/lib/auth";
+import { verifyCsrf } from "@/lib/csrf";
+import { z } from "zod";
+
+const CreateSuggestionSchema = z.object({
+  line_id: z.number().int().positive("Invalid line ID"),
+  suggested_content: z.string().min(1, "Suggestion cannot be empty").max(5000, "Suggestion too long"),
+});
 
 export async function POST(request: NextRequest) {
+  // ── CSRF Check ──
+  if (!verifyCsrf(request)) {
+    return NextResponse.json(
+      { error: "Invalid request origin." },
+      { status: 403 },
+    );
+  }
+
   // ── Auth & Permission Check ──
   const auth = await requirePermission("suggestions:create");
   if (auth.error) {
@@ -14,15 +29,23 @@ export async function POST(request: NextRequest) {
   const { user } = auth;
 
   const adminClient = createAdminClient();
-  const body = await request.json();
-  const { line_id, suggested_content } = body;
+  
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+  }
 
-  if (!line_id || !suggested_content) {
+  const parsed = CreateSuggestionSchema.safeParse(body);
+  if (!parsed.success) {
     return NextResponse.json(
-      { error: "Missing required fields." },
-      { status: 400 },
+      { error: parsed.error.issues[0].message },
+      { status: 400 }
     );
   }
+
+  const { line_id, suggested_content } = parsed.data;
 
   // 1. Fetch current line content snapshot
   const { data: line, error: lineError } = await adminClient
