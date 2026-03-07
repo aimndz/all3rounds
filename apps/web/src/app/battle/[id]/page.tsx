@@ -649,7 +649,7 @@ export default function BattlePage() {
 
           container.scrollTo({
             top: targetScrollTop,
-            behavior: "smooth"
+            behavior: "smooth",
           });
         }
       }, 50);
@@ -953,22 +953,23 @@ export default function BattlePage() {
       if (action === "delete") {
         setSelectedIds(new Set());
       }
-      
+
       const newBattleData = await fetchBattle();
-      
+
       if (targetLineId !== null && newBattleData?.lines) {
         setTimeout(() => {
           const container = transcriptContainerRef.current;
           const targetEl = container?.querySelector(
-            `[data-line-id="${targetLineId}"]`
+            `[data-line-id="${targetLineId}"]`,
           ) as HTMLElement;
-          
+
           if (targetEl && container) {
             const containerRect = container.getBoundingClientRect();
             const targetRect = targetEl.getBoundingClientRect();
             container.scrollTo({
-              top: container.scrollTop + (targetRect.top - containerRect.top) - 60,
-              behavior: "smooth"
+              top:
+                container.scrollTop + (targetRect.top - containerRect.top) - 60,
+              behavior: "smooth",
             });
           }
         }, 100);
@@ -1343,7 +1344,10 @@ export default function BattlePage() {
                     <h2 className="text-[11px] font-black uppercase tracking-[0.2em] text-foreground/70">
                       Transcript
                     </h2>
-                    <Badge variant="outline" className="text-[7px] px-1.5 py-0 h-3.5 border-primary/20 text-primary/60 font-bold uppercase tracking-tighter rounded-sm bg-primary/5">
+                    <Badge
+                      variant="outline"
+                      className="text-[7px] px-1.5 py-0 h-3.5 border-primary/20 text-primary/60 font-bold uppercase tracking-tighter rounded-sm bg-primary/5"
+                    >
                       AI-Generated
                     </Badge>
                   </div>
@@ -1550,40 +1554,80 @@ export default function BattlePage() {
                                   {!isTurnCollapsed && (
                                     <div className="ml-2 border-l border-border/20 pl-3 py-0.5">
                                       {turn.lines.map(
-                                        (line: BattleLine, li: number) => (
-                                          <LineItem
-                                            key={line.id}
-                                            line={line}
-                                            editMode={editMode}
-                                            isSelected={selectedIds.has(
-                                              line.id,
-                                            )}
-                                            isActive={activeLineId === line.id}
-                                            isLastClicked={
-                                              lastClickedLineId === line.id
+                                        (line: BattleLine, li: number) => {
+                                          const prevLine =
+                                            li > 0 ? turn.lines[li - 1] : null;
+                                          let gapMargin = 0;
+                                          if (prevLine) {
+                                            const gap = Math.max(
+                                              0,
+                                              line.start_time -
+                                                (prevLine.end_time ||
+                                                  prevLine.start_time),
+                                            );
+                                            if (gap > 0.5) {
+                                              // 1 second gap = 24px, max out at 24px gap
+                                              gapMargin = Math.min(
+                                                Math.floor(gap * 24),
+                                                24,
+                                              );
                                             }
-                                            inlineEditingId={inlineEditingId}
-                                            inlineContent={inlineContent}
-                                            onToggleSelect={toggleSelect}
-                                            onStartInlineEdit={startInlineEdit}
-                                            onInlineSave={handleInlineSave}
-                                            onSetInlineEditingId={
-                                              setInlineEditingId
-                                            }
-                                            onSetInlineContent={
-                                              setInlineContent
-                                            }
-                                            onSeek={handleSeek}
-                                            onEditClick={setEditingLine}
-                                            onSuggestClick={setSuggestingLine}
-                                            onAddClick={handleAddLineAt}
-                                            isLoggedIn={isUserLoggedIn}
-                                            canEdit={canEdit}
-                                            showBeforeInsert={
-                                              gi === 0 && ti === 0 && li === 0
-                                            }
-                                          />
-                                        ),
+                                          }
+
+                                          return (
+                                            <div
+                                              key={line.id}
+                                              style={{
+                                                marginTop:
+                                                  gapMargin > 0
+                                                    ? `${gapMargin}px`
+                                                    : undefined,
+                                              }}
+                                            >
+                                              <LineItem
+                                                line={line}
+                                                editMode={editMode}
+                                                isSelected={selectedIds.has(
+                                                  line.id,
+                                                )}
+                                                isActive={
+                                                  activeLineId === line.id
+                                                }
+                                                isLastClicked={
+                                                  lastClickedLineId === line.id
+                                                }
+                                                inlineEditingId={
+                                                  inlineEditingId
+                                                }
+                                                inlineContent={inlineContent}
+                                                onToggleSelect={toggleSelect}
+                                                onStartInlineEdit={
+                                                  startInlineEdit
+                                                }
+                                                onInlineSave={handleInlineSave}
+                                                onSetInlineEditingId={
+                                                  setInlineEditingId
+                                                }
+                                                onSetInlineContent={
+                                                  setInlineContent
+                                                }
+                                                onSeek={handleSeek}
+                                                onEditClick={setEditingLine}
+                                                onSuggestClick={
+                                                  setSuggestingLine
+                                                }
+                                                onAddClick={handleAddLineAt}
+                                                isLoggedIn={isUserLoggedIn}
+                                                canEdit={canEdit}
+                                                showBeforeInsert={
+                                                  gi === 0 &&
+                                                  ti === 0 &&
+                                                  li === 0
+                                                }
+                                              />
+                                            </div>
+                                          );
+                                        },
                                       )}
                                     </div>
                                   )}
