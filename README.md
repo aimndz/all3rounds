@@ -42,9 +42,11 @@
 <!-- ABOUT THE PROJECT -->
 ## About The Project
 
-<img width="1903" height="1077" alt="Screenshot 2026-03-07 232510" src="https://github.com/user-attachments/assets/77a337ef-5852-438b-af54-d1937542c252" />
+<p>
+  <img width="1903" height="1077" alt="Screenshot 2026-03-07 232510" src="https://github.com/user-attachments/assets/77a337ef-5852-438b-af54-d1937542c252" />
+</p>
 
-All3Rounds is a database and transcript archive for Philippine battle rap. It provides a central place to search, read, and analyze battles and emcee performances.
+All3Rounds is a database and transcript archive focused on Philippine battle rap. It compiles transcripts, battle records, and emcee profiles into a single searchable platform. Users can explore battles, review punchlines, and examine emcee performance data.
 
 Key features:
 * **Powerful Search**: Fast full-text search across thousands of battle transcripts.
