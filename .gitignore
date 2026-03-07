@@ -1,4 +1,4 @@
-# Environment files
+﻿# Environment files
 .env
 .env.local
 .env.*.local
@@ -26,16 +26,31 @@ coverage.xml
 .mypy_cache/
 .pytest_cache/
 .hypothesis/
+*.egg-info/
 
-# Node
+# Node / Next
 node_modules/
 dist/
 build/
 .next/
 out/
 .vercel
+coverage/
 *.tsbuildinfo
 next-env.d.ts
+.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# Package manager logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
 
 # OS
 .DS_Store
@@ -59,3 +74,4 @@ output.json
 *.mp3
 *.mp4
 *.webm
+*.pem
