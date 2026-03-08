@@ -38,6 +38,12 @@ export default function Header() {
             >
               Battles
             </Link>
+            <Link
+              href="/emcees"
+              className="text-muted-foreground hover:text-foreground text-[10px] font-medium tracking-widest uppercase transition-colors"
+            >
+              Emcees
+            </Link>
             <AuthButton />
           </div>
         </div>

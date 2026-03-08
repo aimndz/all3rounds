@@ -6,6 +6,11 @@ import { getCached, setCached } from "@/lib/cache";
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const query = searchParams.get("q")?.trim();
+  const sort = searchParams.get("sort") || "name_asc";
+  const minBattles = parseInt(searchParams.get("minBattles") || "0");
+  const page = parseInt(searchParams.get("page") || "1");
+  const limit = parseInt(searchParams.get("limit") || "48");
+  const offset = (page - 1) * limit;
 
   // --- Rate limiting ---
   const rateLimitKey = `emcees:${request.headers.get("x-forwarded-for") || "unknown"}`;
@@ -22,7 +27,7 @@ export async function GET(request: NextRequest) {
   }
 
   // --- Cache check ---
-  const cacheKey = query ? `emcees:q:${query}` : "emcees:all";
+  const cacheKey = `emcees:q:${query || "all"}:s:${sort}:m:${minBattles}:p:${page}`;
   const cachedData = await getCached(cacheKey);
   if (cachedData) {
     return NextResponse.json(cachedData);
@@ -30,49 +35,53 @@ export async function GET(request: NextRequest) {
 
   const supabase = await createClient();
 
-  // Fetch emcees along with their battle participation counts for metadata
+  // Now querying the 'emcees' table directly since battle_count is denormalized
   let dbQuery = supabase
     .from("emcees")
-    .select(
-      `
-      id,
-      name,
-      aka,
-      battle_count:battle_participants(count)
-    `,
-    )
-    .order("name");
+    .select("id, name, battle_count", { count: "exact" });
 
+  // 1. Filtering by search query 
   if (query) {
     const safeQ = query.replace(/%/g, "\\%").replace(/_/g, "\\_");
     dbQuery = dbQuery.ilike("name", `%${safeQ}%`);
   }
 
-  const { data, error } = await dbQuery;
+  // 2. Efficient Filtering by Battle Count in SQL
+  if (minBattles > 0) {
+    dbQuery = dbQuery.gte("battle_count", minBattles);
+  }
+
+  // 3. Sorting in SQL
+  if (sort === "name_asc") {
+    dbQuery = dbQuery.order("name", { ascending: true });
+  } else if (sort === "name_desc") {
+    dbQuery = dbQuery.order("name", { ascending: false });
+  } else if (sort === "battles_desc") {
+    dbQuery = dbQuery.order("battle_count", { ascending: false });
+  } else if (sort === "battles_asc") {
+    dbQuery = dbQuery.order("battle_count", { ascending: true });
+  }
+
+  // 4. Pagination
+  dbQuery = dbQuery.range(offset, offset + limit - 1);
+
+  const { data, error, count } = await dbQuery;
 
   if (error) {
-    console.error("Error fetching emcees:", error);
+    console.error("Error fetching emcees from view:", error);
     return NextResponse.json(
       { error: "Failed to fetch emcees." },
       { status: 500 },
     );
   }
 
-  // Flatten the count
-  const result = (data || []).map(
-    (e: {
-      id: string;
-      name: string;
-      aka: string[] | null;
-      battle_count: { count: number }[];
-    }) => ({
-      id: e.id,
-      name: e.name,
-      aka: e.aka || [],
-      battle_count: e.battle_count?.[0]?.count || 0,
-    }),
-  );
-  await setCached(cacheKey, result, 600); // 10 minutes
+  const response = {
+    emcees: data || [],
+    totalCount: count || 0,
+    hasMore: (count || 0) > offset + limit
+  };
 
-  return NextResponse.json(result);
+  await setCached(cacheKey, response, 600); // 10 minutes
+
+  return NextResponse.json(response);
 }

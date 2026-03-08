@@ -30,7 +30,7 @@ import Header from "../Header";
 describe("Header", () => {
   it("renders the logo link", () => {
     render(<Header />);
-    expect(screen.getByText("A3R")).toBeInTheDocument();
+    expect(screen.getByAltText("A3R")).toBeInTheDocument();
   });
 
   it("renders navigation links", () => {
@@ -41,7 +41,7 @@ describe("Header", () => {
 
   it('links the logo to "/"', () => {
     render(<Header />);
-    const logo = screen.getByText("A3R").closest("a");
+    const logo = screen.getByAltText("A3R").closest("a");
     expect(logo).toHaveAttribute("href", "/");
   });
 });
