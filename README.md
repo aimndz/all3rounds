@@ -58,7 +58,7 @@ Key features:
 
 ### Supported Leagues
 Currently optimized for and featuring data from:
-* **FlipTop Battle League** - The first and largest professional battle rap conference in the Philippines.
+* **[FlipTop Battle League](https://www.youtube.com/fliptopbattles)** - The first and largest professional battle rap conference in the Philippines.
 
 ### Built With
 
