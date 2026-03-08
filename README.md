@@ -1,19 +1,21 @@
 <a id="readme-top"></a>
 
 <!-- PROJECT LOGO -->
+
 <br />
 <div align="center">
+  <img src="https://github.com/user-attachments/assets/4d59247d-2f3d-45de-ba04-3c9e4ecafd2c" alt="a3r-logo-full" width="300">
   <h1 align="center">All3Rounds</h3>
 
   <p align="center">
     The Filipino Battle Rap Archive
     <br />
     <br />
-    <a href="https://github.com/aimndz/battlerap-db">View Demo</a>
+    <a href="https://github.com/aimndz/all3rounds">View Demo</a>
     &middot;
-    <a href="https://github.com/aimndz/battlerap-db/issues">Report Bug</a>
+    <a href="https://github.com/aimndz/all3rounds/issues">Report Bug</a>
     &middot;
-    <a href="https://github.com/aimndz/battlerap-db/issues">Request Feature</a>
+    <a href="https://github.com/aimndz/all3rounds/issues">Request Feature</a>
   </p>
 </div>
 
@@ -42,9 +44,11 @@
 <!-- ABOUT THE PROJECT -->
 ## About The Project
 
-<img width="1903" height="1077" alt="Screenshot 2026-03-07 232510" src="https://github.com/user-attachments/assets/77a337ef-5852-438b-af54-d1937542c252" />
+<p>
+  <img width="1903" height="1077" alt="Screenshot 2026-03-07 232510" src="https://github.com/user-attachments/assets/77a337ef-5852-438b-af54-d1937542c252" />
+</p>
 
-All3Rounds is a database and transcript archive for Philippine battle rap. It provides a central place to search, read, and analyze battles and emcee performances.
+All3Rounds is a database and transcript archive focused on Philippine battle rap. It compiles transcripts, battle records, and emcee profiles into a single searchable platform. Users can explore battles, review punchlines, and examine emcee performance data.
 
 Key features:
 * **Powerful Search**: Fast full-text search across thousands of battle transcripts.
@@ -82,8 +86,8 @@ To get a local copy up and running follow these simple steps.
 
 1. **Clone the repository**
    ```sh
-   git clone https://github.com/aimndz/battlerap-db.git
-   cd battlerap-db
+   git clone https://github.com/aimndz/all3rounds.git
+   cd all3rounds
    ```
 
 2. **Install dependencies**
@@ -122,16 +126,16 @@ Don't forget to give the project a star! Thanks again!
 Distributed under the MIT License. See `LICENSE` for more information.
 
 <!-- MARKDOWN LINKS & IMAGES -->
-[contributors-shield]: https://img.shields.io/github/contributors/aimndz/battlerap-db.svg?style=for-the-badge
-[contributors-url]: https://github.com/aimndz/battlerap-db/graphs/contributors
-[forks-shield]: https://img.shields.io/github/forks/aimndz/battlerap-db.svg?style=for-the-badge
-[forks-url]: https://github.com/aimndz/battlerap-db/network/members
-[stars-shield]: https://img.shields.io/github/stars/aimndz/battlerap-db.svg?style=for-the-badge
-[stars-url]: https://github.com/aimndz/battlerap-db/stargazers
-[issues-shield]: https://img.shields.io/github/issues/aimndz/battlerap-db.svg?style=for-the-badge
-[issues-url]: https://github.com/aimndz/battlerap-db/issues
-[license-shield]: https://img.shields.io/github/license/aimndz/battlerap-db.svg?style=for-the-badge
-[license-url]: https://github.com/aimndz/battlerap-db/blob/master/LICENSE
+[contributors-shield]: https://img.shields.io/github/contributors/aimndz/all3rounds.svg?style=for-the-badge
+[contributors-url]: https://github.com/aimndz/all3rounds/graphs/contributors
+[forks-shield]: https://img.shields.io/github/forks/aimndz/all3rounds.svg?style=for-the-badge
+[forks-url]: https://github.com/aimndz/all3rounds/network/members
+[stars-shield]: https://img.shields.io/github/stars/aimndz/all3rounds.svg?style=for-the-badge
+[stars-url]: https://github.com/aimndz/all3rounds/stargazers
+[issues-shield]: https://img.shields.io/github/issues/aimndz/all3rounds.svg?style=for-the-badge
+[issues-url]: https://github.com/aimndz/all3rounds/issues
+[license-shield]: https://img.shields.io/github/license/aimndz/all3rounds.svg?style=for-the-badge
+[license-url]: https://github.com/aimndz/all3rounds/blob/master/LICENSE
 [product-screenshot]: public/logo.png
 [Next.js]: https://img.shields.io/badge/next.js-000000?style=for-the-badge&logo=nextdotjs&logoColor=white
 [Next-url]: https://nextjs.org/
