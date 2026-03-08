@@ -1,6 +1,7 @@
 import SearchBar from "@/components/SearchBar";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
+import Image from "next/image";
 
 export default function Home() {
   return (
@@ -11,8 +12,18 @@ export default function Home() {
         <div className="flex w-full flex-col items-center space-y-12 text-center">
           {/* Hero Content */}
           <div className="max-w-2xl space-y-4">
-            <h1 className="text-5xl font-bold tracking-tight sm:text-7xl">
-              All3Rounds
+            <h1 className="flex items-center justify-center text-5xl font-bold tracking-tight uppercase sm:text-7xl">
+              All
+              <Image
+                src="/logo/a3r-logo-icon.svg"
+                alt="3"
+                width={80}
+                height={80}
+                className="ml-1.5 h-[0.9em] w-auto"
+                priority
+                unoptimized
+              />
+              Rounds
             </h1>
 
             <p className="text-muted-foreground mx-auto max-w-xl text-lg leading-relaxed">
