@@ -1,8 +1,10 @@
 <a id="readme-top"></a>
 
 <!-- PROJECT LOGO -->
+
 <br />
 <div align="center">
+  <img src="https://github.com/user-attachments/assets/4d59247d-2f3d-45de-ba04-3c9e4ecafd2c" alt="a3r-logo-full" width="300">
   <h1 align="center">All3Rounds</h3>
 
   <p align="center">
