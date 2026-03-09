@@ -19,6 +19,7 @@ const BatchLinesSchema = z.object({
     .object({
       round_number: z.union([z.number(), z.null()]).optional(),
       emcee_id: z.union([z.string(), z.null()]).optional(),
+      speaker_ids: z.array(z.string()).optional(), // New: Support multiple emcees
     })
     .optional(),
 });
@@ -95,7 +96,11 @@ export async function PATCH(request: NextRequest) {
 
     // Case 1: Updating attributes
     if (action === "update" || action === "set_round" || action === "set_emcee") {
-      const finalUpdates: { round_number?: number | null; emcee_id?: string | null } = {};
+      const finalUpdates: { 
+        round_number?: number | null; 
+        emcee_id?: string | null;
+        speaker_ids?: string[] | null;
+      } = {};
       
       // Consolidate updates from legacy or combined actions
       if (action === "set_round") {
@@ -109,6 +114,7 @@ export async function PATCH(request: NextRequest) {
       } else if (action === "update" && updates) {
         if ("round_number" in updates) finalUpdates.round_number = updates.round_number;
         if ("emcee_id" in updates) finalUpdates.emcee_id = updates.emcee_id;
+        if ("speaker_ids" in updates) finalUpdates.speaker_ids = updates.speaker_ids;
       }
 
       if (Object.keys(finalUpdates).length === 0) {
@@ -161,13 +167,34 @@ export async function PATCH(request: NextRequest) {
         }
       }
 
-      // ── Apply Updates ──
-      const { error: updateError } = await adminClient
-        .from("lines")
-        .update(finalUpdates)
-        .in("id", lineIds);
+      // ── Apply Round / Legacy Emcee Updates ──
+      const linesTableUpdate: { 
+        round_number?: number | null; 
+        emcee_id?: string | null;
+        speaker_ids?: string[] | null;
+      } = {};
+      
+      if ("round_number" in finalUpdates) linesTableUpdate.round_number = finalUpdates.round_number;
+      if ("emcee_id" in finalUpdates) linesTableUpdate.emcee_id = finalUpdates.emcee_id;
+      
+      // ── Apply Multi-Speaker Updates ──
+      if (finalUpdates.speaker_ids) {
+        if (finalUpdates.speaker_ids.length > 0) {
+          linesTableUpdate.speaker_ids = finalUpdates.speaker_ids;
+          linesTableUpdate.emcee_id = finalUpdates.speaker_ids[0]; // backwards compatibility
+        } else {
+          linesTableUpdate.speaker_ids = [];
+          linesTableUpdate.emcee_id = null;
+        }
+      }
 
-      if (updateError) throw updateError;
+      if (Object.keys(linesTableUpdate).length > 0) {
+        const { error: updateError } = await adminClient
+          .from("lines")
+          .update(linesTableUpdate)
+          .in("id", lineIds);
+        if (updateError) throw updateError;
+      }
     } 
     // Case 2: Deletion
     else if (action === "delete") {

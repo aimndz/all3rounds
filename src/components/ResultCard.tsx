@@ -13,22 +13,85 @@ import { formatTime } from "@/lib/utils";
 export default function ResultCard({
   result,
   isLoggedIn,
-  userRole: _userRole = "viewer",
   isUserLoggedIn = false,
   onEdited,
-  query: _query = "",
 }: {
   result: SearchResult;
   isLoggedIn: boolean;
-  userRole?: string;
   isUserLoggedIn?: boolean;
   onEdited?: () => void;
-  query?: string;
 }) {
   const [showEdit, setShowEdit] = useState(false);
   const [showSuggest, setShowSuggest] = useState(false);
 
-  const speaker = result.emcee?.name || result.speaker_label || "Unknown";
+  // ── Logic: Determine Speaker Label ──
+  // This intelligently shows the full team for 2v2/3v3 battles,
+  // even if the specific line was only tagged with one emcee.
+  const speakerLabel = (() => {
+    const hasMultipleSpeakers = result.emcees && result.emcees.length > 1;
+
+    // 1. If we already have explicit multiple speakers (from speaker_ids)
+    if (hasMultipleSpeakers) {
+      return result.emcees!.map((e) => e.name).join(" / ");
+    }
+
+    // 2. If we only have one speaker, but it's a team battle (2v2/3v3)
+    // Try to find if this speaker belongs to a team label
+    const primaryEmceeId = result.emcees?.[0]?.id || result.emcee?.id;
+    if (
+      primaryEmceeId &&
+      result.battle.participants &&
+      result.battle.participants.length > 0
+    ) {
+      const participant = result.battle.participants.find(
+        (p) => p.emcee?.id === primaryEmceeId,
+      );
+      if (participant && participant.label) {
+        // Find all other emcees in this same team
+        const teamEmcees = result.battle.participants
+          .filter((p) => p.label === participant.label && p.emcee)
+          .map((p) => p.emcee!.name);
+
+        if (teamEmcees.length > 1) {
+          return teamEmcees.join(" / ");
+        }
+      }
+    }
+
+    // 3. Fallback to the single emcee or label
+    return (
+      result.emcees?.[0]?.name ||
+      result.emcee?.name ||
+      result.speaker_label ||
+      "Unknown"
+    );
+  })();
+
+  // ── Logic: Construct Battle Matchup Subtitle ──
+  // For 2v2/3v3, shows "Team A vs Team B" instead of just the title.
+  const battleMatchup = (() => {
+    const participants = result.battle.participants;
+    if (!participants || participants.length === 0) return result.battle.title;
+
+    // Group participants by label (e.g. Left, Right)
+    const groupsMap: Record<string, string[]> = {};
+    participants.forEach((p) => {
+      const l = p.label || "unknown";
+      if (!groupsMap[l]) groupsMap[l] = [];
+      if (p.emcee) groupsMap[l].push(p.emcee.name);
+    });
+
+    // Convert map to sorted parts to maintain consistent order
+    const labels = Object.keys(groupsMap).sort();
+    if (labels.length < 2) return result.battle.title;
+
+    const teamStrings = labels
+      .map((l) => groupsMap[l].join(" / "))
+      .filter((s) => s.length > 0);
+
+    if (teamStrings.length < 2) return result.battle.title;
+    return teamStrings.join(" vs ");
+  })();
 
   const router = useRouter();
 
@@ -61,7 +124,7 @@ export default function ResultCard({
 
           {/* Content */}
           <div className="relative flex flex-1 flex-col justify-center">
-            {/* Top Right Actions */}
+            {/* Action Buttons (Edit/Suggest) */}
             <div className="absolute top-0 right-0 flex items-center">
               {isLoggedIn && (
                 <Button
@@ -95,13 +158,13 @@ export default function ResultCard({
               )}
             </div>
 
-            {/* Meta section */}
+            {/* Speaker & Context Header */}
             <div className="mb-5 pr-10">
               <span className="text-primary/80 text-[15px] font-black uppercase">
-                {speaker}
+                {speakerLabel}
               </span>
               <div className="text-muted-foreground/60 group-hover:text-muted-foreground mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] font-medium transition-colors">
-                <span>{result.battle.title}</span>
+                <span>{battleMatchup}</span>
                 {result.battle.event_name && (
                   <>
                     <span className="opacity-30">·</span>
@@ -111,9 +174,8 @@ export default function ResultCard({
               </div>
             </div>
 
-            {/* Lines Block (Best of Both Worlds) */}
+            {/* Line Content with Prev/Next context */}
             <div className="relative border-l border-white/10 py-0.5 pl-4">
-              {/* Context Block: Single flow for all lines with truncation */}
               <div className="flex flex-col gap-1">
                 {result.prev_line && (
                   <p className="text-muted-foreground/30 group-hover:text-muted-foreground/50 line-clamp-1 text-[14px] leading-tight font-medium transition-colors">
@@ -122,7 +184,6 @@ export default function ResultCard({
                 )}
 
                 <div className="relative">
-                  {/* Visual anchor for the target match */}
                   <div className="bg-primary/40 absolute top-1/2 -left-4.25 h-3 w-0.5 -translate-y-1/2 rounded-full" />
                   <p className="text-foreground text-[15px] leading-relaxed font-semibold sm:text-[16px]">
                     {result.content}
@@ -140,7 +201,6 @@ export default function ResultCard({
         </div>
       </div>
 
-      {/* Edit modal */}
       {showEdit && (
         <EditLineModal
           result={result}
@@ -152,7 +212,6 @@ export default function ResultCard({
         />
       )}
 
-      {/* Suggest modal */}
       {showSuggest && (
         <SuggestCorrectionModal
           result={result}

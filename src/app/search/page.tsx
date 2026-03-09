@@ -1,14 +1,13 @@
 "use client";
 
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
-import { useEffect, useState, useCallback, Suspense, useRef } from "react";
+import { useEffect, useState, useCallback, Suspense } from "react";
 import { useAuthStore } from "@/stores/auth-store";
 import Header from "@/components/Header";
 import SearchBar from "@/components/SearchBar";
 import ResultCard from "@/components/ResultCard";
 import { SearchResult } from "@/lib/types";
 
-import { Badge } from "@/components/ui/badge";
 import { Search, AlertCircle } from "lucide-react";
 import {
   Pagination,
@@ -25,66 +24,53 @@ function SearchResults() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  
   const query = searchParams.get("q") || "";
-  const initialPage = parseInt(searchParams.get("page") || "1", 10);
+  const page = parseInt(searchParams.get("page") || "1", 10);
 
   const [results, setResults] = useState<SearchResult[]>([]);
   const [total, setTotal] = useState(0);
-  const [page, setPage] = useState(initialPage);
   const [totalPages, setTotalPages] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const { canEdit, userRole, isUserLoggedIn } = useAuthStore();
+  const { canEdit, isUserLoggedIn } = useAuthStore();
 
-  const doSearch = useCallback(
-    async (p: number, updateUrl = false) => {
-      if (!query) return;
-      setLoading(true);
-      setError("");
+  const fetchResults = useCallback(async (q: string, p: number) => {
+    if (!q) return;
+    setLoading(true);
+    setError("");
 
-      if (updateUrl) {
-        const params = new URLSearchParams(searchParams.toString());
-        params.set("page", p.toString());
-        router.push(`${pathname}?${params.toString()}`, { scroll: false });
-      }
-
-      try {
-        const res = await fetch(
-          `/api/search?q=${encodeURIComponent(query)}&page=${p}`,
-        );
-        if (res.status === 429) {
-          setError("Too many requests — slow down and try again.");
-          setLoading(false);
-          return;
-        }
-        if (!res.ok) throw new Error("Search failed");
-
-        const data = await res.json();
-        setResults(data.results);
-        setTotal(data.total);
-        setPage(data.page);
-        setTotalPages(data.totalPages);
-      } catch {
-        setError("Search failed. Please try again.");
-      } finally {
+    try {
+      const res = await fetch(
+        `/api/search?q=${encodeURIComponent(q)}&page=${p}`,
+      );
+      if (res.status === 429) {
+        setError("Too many requests — slow down and try again.");
         setLoading(false);
+        return;
       }
-    },
-    [query],
-  );
+      if (!res.ok) throw new Error("Search failed");
 
-  const lastQuery = useRef("");
+      const data = await res.json();
+      setResults(data.results);
+      setTotal(data.total);
+      setTotalPages(data.totalPages);
+    } catch {
+      setError("Search failed. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    // Only reset to page 1 if the query actually changed
-    if (query !== lastQuery.current) {
-      setPage(1);
-      doSearch(1);
-      lastQuery.current = query;
-    } else {
-      doSearch(page);
-    }
-  }, [query, page, doSearch]);
+    fetchResults(query, page);
+  }, [query, page, fetchResults]);
+
+  const handlePageChange = (newPage: number) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("page", newPage.toString());
+    router.push(`${pathname}?${params.toString()}`, { scroll: true });
+  };
 
   return (
     <div className="bg-background min-h-screen">
@@ -167,10 +153,10 @@ function SearchResults() {
                 <ResultCard
                   result={result}
                   isLoggedIn={canEdit}
-                  userRole={userRole}
                   isUserLoggedIn={isUserLoggedIn}
-                  onEdited={() => doSearch(page)}
-                  query={query}
+                  onEdited={() => {
+                    fetchResults(query, page);
+                  }}
                 />
               </div>
             ))}
@@ -184,7 +170,7 @@ function SearchResults() {
               <PaginationContent>
                 <PaginationItem>
                   <PaginationPrevious
-                    onClick={() => page > 1 && setPage(page - 1)}
+                    onClick={() => page > 1 && handlePageChange(page - 1)}
                     className={`cursor-pointer ${page === 1 ? "pointer-events-none opacity-50" : ""}`}
                   />
                 </PaginationItem>
@@ -201,7 +187,7 @@ function SearchResults() {
                       <PaginationItem key={p}>
                         <PaginationLink
                           isActive={page === p}
-                          onClick={() => setPage(p)}
+                          onClick={() => handlePageChange(p)}
                           className="cursor-pointer"
                         >
                           {p}
@@ -222,7 +208,7 @@ function SearchResults() {
 
                 <PaginationItem>
                   <PaginationNext
-                    onClick={() => page < totalPages && setPage(page + 1)}
+                    onClick={() => page < totalPages && handlePageChange(page + 1)}
                     className={`cursor-pointer ${page === totalPages ? "pointer-events-none opacity-50" : ""}`}
                   />
                 </PaginationItem>

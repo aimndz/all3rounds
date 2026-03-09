@@ -76,6 +76,7 @@ describe("BatchActionBar", () => {
       updates: {
         round_number: 2,
         emcee_id: "e2",
+        speaker_ids: ["e2"],
       },
     });
   });

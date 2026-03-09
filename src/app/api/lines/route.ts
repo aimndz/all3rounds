@@ -15,6 +15,7 @@ const AddLineSchema = z.object({
   start_time: z.coerce.number(),
   end_time: z.coerce.number(),
   emcee_id: z.string().nullable().optional().or(z.literal("none")),
+  speaker_ids: z.array(z.string()).optional(), // New: Support multiple emcees
   round_number: z.coerce.number().nullable().optional().or(z.literal("none")),
 });
 
@@ -73,8 +74,20 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const { battle_id, content, start_time, end_time, emcee_id, round_number } =
-    parsed.data;
+  const { 
+    battle_id, 
+    content, 
+    start_time, 
+    end_time, 
+    emcee_id, 
+    speaker_ids,
+    round_number 
+  } = parsed.data;
+
+  // For compatibility, if speaker_ids is provided, use first as emcee_id
+  const finalEmceeId = speaker_ids && speaker_ids.length > 0 
+    ? speaker_ids[0] 
+    : (emcee_id === "none" ? null : emcee_id);
 
   const { data, error } = await adminClient
     .from("lines")
@@ -83,7 +96,8 @@ export async function POST(request: NextRequest) {
       content,
       start_time: start_time,
       end_time: end_time,
-      emcee_id: emcee_id === "none" ? null : emcee_id,
+      emcee_id: finalEmceeId,
+      speaker_ids: speaker_ids && speaker_ids.length > 0 ? speaker_ids : [], // Add support for new array column
       round_number: round_number === "none" ? null : round_number,
     })
     .select()
@@ -96,6 +110,7 @@ export async function POST(request: NextRequest) {
       { status: 500 },
     );
   }
+
 
   return NextResponse.json({ success: true, line: data });
 }

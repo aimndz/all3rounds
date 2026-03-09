@@ -1,7 +1,7 @@
 "use client";
 
 import { SearchResult, Emcee } from "@/lib/types";
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -12,7 +12,8 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import EmceeSearchModal from "./EmceeSearchModal";
-import { Search, User } from "lucide-react";
+import { Search } from "lucide-react";
+import { groupParticipants } from "@/features/battle/utils/participant-grouping";
 
 export default function EditLineModal({
   result,
@@ -27,16 +28,15 @@ export default function EditLineModal({
   const [roundNumber, setRoundNumber] = useState(
     result.round_number?.toString() || "none",
   );
+  const [activeEmceeIds, setActiveEmceeIds] = useState<string[]>(
+    result.emcees?.map((e) => e.id) || (result.emcee ? [result.emcee.id] : []),
+  );
   const [emceeId, setEmceeId] = useState(result.emcee?.id || "none");
   const [emcees, setEmcees] = useState<Emcee[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [isEmceeModalOpen, setIsEmceeModalOpen] = useState(false);
 
-  const selectedEmcee = useMemo(() => {
-    if (emceeId === "none") return null;
-    return emcees.find((e) => e.id === emceeId) || result.emcee;
-  }, [emceeId, emcees, result.emcee]);
 
   useEffect(() => {
     fetch("/api/emcees")
@@ -45,7 +45,7 @@ export default function EditLineModal({
       .catch(() => {});
   }, []);
 
-  const handleSave = async (field: string, value: string | number) => {
+  const handleSavePatch = async (field: string, value: string | number | null) => {
     setSaving(true);
     setError("");
 
@@ -53,6 +53,31 @@ export default function EditLineModal({
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ lineId: result.id, field, value }),
+    });
+
+    if (!res.ok) {
+      const data = await res.json();
+      setError(data.error || "Failed to save.");
+      setSaving(false);
+      return;
+    }
+
+    setSaving(false);
+    onSaved();
+  };
+
+  const handleSaveUpdate = async (updates: Record<string, unknown>) => {
+    setSaving(true);
+    setError("");
+
+    const res = await fetch("/api/lines/batch", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        lineIds: [result.id],
+        action: "update",
+        updates,
+      }),
     });
 
     if (!res.ok) {
@@ -92,47 +117,83 @@ export default function EditLineModal({
             />
             <Button
               size="sm"
-              onClick={() => handleSave("content", content)}
+              onClick={() => handleSavePatch("content", content)}
               disabled={saving || content === result.content}
             >
               Save Content
             </Button>
           </div>
 
-          {/* Emcee */}
+          {/* Emcee Selection */}
           <div className="space-y-2">
             <Label>Emcee</Label>
-            <div className="flex flex-col gap-2">
-              <button
-                type="button"
-                onClick={() => setIsEmceeModalOpen(true)}
-                className="bg-background hover:bg-muted/50 flex w-full items-center justify-between rounded-md border px-3 py-2 text-sm transition-colors"
-              >
-                <div className="flex items-center gap-2">
-                  <User className="text-muted-foreground h-3.5 w-3.5" />
-                  <span>{selectedEmcee?.name || "Unknown / No Emcee"}</span>
-                </div>
-                <Search className="text-muted-foreground h-3.5 w-3.5" />
-              </button>
+            <div className="flex flex-wrap gap-2">
+              {(() => {
+                const groups = groupParticipants(result.battle.participants);
 
+                return groups.map((group) => {
+                  const groupIds = group.emcees.map(e => e.id);
+                  const groupName = group.emcees.map(e => e.name).join(" / ");
+                  const isActive = groupIds.length > 0 && groupIds.every(id => activeEmceeIds.includes(id)) && groupIds.length === activeEmceeIds.length;
+                  
+                  return (
+                    <Button
+                      key={group.label + groupIds.join('-')}
+                      type="button"
+                      variant={isActive ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setActiveEmceeIds(groupIds)}
+                      className="h-8 px-2.5 text-xs font-semibold shadow-sm"
+                    >
+                      {groupName}
+                    </Button>
+                  );
+                });
+              })()}
+              
               <Button
+                type="button"
+                variant={activeEmceeIds.length === 0 ? "default" : "outline"}
                 size="sm"
-                className="w-fit"
-                onClick={() =>
-                  handleSave("emcee_id", emceeId === "none" ? "" : emceeId)
-                }
-                disabled={saving || emceeId === (result.emcee?.id || "none")}
+                onClick={() => setActiveEmceeIds([])}
+                className="h-8 px-2.5 text-xs font-semibold shadow-sm"
               >
-                Save Emcee
+                Unknown
+              </Button>
+              
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setIsEmceeModalOpen(true)}
+                className="h-8 w-8"
+                title="Search more emcees"
+              >
+                <Search className="h-3.5 w-3.5" />
               </Button>
             </div>
+
+            <Button
+              size="sm"
+              className="mt-2 w-fit"
+              onClick={() => handleSaveUpdate({ speaker_ids: activeEmceeIds })}
+              disabled={
+                saving || 
+                JSON.stringify(activeEmceeIds.sort()) === JSON.stringify((result.emcees?.map(e => e.id) || (result.emcee ? [result.emcee.id] : [])).sort())
+              }
+            >
+              Save Emcees
+            </Button>
 
             <EmceeSearchModal
               isOpen={isEmceeModalOpen}
               onClose={() => setIsEmceeModalOpen(false)}
               emcees={emcees}
               selectedId={emceeId}
-              onSelect={setEmceeId}
+              onSelect={(id) => {
+                setEmceeId(id);
+                if (id !== "none") setActiveEmceeIds([id]);
+                else setActiveEmceeIds([]);
+              }}
             />
           </div>
 
@@ -165,7 +226,7 @@ export default function EditLineModal({
             <Button
               size="sm"
               onClick={() =>
-                handleSave(
+                handleSavePatch(
                   "round_number",
                   roundNumber !== "none" ? parseInt(roundNumber) : "",
                 )

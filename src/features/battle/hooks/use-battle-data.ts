@@ -10,6 +10,7 @@ export type BattleLine = {
   round_number: number | null;
   speaker_label: string | null;
   emcee: { id: string; name: string } | null;
+  emcees?: { id: string; name: string }[];
 };
 
 export type BattleStatus = "raw" | "arranged" | "reviewing" | "reviewed";
@@ -48,16 +49,19 @@ export function useBattleData(battleId: string) {
 
   const fetchBattle = useCallback(() => {
     return fetch(`/api/battles/${battleId}`)
-      .then((res) => {
-        if (!res.ok) throw new Error("Not found");
+      .then(async (res) => {
+        if (!res.ok) {
+          const d = await res.json().catch(() => ({}));
+          throw new Error(d.error || d.details || "Battle not found.");
+        }
         return res.json();
       })
       .then((d) => {
         setData(d);
         return d as BattleData;
       })
-      .catch(() => {
-        setError("Battle not found.");
+      .catch((err) => {
+        setError(err instanceof Error ? err.message : "Battle not found.");
         return null;
       })
       .finally(() => setLoading(false));

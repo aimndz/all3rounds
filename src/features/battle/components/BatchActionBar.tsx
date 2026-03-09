@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { groupParticipants } from "../utils/participant-grouping";
 import {
   Dialog,
   DialogContent,
@@ -31,6 +32,7 @@ export default function BatchActionBar({
     updates?: {
       round_number?: number | null;
       emcee_id?: string | null;
+      speaker_ids?: string[] | null;
     };
   }) => Promise<void>;
   onClear: () => void;
@@ -40,10 +42,10 @@ export default function BatchActionBar({
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   
   // Pending attribute states (null = no change, 'none' = clear field)
-  const [activeEmceeId, setActiveEmceeId] = useState<string | null>(null);
+  const [activeEmceeIds, setActiveEmceeIds] = useState<string[] | null>(null);
   const [activeRound, setActiveRound] = useState<string | null>(null);
 
-  const hasChanges = activeEmceeId !== null || activeRound !== null;
+  const hasChanges = activeEmceeIds !== null || activeRound !== null;
 
   /**
    * Consolidates pending changes and triggers the batch update action
@@ -51,14 +53,20 @@ export default function BatchActionBar({
   const handleApply = async () => {
     if (!hasChanges) return;
     
-    const updates: { round_number?: number | null; emcee_id?: string | null } = {};
+    const updates: { 
+      round_number?: number | null; 
+      emcee_id?: string | null;
+      speaker_ids?: string[] | null;
+    } = {};
     
     if (activeRound !== null) {
       updates.round_number = activeRound === "none" ? null : Number(activeRound);
     }
     
-    if (activeEmceeId !== null) {
-      updates.emcee_id = activeEmceeId === "none" ? null : activeEmceeId;
+    if (activeEmceeIds !== null) {
+      updates.speaker_ids = activeEmceeIds;
+      // Set legacy emcee_id to first one for compatibility
+      updates.emcee_id = activeEmceeIds.length > 0 ? activeEmceeIds[0] : null;
     }
 
     await onAction({
@@ -68,7 +76,7 @@ export default function BatchActionBar({
 
     // Reset local selection state after successful apply
     setActiveRound(null);
-    setActiveEmceeId(null);
+    setActiveEmceeIds(null);
   };
 
   if (selectedCount === 0) return null;
@@ -141,33 +149,39 @@ export default function BatchActionBar({
               </div>
             </div>
 
-            {/* Emcee Selection Section: Scrollable on Mobile */}
             <div className="flex flex-1 flex-col gap-1.5 overflow-hidden">
               <span className="text-muted-foreground/50 text-[9px] font-bold tracking-[0.2em] uppercase">
                 Emcee
               </span>
               <div className="scrollbar-hide -mx-4 flex gap-1 overflow-x-auto px-4 md:mx-0 md:flex-wrap md:px-0">
-                {participants?.map((p) => {
-                  if (!p.emcee) return null;
-                  const isActive = activeEmceeId === p.emcee.id;
-                  return (
-                    <Button
-                      key={p.emcee.id}
-                      variant={isActive ? "default" : "outline"}
-                      size="sm"
-                      disabled={saving}
-                      onClick={() => {
-                        // Toggle logic: Click active to unselect
-                        setActiveEmceeId(
-                          activeEmceeId === p.emcee!.id ? null : p.emcee!.id,
-                        );
-                      }}
-                      className="h-8 whitespace-nowrap px-3 text-[11px] font-semibold transition-all md:h-8.5"
-                    >
-                      {p.emcee.name}
-                    </Button>
-                  );
-                })}
+                {(() => {
+                  const groups = groupParticipants(participants);
+
+                  return groups.map((group) => {
+                    const groupIds = group.emcees.map(e => e.id);
+                    const groupName = group.emcees.map(e => e.name).join(" / ");
+                    
+                    // Consider active if ALL group members are in activeEmceeIds
+                    const isActive = activeEmceeIds !== null && groupIds.length > 0 && groupIds.every(id => activeEmceeIds.includes(id));
+                    
+                    return (
+                      <Button
+                        key={group.label + groupIds.join('-')}
+                        variant={isActive ? "default" : "outline"}
+                        size="sm"
+                        disabled={saving}
+                        onClick={() => {
+                          // Toggle logic: If currently active, clear. Else, set to this group's IDs.
+                          setActiveEmceeIds(isActive ? null : groupIds);
+                        }}
+                        className="h-8 whitespace-nowrap px-3 text-[11px] font-semibold transition-all md:h-8.5"
+                        title={groupName}
+                      >
+                        {groupName}
+                      </Button>
+                    );
+                  });
+                })()}
               </div>
             </div>
           </div>

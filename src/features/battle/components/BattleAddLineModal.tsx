@@ -13,6 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Clock, Plus } from "lucide-react";
+import { groupParticipants } from "../utils/participant-grouping";
 export default function BattleAddLineModal({
   battleId,
   currentTime,
@@ -46,7 +47,9 @@ export default function BattleAddLineModal({
   const [roundNumber, setRoundNumber] = useState(
     initialData?.round_number?.toString() || "1",
   );
-  const [emceeId, setEmceeId] = useState(initialData?.emcee_id || "none");
+  const [activeEmceeIds, setActiveEmceeIds] = useState<string[]>(
+    initialData?.emcee_id && initialData.emcee_id !== "none" ? [initialData.emcee_id] : []
+  );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -60,7 +63,7 @@ export default function BattleAddLineModal({
     setError("");
 
     try {
-      const res = await fetch("/api/lines", {
+          const res = await fetch("/api/lines", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -68,7 +71,7 @@ export default function BattleAddLineModal({
           content: content.trim(),
           start_time: parseFloat(startTime),
           end_time: parseFloat(endTime),
-          emcee_id: emceeId === "none" ? "" : emceeId,
+          speaker_ids: activeEmceeIds,
           round_number: roundNumber === "none" ? "" : roundNumber,
         }),
       });
@@ -175,27 +178,39 @@ export default function BattleAddLineModal({
               </div>
             </div>
 
-            {/* Emcee */}
-            <div className="space-y-2">
-              <Label>Emcee</Label>
-              <div className="flex flex-wrap gap-2">
-                {participants?.map((p) => {
-                  if (!p.emcee) return null;
-                  const isActive = emceeId === p.emcee.id;
+            <Label>Emcee</Label>
+            <div className="flex flex-wrap gap-2">
+              {(() => {
+                const groups = groupParticipants(participants);
+
+                return groups.map((group) => {
+                  const groupIds = group.emcees.map(e => e.id);
+                  const groupName = group.emcees.map(e => e.name).join(" / ");
+                  const isActive = groupIds.length > 0 && groupIds.every(id => activeEmceeIds.includes(id)) && groupIds.length === activeEmceeIds.length;
+                  
                   return (
                     <Button
-                      key={p.emcee.id}
+                      key={group.label + groupIds.join('-')}
                       type="button"
                       variant={isActive ? "default" : "outline"}
                       size="sm"
-                      onClick={() => setEmceeId(p.emcee!.id)}
-                      className="h-8 px-3 text-xs font-semibold shadow-sm"
+                      onClick={() => setActiveEmceeIds(groupIds)}
+                      className="h-8 px-2.5 text-[11px] font-semibold transition-all shadow-sm"
                     >
-                      {p.emcee.name}
+                      {groupName}
                     </Button>
                   );
-                })}
-              </div>
+                });
+              })()}
+              <Button
+                type="button"
+                variant={activeEmceeIds.length === 0 ? "default" : "outline"}
+                size="sm"
+                onClick={() => setActiveEmceeIds([])}
+                className="h-8 px-2.5 text-[11px] font-semibold transition-all shadow-sm"
+              >
+                Unknown
+              </Button>
             </div>
           </div>
         </div>

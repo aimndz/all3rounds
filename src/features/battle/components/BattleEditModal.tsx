@@ -10,6 +10,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { groupParticipants } from "../utils/participant-grouping";
 
 type BattleLine = {
   id: number;
@@ -19,6 +20,7 @@ type BattleLine = {
   round_number: number | null;
   speaker_label: string | null;
   emcee: { id: string; name: string } | null;
+  emcees?: { id: string; name: string }[];
 };
 
 export default function BattleEditModal({
@@ -39,7 +41,9 @@ export default function BattleEditModal({
   const [roundNumber, setRoundNumber] = useState(
     line.round_number?.toString() || "none",
   );
-  const [emceeId, setEmceeId] = useState(line.emcee?.id || "none");
+  const [activeEmceeIds, setActiveEmceeIds] = useState<string[]>(
+    line.emcees?.map((e) => e.id) || (line.emcee ? [line.emcee.id] : []),
+  );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -69,26 +73,40 @@ export default function BattleEditModal({
             />
           </div>
 
-          {/* Emcee */}
           <div className="space-y-2">
             <Label>Emcee</Label>
             <div className="flex flex-wrap gap-2">
-              {participants?.map((p) => {
-                if (!p.emcee) return null;
-                const isActive = emceeId === p.emcee.id;
-                return (
-                  <Button
-                    key={p.emcee.id}
-                    type="button"
-                    variant={isActive ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setEmceeId(p.emcee!.id)}
-                    className="h-9 px-3 text-xs font-semibold shadow-sm transition-all"
-                  >
-                    {p.emcee.name}
-                  </Button>
-                );
-              })}
+                {(() => {
+                  const groups = groupParticipants(participants);
+
+                  return groups.map((group) => {
+                    const groupIds = group.emcees.map(e => e.id);
+                    const groupName = group.emcees.map(e => e.name).join(" / ");
+                    const isActive = groupIds.length > 0 && groupIds.every(id => activeEmceeIds.includes(id)) && groupIds.length === activeEmceeIds.length;
+                    
+                    return (
+                      <Button
+                        key={group.label + groupIds.join('-')}
+                        type="button"
+                        variant={isActive ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setActiveEmceeIds(groupIds)}
+                        className="h-9 px-3 text-xs font-semibold shadow-sm transition-all"
+                      >
+                        {groupName}
+                      </Button>
+                    );
+                  });
+                })()}
+                <Button
+                  type="button"
+                  variant={activeEmceeIds.length === 0 ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setActiveEmceeIds([])}
+                  className="h-9 px-3 text-xs font-semibold shadow-sm transition-all"
+                >
+                  Unknown
+                </Button>
             </div>
           </div>
 
@@ -130,9 +148,26 @@ export default function BattleEditModal({
               setSaving(true);
               setError("");
               try {
-                // Save content if changed
+                // Use the batch endpoint for simpler implementation of multi-speaker updates
+                const res = await fetch("/api/lines/batch", {
+                  method: "PATCH",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    lineIds: [line.id],
+                    action: "update",
+                    updates: {
+                      round_number: roundNumber === "none" ? null : parseInt(roundNumber),
+                      speaker_ids: activeEmceeIds,
+                    },
+                  }),
+                });
+
+                if (!res.ok) throw new Error("Failed to save changes");
+
+                // Content update (still separate for now to match edit history expectations if needed, 
+                // but we could also merge this into a more robust batch API later)
                 if (content !== line.content) {
-                  const res = await fetch("/api/lines", {
+                  const contentRes = await fetch("/api/lines", {
                     method: "PATCH",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
@@ -141,36 +176,9 @@ export default function BattleEditModal({
                       value: content,
                     }),
                   });
-                  if (!res.ok) throw new Error("Failed to save content");
+                  if (!contentRes.ok) throw new Error("Failed to save text content");
                 }
-                // Save emcee if changed
-                if (emceeId !== (line.emcee?.id || "none")) {
-                  const res = await fetch("/api/lines", {
-                    method: "PATCH",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                      lineId: line.id,
-                      field: "emcee_id",
-                      value: emceeId === "none" ? "" : emceeId,
-                    }),
-                  });
-                  if (!res.ok) throw new Error("Failed to save emcee");
-                }
-                // Save round if changed
-                const currentRound =
-                  roundNumber !== "none" ? parseInt(roundNumber) : null;
-                if (currentRound !== line.round_number) {
-                  const res = await fetch("/api/lines", {
-                    method: "PATCH",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                      lineId: line.id,
-                      field: "round_number",
-                      value: currentRound === null ? "" : currentRound,
-                    }),
-                  });
-                  if (!res.ok) throw new Error("Failed to save round");
-                }
+
                 onSaved();
               } catch (err: unknown) {
                 setError(
@@ -182,7 +190,7 @@ export default function BattleEditModal({
             disabled={
               saving ||
               (content === line.content &&
-                emceeId === (line.emcee?.id || "none") &&
+                JSON.stringify(activeEmceeIds.sort()) === JSON.stringify((line.emcees?.map(e => e.id) || (line.emcee ? [line.emcee.id] : [])).sort()) &&
                 roundNumber === (line.round_number?.toString() || "none"))
             }
           >

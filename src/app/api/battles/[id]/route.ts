@@ -38,7 +38,11 @@ export async function GET(
     .single();
 
   if (battleError || !battle) {
-    return NextResponse.json({ error: "Battle not found." }, { status: 404 });
+    console.error("Battle fetch error:", battleError, "for ID:", id);
+    return NextResponse.json(
+      { error: "Battle not found.", details: battleError?.message },
+      { status: 404 },
+    );
   }
 
   // Fetch participants (emcees in this battle)
@@ -58,6 +62,8 @@ export async function GET(
       end_time,
       round_number,
       speaker_label,
+      emcee_id,
+      speaker_ids,
       emcee:emcees ( id, name )
     `,
     )
@@ -65,19 +71,69 @@ export async function GET(
     .order("start_time", { ascending: true });
 
   if (linesError) {
+    console.error("Lines fetch error:", linesError);
     return NextResponse.json(
-      { error: "Failed to fetch lines." },
+      { error: "Failed to fetch lines.", details: linesError.message },
       { status: 500 },
     );
   }
 
+  // Create a map to look up emcee information locally if needed
+  const emceeMap = new Map<string, { id: string; name: string }>();
+  if (participants) {
+    participants.forEach(p => {
+      if (p.emcee) {
+        // Handle potential array return from supabase
+        const e = Array.isArray(p.emcee) ? p.emcee[0] : p.emcee;
+        emceeMap.set(e.id, e);
+      }
+    });
+  }
+
+  interface RawLine {
+    id: number;
+    content: string;
+    start_time: number;
+    end_time: number;
+    round_number: number | null;
+    speaker_label: string | null;
+    emcee_id: string | null;
+    speaker_ids: string[] | null;
+    emcee: { id: string; name: string } | { id: string; name: string }[] | null;
+  }
+
+  // ── Transform Data for Frontend ──
+  // We transform the flat line data into a structure that the frontend expects.
+  // The 'speaker_ids' array tells us which emcees spoke this line.
+  // We use the 'emceeMap' (built from battle_participants) to attach full emcee info.
+  const transformedLines = (lines || []).map((line: RawLine) => {
+    const mappedEmcees: { id: string; name: string }[] = [];
+    
+    // 1. Resolve multi-speakers via the 'speaker_ids' array
+    if (line.speaker_ids && Array.isArray(line.speaker_ids)) {
+      line.speaker_ids.forEach((id: string) => {
+        const found = emceeMap.get(id);
+        if (found) mappedEmcees.push(found);
+      });
+    }
+
+    // 2. Identify single speaker (legacy/fallback) if speaker_ids is empty
+    const fallbackEmcee = Array.isArray(line.emcee) ? line.emcee[0] : line.emcee;
+
+    return {
+      ...line,
+      // The frontend uses the 'emcees' array for 2v2/multi-speaker display
+      emcees: mappedEmcees.length > 0 ? mappedEmcees : fallbackEmcee ? [fallbackEmcee] : [],
+    };
+  });
+
   const result = {
     battle,
     participants: participants || [],
-    lines: lines || [],
+    lines: transformedLines,
   };
 
-  await setCached(cacheKey, result, 300); // 5 minutes
+  await setCached(cacheKey, result, 300); // Cache for 5 minutes
 
   return NextResponse.json(result);
 }

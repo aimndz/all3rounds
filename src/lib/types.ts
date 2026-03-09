@@ -9,6 +9,11 @@ export type SearchResult = {
     id: string;
     name: string;
   } | null;
+  speaker_ids?: string[] | null;
+  emcees?: {
+    id: string;
+    name: string;
+  }[];
   battle: {
     id: string;
     title: string;

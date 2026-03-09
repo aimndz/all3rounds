@@ -322,13 +322,14 @@ export default function BattlePage() {
   /**
    * Executes a batch action on selected lines (update attributes or delete)
    */
-  const handleBatchAction = async (
+  const handleBatchAction = useCallback(async (
     config: {
       action: "set_round" | "set_emcee" | "update" | "delete";
       value?: string;
       updates?: {
         round_number?: number | null;
         emcee_id?: string | null;
+        speaker_ids?: string[] | null;
       };
     }
   ) => {
@@ -438,7 +439,15 @@ export default function BattlePage() {
     } finally {
       setBatchSaving(false);
     }
-  };
+  }, [
+    selectedIds,
+    data?.lines,
+    clearSelection,
+    fetchBattle,
+    toast,
+    transcriptContainerRef
+  ]);
+
 
   const { battle, lines } = data || {
     battle: {} as BattleData["battle"],
@@ -457,7 +466,12 @@ export default function BattlePage() {
 
     const speakers = [
       ...new Set(
-        lines.map((l) => l.emcee?.name || l.speaker_label || "Unknown"),
+        lines.map((l) => {
+          if (l.emcees && l.emcees.length > 0) {
+            return l.emcees.map((e) => e.name).join(" / ");
+          }
+          return l.emcee?.name || l.speaker_label || "Unknown";
+        }),
       ),
     ];
     speakers.forEach((s, i) => getSpeakerColor(s, i));
@@ -468,7 +482,12 @@ export default function BattlePage() {
 
     lines.forEach((line) => {
       const round = line.round_number;
-      const speaker = line.emcee?.name || line.speaker_label || "Unknown";
+      let speaker = "Unknown";
+      if (line.emcees && line.emcees.length > 0) {
+        speaker = line.emcees.map((e) => e.name).join(" / ");
+      } else {
+        speaker = line.emcee?.name || line.speaker_label || "Unknown";
+      }
 
       if (round !== currentRoundId) {
         currentRoundId = round;
