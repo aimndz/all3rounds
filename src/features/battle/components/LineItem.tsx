@@ -90,7 +90,7 @@ export const LineItem = memo(
                 e.stopPropagation();
                 onToggleSelect(line.id, e.shiftKey);
               }}
-              className="mt-1 h-3.5 w-3.5 shrink-0"
+              className="mt-1 h-3.5 w-3.5 shrink-0 cursor-pointer"
             />
 
             <button

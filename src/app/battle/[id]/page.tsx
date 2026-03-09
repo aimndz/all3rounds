@@ -319,24 +319,39 @@ export default function BattlePage() {
     [data],
   );
 
+  /**
+   * Executes a batch action on selected lines (update attributes or delete)
+   */
   const handleBatchAction = async (
-    action: "set_round" | "set_emcee" | "delete",
-    value?: string,
+    config: {
+      action: "set_round" | "set_emcee" | "update" | "delete";
+      value?: string;
+      updates?: {
+        round_number?: number | null;
+        emcee_id?: string | null;
+      };
+    }
   ) => {
+    const { action, value, updates } = config;
     if (selectedIds.size === 0) return;
+    
     setBatchSaving(true);
 
+    // Track a target line to scroll to after the operation (mostly for deletion)
     let targetLineId: number | null = null;
     if (data?.lines) {
       if (action === "delete") {
+        // If deleting, find the nearest line that STAYS to maintain scroll position
         const firstIdx = data.lines.findIndex((l) => selectedIds.has(l.id));
         if (firstIdx !== -1) {
+          // Try to find a line before the selection
           for (let i = firstIdx - 1; i >= 0; i--) {
             if (!selectedIds.has(data.lines[i].id)) {
               targetLineId = data.lines[i].id;
               break;
             }
           }
+          // If no line before, try to find a line after
           if (targetLineId === null) {
             for (let i = firstIdx + 1; i < data.lines.length; i++) {
               if (!selectedIds.has(data.lines[i].id)) {
@@ -347,6 +362,7 @@ export default function BattlePage() {
           }
         }
       } else {
+        // For updates, just stay on the first selected line
         const firstSelected = data.lines.find((l) => selectedIds.has(l.id));
         if (firstSelected) targetLineId = firstSelected.id;
       }
@@ -360,8 +376,10 @@ export default function BattlePage() {
           lineIds: Array.from(selectedIds),
           action,
           value: value ?? null,
+          updates,
         }),
       });
+
       if (!res.ok) {
         const d = await res.json();
         const isRateLimit = res.status === 429;
@@ -374,12 +392,24 @@ export default function BattlePage() {
         });
         return;
       }
+
+      // Deletion resets the selection UI
       if (action === "delete") {
         clearSelection();
       }
 
+      // Refresh data
       const newBattleData = await fetchBattle();
 
+      toast({
+        title: "Success",
+        description:
+          action === "delete"
+            ? `Successfully deleted ${selectedIds.size} lines.`
+            : `Successfully updated ${selectedIds.size} lines.`,
+      });
+
+      // Maintain scroll position if we have a target line
       if (targetLineId !== null && newBattleData?.lines) {
         setTimeout(() => {
           const container = transcriptContainerRef.current;
@@ -398,6 +428,13 @@ export default function BattlePage() {
           }
         }, 100);
       }
+    } catch (err) {
+      console.error("Batch UI handler error:", err);
+      toast({
+        variant: "destructive",
+        title: "System Error",
+        description: "A network error occurred while performing the batch action.",
+      });
     } finally {
       setBatchSaving(false);
     }
@@ -830,7 +867,7 @@ export default function BattlePage() {
                                 onCheckedChange={() =>
                                   toggleSelectRound(group.turns)
                                 }
-                                className="h-4 w-4"
+                                className="h-4 w-4 cursor-pointer"
                               />
                             </div>
                           )}
@@ -880,7 +917,7 @@ export default function BattlePage() {
                                     {editMode && (
                                       <Checkbox
                                         checked={turnAllSelected}
-                                        className="ml-1 h-3.5 w-3.5"
+                                        className="mt-1 h-3.5 w-3.5 shrink-0 cursor-pointer"
                                         onCheckedChange={() =>
                                           toggleSelectTurn(turn.lines)
                                         }
@@ -1014,6 +1051,10 @@ export default function BattlePage() {
           onClose={() => setEditingLine(null)}
           onSaved={() => {
             setEditingLine(null);
+            toast({
+              title: "Line Saved",
+              description: "The line has been updated successfully.",
+            });
             fetchBattle();
           }}
         />
@@ -1043,6 +1084,10 @@ export default function BattlePage() {
           onSaved={() => {
             setAddingLine(false);
             setAddingLineData(null);
+            toast({
+              title: "Line Added",
+              description: "New line has been added to the transcript.",
+            });
             fetchBattle();
           }}
         />
