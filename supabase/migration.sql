@@ -118,6 +118,9 @@ RETURNS TABLE (
   rank FLOAT4
 ) AS $$
 BEGIN
+  -- Raise similarity threshold to reduce false positives and let GIN index work better
+  PERFORM set_config('pg_trgm.similarity_threshold', '0.4', true);
+
   RETURN QUERY
   WITH matched_lines AS (
     SELECT l.id,
@@ -127,6 +130,7 @@ BEGIN
     FROM lines l
     WHERE l.search_vector @@ websearch_to_tsquery('simple', search_term)
        OR l.content % search_term
+    LIMIT 1000
   ),
   matched_emcees AS (
     SELECT e.id,
@@ -145,7 +149,6 @@ BEGIN
   combined_line_ids AS (
     SELECT ml.id, ml.rank_score AS base_score FROM matched_lines ml
     UNION ALL
-    -- Use array overlap operator to match emcees within the speaker_ids array
     SELECT l.id, me.emcee_score AS base_score 
     FROM lines l 
     JOIN matched_emcees me ON (l.emcee_id = me.id OR l.speaker_ids @> ARRAY[me.id])

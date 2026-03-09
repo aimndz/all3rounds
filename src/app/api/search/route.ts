@@ -88,16 +88,40 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(cachedData);
   }
 
-  // --- Hybrid Search ---
+  // --- Hybrid Search with retry on timeout ---
   // We use a custom Postgres RPC 'search_all_hybrid' which combines:
   // 1. Full-Text Search (search_vector)
   // 2. Trigram Similarity (content % search_term)
   // 3. Boosting for Emcee/Battle name matches
-  const { data, error, count } = await supabase
-    .rpc("search_all_hybrid", { search_term: query }, { count: "exact" })
-    .range(offset, offset + limit - 1);
+  //
+  // For new/uncommon search terms, PostgreSQL may timeout on the first attempt
+  // because the trigram index needs to scan cold data pages. A single retry
+  // typically succeeds because those pages are now cached in shared_buffers.
+  const MAX_RETRIES = 1;
+  let data: SearchRpcRow[] | null = null;
+  let error: { code?: string; message?: string } | null = null;
+  let count: number | null = null;
 
-  if (error) {
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    const result = await supabase
+      .rpc("search_all_hybrid", { search_term: query }, { count: "exact" })
+      .range(offset, offset + limit - 1);
+
+    data = result.data;
+    error = result.error;
+    count = result.count;
+
+    if (!error) break;
+
+    // Only retry on statement timeout (PostgreSQL error 57014)
+    const isTimeout = error.code === "57014";
+    if (isTimeout && attempt < MAX_RETRIES) {
+      console.warn(
+        `Search timeout for "${query}" (attempt ${attempt + 1}), retrying...`,
+      );
+      continue;
+    }
+
     console.error("Search RPC error:", error);
     return NextResponse.json(
       { error: "Search failed. Please try again." },
