@@ -126,4 +126,107 @@ describe("PATCH /api/lines/batch", () => {
     const body = await res.json();
     expect(body.error).toMatch(/superadmin/i);
   });
+
+  it("updates round_number only successfully", async () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { __mocks } = await import("@/lib/supabase/server") as any;
+    const { mockChain } = __mocks;
+    mockChain.in.mockResolvedValueOnce({
+      data: [{ id: 1, round_number: 1, emcee_id: "e1", battle_id: "b1" }],
+      error: null,
+    });
+    mockChain.update.mockReturnThis();
+    mockChain.in.mockResolvedValueOnce({ data: null, error: null });
+
+    const res = await PATCH(
+      makeRequest({ lineIds: [1], action: "set_round", value: 2 }),
+    );
+
+    expect(res.status).toBe(200);
+    expect(mockChain.update).toHaveBeenCalledWith({ round_number: 2 });
+    expect(mockChain.insert).toHaveBeenCalledWith(
+      expect.arrayContaining([
+        expect.objectContaining({ field_changed: "round_number", new_value: "2" }),
+      ]),
+    );
+  });
+
+  it("updates emcee_id only successfully", async () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { __mocks } = await import("@/lib/supabase/server") as any;
+    const { mockChain } = __mocks;
+    mockChain.in.mockResolvedValueOnce({
+      data: [{ id: 1, round_number: 1, emcee_id: "e1", battle_id: "b1" }],
+      error: null,
+    });
+    mockChain.update.mockReturnThis();
+    mockChain.in.mockResolvedValueOnce({ data: null, error: null });
+
+    const res = await PATCH(
+      makeRequest({ lineIds: [1], action: "set_emcee", value: "e2" }),
+    );
+
+    expect(res.status).toBe(200);
+    expect(mockChain.update).toHaveBeenCalledWith({ emcee_id: "e2" });
+    expect(mockChain.insert).toHaveBeenCalledWith(
+      expect.arrayContaining([
+        expect.objectContaining({ field_changed: "emcee_id", new_value: "e2" }),
+      ]),
+    );
+  });
+
+  it("updates both round and emcee using 'update' action", async () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { __mocks } = await import("@/lib/supabase/server") as any;
+    const { mockChain } = __mocks;
+    mockChain.in.mockResolvedValueOnce({
+      data: [{ id: 1, round_number: 1, emcee_id: "e1", battle_id: "b1" }],
+      error: null,
+    });
+    mockChain.update.mockReturnThis();
+    mockChain.in.mockResolvedValueOnce({ data: null, error: null });
+
+    const res = await PATCH(
+      makeRequest({
+        lineIds: [1],
+        action: "update",
+        updates: { round_number: 3, emcee_id: "e3" },
+      }),
+    );
+
+    expect(res.status).toBe(200);
+    expect(mockChain.update).toHaveBeenCalledWith({
+      round_number: 3,
+      emcee_id: "e3",
+    });
+    // Check history recorded for both
+    expect(mockChain.insert).toHaveBeenCalledWith(
+      expect.arrayContaining([
+        expect.objectContaining({ field_changed: "round_number", new_value: "3" }),
+        expect.objectContaining({ field_changed: "emcee_id", new_value: "e3" }),
+      ]),
+    );
+  });
+
+  it("deletes lines successfully", async () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { __mocks } = await import("@/lib/supabase/server") as any;
+    const { mockChain } = __mocks;
+    mockChain.in.mockResolvedValueOnce({
+      data: [{ id: 1, content: "test", battle_id: "b1" }],
+      error: null,
+    });
+    mockChain.delete.mockReturnThis();
+    mockChain.in.mockResolvedValueOnce({ data: null, error: null });
+
+    const res = await PATCH(makeRequest({ lineIds: [1], action: "delete" }));
+
+    expect(res.status).toBe(200);
+    expect(mockChain.delete).toHaveBeenCalled();
+    expect(mockChain.insert).toHaveBeenCalledWith(
+      expect.arrayContaining([
+        expect.objectContaining({ field_changed: "deleted" }),
+      ]),
+    );
+  });
 });
