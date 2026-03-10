@@ -123,7 +123,7 @@ export default function ResultCard({
           </div>
 
           {/* Content */}
-          <div className="relative flex flex-1 flex-col justify-center">
+          <div className="relative flex min-w-0 flex-1 flex-col justify-center">
             {/* Action Buttons (Edit/Suggest) */}
             <div className="absolute top-0 right-0 flex items-center">
               {isLoggedIn && (
@@ -160,15 +160,15 @@ export default function ResultCard({
 
             {/* Speaker & Context Header */}
             <div className="mb-5 pr-10">
-              <span className="text-primary/80 text-[15px] font-black uppercase">
+              <span className="text-primary/80 block truncate text-[15px] font-black uppercase">
                 {speakerLabel}
               </span>
               <div className="text-muted-foreground/60 group-hover:text-muted-foreground mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] font-medium transition-colors">
-                <span>{battleMatchup}</span>
+                <span className="truncate">{battleMatchup}</span>
                 {result.battle.event_name && (
                   <>
-                    <span className="opacity-30">·</span>
-                    <span>{result.battle.event_name}</span>
+                    <span className="shrink-0 opacity-30">·</span>
+                    <span className="truncate">{result.battle.event_name}</span>
                   </>
                 )}
               </div>
@@ -178,20 +178,20 @@ export default function ResultCard({
             <div className="relative border-l border-white/10 py-0.5 pl-4">
               <div className="flex flex-col gap-1">
                 {result.prev_line && (
-                  <p className="text-muted-foreground/30 group-hover:text-muted-foreground/50 line-clamp-1 text-[14px] leading-tight font-medium transition-colors">
+                  <p className="text-muted-foreground/30 group-hover:text-muted-foreground/50 line-clamp-1 text-[14px] leading-tight font-medium wrap-break-word transition-colors">
                     {result.prev_line.content}
                   </p>
                 )}
 
                 <div className="relative">
                   <div className="bg-primary/40 absolute top-1/2 -left-4.25 h-3 w-0.5 -translate-y-1/2 rounded-full" />
-                  <p className="text-foreground text-[15px] leading-relaxed font-semibold sm:text-[16px]">
+                  <p className="text-foreground line-clamp-3 text-[15px] leading-relaxed font-semibold wrap-break-word sm:text-[16px]">
                     {result.content}
                   </p>
                 </div>
 
                 {result.next_line && (
-                  <p className="text-muted-foreground/30 group-hover:text-muted-foreground/50 line-clamp-1 text-[14px] leading-tight font-medium transition-colors">
+                  <p className="text-muted-foreground/30 group-hover:text-muted-foreground/50 line-clamp-1 text-[14px] leading-tight font-medium wrap-break-word transition-colors">
                     {result.next_line.content}
                   </p>
                 )}

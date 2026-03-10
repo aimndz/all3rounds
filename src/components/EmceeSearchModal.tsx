@@ -126,7 +126,7 @@ export default function EmceeSearchModal({
                     isSelected && "bg-primary/5 text-primary font-bold",
                   )}
                 >
-                  <span className="truncate text-sm">{e.name}</span>
+                  <span className="min-w-0 truncate text-sm">{e.name}</span>
                   {isSelected && (
                     <Check className="text-primary h-4 w-4 stroke-3" />
                   )}

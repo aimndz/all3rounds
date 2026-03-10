@@ -91,7 +91,7 @@ function SearchResults() {
             <h1 className="text-foreground flex items-center gap-2 text-lg font-semibold">
               {total === 0 ? "No results" : `${total} results`}
             </h1>
-            <span className="text-muted-foreground text-sm">
+            <span className="text-muted-foreground min-w-0 truncate text-sm">
               for &ldquo;{query}&rdquo;
             </span>
           </div>
