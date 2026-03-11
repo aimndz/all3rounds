@@ -1,27 +1,24 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 
+export const dynamic = "force-dynamic"; // Completely disable caching for this route
+
 export async function GET() {
   const supabase = await createClient();
 
-  // Optimize count query by selecting minimum columns
-  const { count, error: countError } = await supabase
-    .from("lines")
-    .select("id, battle:battles!inner(id)", { count: "exact", head: true })
-    .neq("battle.status", "raw");
+  // 1. Get a random valid line ID instantly using the Postgres function
+  const { data: randomLineId, error: randomError } = await supabase
+    .rpc("get_random_valid_line_id");
 
-  if (countError || !count) {
-    console.error("Failed to get lines count:", countError);
+  if (randomError || !randomLineId) {
+    console.error("Failed to get random line ID:", randomError);
     return NextResponse.json(
-      { error: "Failed to fetch random line" },
+      { error: "Failed to fetch random line ID" },
       { status: 500 },
     );
   }
 
-  // Pick a random offset
-  const randomOffset = Math.floor(Math.random() * count);
-
-  // Fetch the line at that offset
+  // 2. Fetch the full nested data for that exact ID
   const { data, error } = await supabase
     .from("lines")
     .select(
@@ -47,11 +44,10 @@ export async function GET() {
       )
     `,
     )
-    .neq("battle.status", "raw")
-    .range(randomOffset, randomOffset);
+    .eq("id", randomLineId);
 
   if (error || !data || data.length === 0) {
-    console.error("Failed to fetch random line:", error);
+    console.error("Failed to fetch random line data:", error);
     return NextResponse.json(
       { error: "Failed to fetch random line" },
       { status: 500 },

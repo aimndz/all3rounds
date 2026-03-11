@@ -88,7 +88,10 @@ export function useRandomLine(canEdit: boolean) {
     setError("");
     setSaved(false);
     try {
-      const res = await fetch("/api/lines/random");
+      // Add a cache buster and explicitly disable fetch caching
+      const res = await fetch(`/api/lines/random?t=${Date.now()}`, {
+        cache: "no-store",
+      });
       if (!res.ok) throw new Error("Failed to fetch");
       const data = await res.json();
       setLine(data.line);
