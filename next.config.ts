@@ -38,7 +38,7 @@ const nextConfig: NextConfig = {
               "default-src 'self'",
               "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.youtube.com https://s.ytimg.com",
               "style-src 'self' 'unsafe-inline'",
-              "img-src 'self' https://img.youtube.com data: blob:",
+              "img-src 'self' https://img.youtube.com https://i.ytimg.com data: blob:",
               "frame-src https://www.youtube.com",
               "connect-src 'self' https://*.supabase.co wss://*.supabase.co",
               "font-src 'self'",
