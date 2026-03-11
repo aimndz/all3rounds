@@ -164,6 +164,10 @@ export default function ResultCard({
                 {speakerLabel}
               </span>
               <div className="text-muted-foreground/60 group-hover:text-muted-foreground mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] font-medium transition-colors">
+                <span className="text-primary/70 font-mono text-[11px] font-bold sm:hidden">
+                  {formatTime(result.start_time)}
+                </span>
+                <span className="shrink-0 opacity-30 sm:hidden">·</span>
                 <span className="truncate">{battleMatchup}</span>
                 {result.battle.event_name && (
                   <>

@@ -215,12 +215,12 @@ export default function BattlesDirectory({
 
       <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-8 sm:px-6 lg:px-8">
         <div className="border-border/10 bg-background/95 sticky top-14 z-30 -mx-4 mb-8 border-b px-4 py-4 backdrop-blur-sm sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
-          <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
-            <div className="space-y-1">
-              <h1 className="text-foreground text-3xl font-black tracking-tight sm:text-4xl">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="space-y-0.5">
+              <h1 className="text-foreground text-2xl font-black tracking-tight sm:text-4xl">
                 Battles
               </h1>
-              <p className="text-muted-foreground text-xs font-medium tracking-wider uppercase opacity-60 sm:text-sm">
+              <p className="text-muted-foreground text-[10px] font-medium tracking-wider uppercase opacity-60 sm:text-xs">
                 {totalCount !== null ? totalCount : battles.length} battles •{" "}
                 {new Set(battles.map((b) => b.event_name).filter(Boolean)).size}{" "}
                 events

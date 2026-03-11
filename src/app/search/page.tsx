@@ -152,13 +152,13 @@ function SearchResults() {
       <main className="mx-auto max-w-4xl px-4 py-6 sm:px-6">
         {/* Result count */}
         {!loading && !isInitialLoad && !error && query && (
-          <div className="mb-5 flex items-baseline gap-2">
-            <h1 className="text-foreground flex items-center gap-2 text-lg font-semibold">
+          <div className="mb-5 flex flex-col gap-1 sm:flex-row sm:items-baseline sm:gap-2">
+            <h1 className="text-foreground text-lg font-semibold whitespace-nowrap">
               {total === 0 ? "No results" : `${total} results`}
             </h1>
-            <span className="text-muted-foreground min-w-0 truncate text-sm">
+            <p className="text-muted-foreground min-w-0 truncate text-sm">
               for &ldquo;{query}&rdquo;
-            </span>
+            </p>
           </div>
         )}
 

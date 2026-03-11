@@ -18,7 +18,7 @@ export function EmceeCard({ emcee }: EmceeCardProps) {
           <h2 className="group-hover:text-primary text-xl font-bold tracking-tight text-white transition-colors">
             {emcee.name}
           </h2>
-          <div className="border-primary/10 bg-primary/5 text-primary flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 transition-all duration-500">
+          <div className="border-border/50 bg-muted/5 text-muted-foreground group-hover:border-primary/10 group-hover:bg-primary/5 group-hover:text-primary flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 transition-all duration-500">
             <span className="text-[10px]"> {emcee.battle_count}</span>
             <span className="text-[10px] tracking-tighter uppercase opacity-70">
               Battles
