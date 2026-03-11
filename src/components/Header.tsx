@@ -83,7 +83,7 @@ export default function Header() {
                 </SheetTrigger>
                 <SheetContent
                   side="right"
-                  className="bg-card border-l-border/40 w-72 p-10"
+                  className="bg-card border-l-border/40 w-72 p-5"
                 >
                   <SheetHeader className="sr-only">
                     <SheetTitle>Navigation Menu</SheetTitle>
