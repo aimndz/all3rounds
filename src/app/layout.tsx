@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import BetaBanner from "@/components/BetaBanner";
 import { AuthProvider } from "@/components/AuthProvider";
 import { ErrorBoundary } from "@/components/shared/ErrorBoundary";
+import { Analytics } from "@vercel/analytics/react";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -51,6 +52,7 @@ export default function RootLayout({
           <ErrorBoundary>{children}</ErrorBoundary>
         </AuthProvider>
         <Toaster />
+        <Analytics />
       </body>
     </html>
   );
