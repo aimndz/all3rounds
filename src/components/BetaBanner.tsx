@@ -10,7 +10,9 @@ export default function BetaBanner() {
 
   useEffect(() => {
     const isHidden = localStorage.getItem("beta-banner-hidden") === "true";
-    setIsVisible(!isHidden);
+    setTimeout(() => {
+      setIsVisible(!isHidden);
+    }, 0);
   }, []);
 
   const handleClose = () => {
