@@ -14,14 +14,20 @@ export async function GET(request: NextRequest) {
 
   const { searchParams } = new URL(request.url);
   const q = searchParams.get("q") || "";
+  const page = parseInt(searchParams.get("page") || "1", 10);
+  const limit = parseInt(searchParams.get("limit") || "100", 10);
+
+  const from = (page - 1) * limit;
+  const to = from + limit - 1;
 
   const adminClient = createAdminClient();
 
-  // Fetch all emcees with their counts
+  // Fetch emcees with their counts
   let query = adminClient
     .from("emcees")
     .select(
       "id, name, aka, created_at, battle_participants(count), lines(count)",
+      { count: "exact" }
     )
     .order("name", { ascending: true });
 
@@ -31,7 +37,7 @@ export async function GET(request: NextRequest) {
     query = query.ilike("name", `%${safeQ}%`);
   }
 
-  const { data, error } = await query;
+  const { data, count, error } = await query.range(from, to);
 
   if (error) {
     console.error("Fetch emcees error:", error);
@@ -60,5 +66,10 @@ export async function GET(request: NextRequest) {
     }),
   );
 
-  return NextResponse.json(formattedData);
+  return NextResponse.json({
+    data: formattedData,
+    total: count || 0,
+    page,
+    limit,
+  });
 }

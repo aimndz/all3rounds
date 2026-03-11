@@ -15,6 +15,11 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const status = searchParams.get("status"); // 'approved' or 'rejected'
   const moderatorId = searchParams.get("moderatorId");
+  const page = parseInt(searchParams.get("page") || "1", 10);
+  const limit = parseInt(searchParams.get("limit") || "10", 10);
+
+  const from = (page - 1) * limit;
+  const to = from + limit - 1;
 
   const adminClient = createAdminClient();
 
@@ -27,6 +32,7 @@ export async function GET(request: NextRequest) {
       reviewer:user_profiles!suggestions_reviewed_by_fkey ( display_name ),
       user:user_profiles!suggestions_user_id_fkey ( display_name )
     `,
+      { count: "exact" }
     )
     .neq("status", "pending")
     .order("reviewed_at", { ascending: false });
@@ -35,7 +41,7 @@ export async function GET(request: NextRequest) {
   if (moderatorId && moderatorId !== "all")
     query = query.eq("reviewed_by", moderatorId);
 
-  const { data, error } = await query.limit(100);
+  const { data, count, error } = await query.range(from, to);
 
   if (error) {
     console.error("Fetch reviews audit error:", error);
@@ -45,5 +51,10 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  return NextResponse.json(data);
+  return NextResponse.json({
+    data,
+    total: count || 0,
+    page,
+    limit,
+  });
 }
