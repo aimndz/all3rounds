@@ -11,7 +11,7 @@
     The Filipino Battle Rap Archive
     <br />
     <br />
-    <a href="https:/all3rounds.vercel.app">View Demo</a>
+    <a href="https://all3rounds.vercel.app">View Demo</a>
     &middot;
     <a href="https://github.com/aimndz/all3rounds/issues">Report Bug</a>
     &middot;
