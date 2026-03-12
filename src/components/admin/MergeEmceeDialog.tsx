@@ -99,7 +99,7 @@ export function MergeEmceeDialog({ sourceEmcee, emcees, onClose, onMerge }: Merg
       <DialogContent className="flex max-h-[90vh] flex-col overflow-hidden border-white/10 bg-[#141417] p-0 sm:max-w-xl">
         <div className="border-b border-white/5 p-8 pb-6">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-3 text-2xl font-semibold tracking-tighter uppercase text-white">
+            <DialogTitle className="flex items-center gap-3 text-2xl font-semibold tracking-tighter text-white">
               <GitMerge className="h-6 w-6 text-purple-400" />
               Merge Emcee
             </DialogTitle>
@@ -113,7 +113,7 @@ export function MergeEmceeDialog({ sourceEmcee, emcees, onClose, onMerge }: Merg
           <div className="relative mt-6 flex flex-col gap-3 overflow-hidden rounded-2xl border border-white/5 bg-white/5 p-6">
             <div className="absolute top-0 right-0 h-32 w-32 rounded-full bg-purple-500/5 opacity-50 blur-3xl" />
             <div className="flex items-center justify-between text-xs">
-              <span className="font-semibold tracking-widest text-white/20 uppercase">
+              <span className="font-semibold tracking-widest text-white/20">
                 Source:
               </span>
               <span className="text-destructive decoration-destructive/50 text-base font-semibold line-through">
@@ -124,13 +124,13 @@ export function MergeEmceeDialog({ sourceEmcee, emcees, onClose, onMerge }: Merg
               <ChevronDown className="h-5 w-5 animate-pulse text-white/10" />
             </div>
             <div className="flex items-center justify-between text-xs">
-              <span className="font-semibold tracking-widest text-white/20 uppercase">
+              <span className="font-semibold tracking-widest text-white/20">
                 Target:
               </span>
               <span className="text-base font-semibold text-emerald-400 underline decoration-emerald-400/20 underline-offset-4">
                 {mergeTarget
-                  ? mergeTarget.name.toUpperCase()
-                  : "SELECT TARGET..."}
+                  ? mergeTarget.name
+                  : "Select target..."}
               </span>
             </div>
           </div>
@@ -139,7 +139,7 @@ export function MergeEmceeDialog({ sourceEmcee, emcees, onClose, onMerge }: Merg
         {!mergeTarget ? (
           <div className="flex flex-1 flex-col overflow-auto p-8 pt-4">
             <div className="mb-4 flex items-center justify-between">
-              <h3 className="text-[10px] font-semibold tracking-[0.2em] text-white/20 uppercase">
+              <h3 className="text-[10px] font-semibold tracking-[0.2em] text-white/20">
                 Select Destination
               </h3>
             </div>
@@ -166,7 +166,7 @@ export function MergeEmceeDialog({ sourceEmcee, emcees, onClose, onMerge }: Merg
                   className="group flex h-auto w-full items-center justify-between rounded-xl border border-transparent p-4 text-left transition-all hover:border-white/5 hover:bg-white/5"
                 >
                   <div className="flex flex-col items-start h-full">
-                    <span className="group-hover:text-primary font-semibold tracking-tight text-white uppercase transition-colors">
+                    <span className="group-hover:text-primary font-semibold tracking-tight text-white transition-colors">
                       {e.name}
                     </span>
                     <span className="font-mono text-[9px] text-white/40">
@@ -174,17 +174,17 @@ export function MergeEmceeDialog({ sourceEmcee, emcees, onClose, onMerge }: Merg
                     </span>
                   </div>
                   <div className="flex gap-2 h-full items-center">
-                    <Badge variant="outline" className="border-transparent rounded bg-white/5 px-2 py-0.5 text-[8px] font-semibold tracking-tighter text-white/40 uppercase">
+                    <Badge variant="outline" className="border-transparent rounded bg-white/5 px-2 py-0.5 text-[8px] font-semibold tracking-tighter text-white/40">
                       {e.battle_count} B
                     </Badge>
-                    <Badge variant="outline" className="border-transparent rounded bg-white/5 px-2 py-0.5 text-[8px] font-semibold tracking-tighter text-white/40 uppercase">
+                    <Badge variant="outline" className="border-transparent rounded bg-white/5 px-2 py-0.5 text-[8px] font-semibold tracking-tighter text-white/40">
                       {e.line_count} L
                     </Badge>
                   </div>
                 </Button>
               ))}
               {mergeTargetOptions.length === 0 && !isLoadingResults && (
-                <div className="py-12 text-center text-[10px] font-semibold tracking-widest text-white/20 uppercase">
+                <div className="py-12 text-center text-[10px] font-semibold tracking-widest text-white/20">
                   No matching emcees found.
                 </div>
               )}
@@ -194,7 +194,7 @@ export function MergeEmceeDialog({ sourceEmcee, emcees, onClose, onMerge }: Merg
           <div className="p-8">
             <div className="relative overflow-hidden rounded-2xl border border-emerald-500/10 bg-emerald-500/5 p-6">
               <div className="absolute top-0 right-0 h-32 w-32 rounded-full bg-emerald-500/5 blur-3xl" />
-              <p className="mb-4 text-[10px] font-semibold tracking-[0.2em] text-emerald-500/60 uppercase">
+              <p className="mb-4 text-[10px] font-semibold tracking-[0.2em] text-emerald-500/60">
                 Results of the merge:
               </p>
               <div className="space-y-3 relative z-10">
@@ -235,7 +235,7 @@ export function MergeEmceeDialog({ sourceEmcee, emcees, onClose, onMerge }: Merg
             <Button
               variant="ghost"
               onClick={() => setMergeTarget(null)}
-              className="text-[10px] font-semibold tracking-widest text-white/40 uppercase hover:text-white"
+              className="text-[10px] font-semibold tracking-widest text-white/40 hover:text-white"
             >
               Change Target
             </Button>
@@ -247,14 +247,14 @@ export function MergeEmceeDialog({ sourceEmcee, emcees, onClose, onMerge }: Merg
             <Button
               variant="ghost"
               onClick={handleClose}
-              className="h-11 rounded-xl px-8 text-[10px] font-semibold tracking-widest text-white/40 hover:bg-white/5 hover:text-white uppercase transition-all"
+              className="h-11 rounded-xl px-8 text-[10px] font-semibold tracking-widest text-white/40 hover:bg-white/5 hover:text-white transition-all"
             >
               Cancel
             </Button>
             {mergeTarget && (
               <Button
                 onClick={handleMerge}
-                className="h-11 rounded-xl bg-purple-600 px-8 text-[10px] font-semibold tracking-widest text-white uppercase shadow-[0_0_30px_rgba(147,51,234,0.2)] hover:bg-purple-500 transition-all active:scale-95"
+                className="h-11 rounded-xl bg-purple-600 px-8 text-[10px] font-semibold tracking-widest text-white shadow-[0_0_30px_rgba(147,51,234,0.2)] hover:bg-purple-500 transition-all active:scale-95"
               >
                 Execute Merge
               </Button>

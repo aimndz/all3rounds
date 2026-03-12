@@ -9,6 +9,7 @@ export default function AdminNav() {
   const links = [
     { href: "/admin/users", label: "Directory" },
     { href: "/admin/emcees", label: "Emcees" },
+    { href: "/admin/battles", label: "Battles" },
     { href: "/admin/reviews", label: "Audit Log" },
     { href: "/admin/activity", label: "Activity" },
   ];

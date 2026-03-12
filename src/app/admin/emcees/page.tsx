@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
 import { AdminPageShell } from "@/components/admin/AdminPageShell";
 import { PageHeader } from "@/components/admin/PageHeader";
@@ -8,7 +9,7 @@ import { TableSkeleton } from "@/components/admin/TableSkeleton";
 import { DataPagination } from "@/components/admin/DataPagination";
 import { usePaginatedFetch } from "@/hooks/use-paginated-fetch";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
-import { Search } from "lucide-react";
+import { Search, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
   Table,
@@ -24,6 +25,7 @@ import { Button } from "@/components/ui/button";
 import { EditEmceeDialog } from "@/components/admin/EditEmceeDialog";
 import { DeleteEmceeDialog } from "@/components/admin/DeleteEmceeDialog";
 import { MergeEmceeDialog } from "@/components/admin/MergeEmceeDialog";
+import { UnmergeEmceeDialog } from "@/components/admin/UnmergeEmceeDialog";
 
 type EmceeAdmin = {
   id: string;
@@ -42,6 +44,10 @@ export default function EmceeAdminPage() {
   const [editEmcee, setEditEmcee] = useState<EmceeAdmin | null>(null);
   const [deleteEmcee, setDeleteEmcee] = useState<EmceeAdmin | null>(null);
   const [mergeSource, setMergeSource] = useState<EmceeAdmin | null>(null);
+  const [unmergeState, setUnmergeState] = useState<{
+    emcee: EmceeAdmin;
+    akaName: string;
+  } | null>(null);
 
   const {
     data: emcees,
@@ -119,11 +125,34 @@ export default function EmceeAdminPage() {
     }
   };
 
+  const handleUnmerge = async (sourceId: string, akaName: string) => {
+    try {
+      const res = await fetch(`/api/admin/emcees/unmerge`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sourceId, akaName }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to unmerge emcee");
+
+      toast({
+        description: `Successfully extracted ${akaName} into a new emcee`,
+      });
+      refetch();
+    } catch (err: unknown) {
+      toast({
+        title: "Error",
+        description: err instanceof Error ? err.message : "An error occurred",
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <AdminPageShell error={error}>
       <PageHeader title="Emcee Directory" itemCount={total} itemLabel="TOTAL">
-        <div className="group relative w-full md:w-auto">
-          <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-white/20 transition-colors group-focus-within:text-white" />
+        <div className="group relative w-full md:w-[320px]">
+          <Search className="absolute top-1/2 left-4 h-4 w-4 -translate-y-1/2 text-white/20 transition-colors group-focus-within:text-white" />
           <Input
             placeholder="Search emcees..."
             value={search}
@@ -131,8 +160,19 @@ export default function EmceeAdminPage() {
               setSearch(e.target.value);
               setPage(1); // Reset to first page on search
             }}
-            className="pl-9"
+            className="focus:border-primary/40 focus:ring-primary/5 h-11 rounded-2xl border-white/10 bg-white/5 pr-10 pl-11 transition-all focus:bg-white/10 focus:ring-4"
           />
+          {search && (
+            <button
+              onClick={() => {
+                setSearch("");
+                setPage(1);
+              }}
+              className="absolute top-1/2 right-3 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full bg-white/5 text-white/40 transition-colors hover:bg-white/10 hover:text-white"
+            >
+              <X className="h-3 w-3" />
+            </button>
+          )}
         </div>
       </PageHeader>
 
@@ -154,9 +194,7 @@ export default function EmceeAdminPage() {
                     <TableHead className="px-6 py-4 text-center text-[10px] font-semibold tracking-widest text-white/40 uppercase">
                       Stats
                     </TableHead>
-                    <TableHead className="px-6 py-4 text-center text-[10px] font-semibold tracking-widest text-white/40 uppercase">
-                      Added
-                    </TableHead>
+
                     <TableHead className="px-6 py-4 text-right text-[10px] font-semibold tracking-widest text-white/40 uppercase">
                       Actions
                     </TableHead>
@@ -179,12 +217,19 @@ export default function EmceeAdminPage() {
                         className="group border-white/5 transition-colors hover:bg-white/2"
                       >
                         <TableCell className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-base font-bold text-white">
-                            {e.name}
-                          </div>
-                          <div className="mt-0.5 font-mono text-[10px] text-white/20">
-                            {e.id}
-                          </div>
+                          <Link
+                            href={`/emcees/${e.id}`}
+                            className="group/link flex flex-col hover:cursor-pointer"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            <div className="group-hover/link:text-primary text-base font-bold text-white underline-offset-4 transition-colors hover:underline">
+                              {e.name}
+                            </div>
+                            <div className="mt-0.5 font-mono text-[10px] text-white/20">
+                              {e.id}
+                            </div>
+                          </Link>
                         </TableCell>
                         <TableCell className="px-6 py-4">
                           {e.aka && e.aka.length > 0 ? (
@@ -193,7 +238,10 @@ export default function EmceeAdminPage() {
                                 <Badge
                                   key={i}
                                   variant="outline"
-                                  className="rounded-lg border border-white/10 bg-white/5 px-2 py-0.5 text-[9px] font-semibold tracking-widest text-white/60 uppercase"
+                                  onClick={() =>
+                                    setUnmergeState({ emcee: e, akaName: a })
+                                  }
+                                  className="cursor-pointer rounded-lg border border-white/10 bg-white/5 px-2 py-0.5 text-[9px] font-semibold tracking-widest text-white/60 uppercase transition-all hover:border-emerald-500/50 hover:bg-emerald-500/10 hover:text-emerald-400"
                                 >
                                   {a}
                                 </Badge>
@@ -221,13 +269,7 @@ export default function EmceeAdminPage() {
                             </Badge>
                           </div>
                         </TableCell>
-                        <TableCell className="justify-center px-6 py-4 text-center font-semibold whitespace-nowrap text-white/40">
-                          {new Date(e.created_at).toLocaleDateString("en-US", {
-                            month: "short",
-                            day: "numeric",
-                            year: "numeric",
-                          })}
-                        </TableCell>
+
                         <TableCell className="px-6 py-4 text-right">
                           <div className="flex justify-end gap-1 transition-opacity">
                             <Button
@@ -286,6 +328,12 @@ export default function EmceeAdminPage() {
         emcees={emcees} // Normally we'd fetch all emcees or do remote search, but using current page + remote search on merge dialog later if needed
         onClose={() => setMergeSource(null)}
         onMerge={handleMerge}
+      />
+      <UnmergeEmceeDialog
+        emcee={unmergeState?.emcee || null}
+        akaName={unmergeState?.akaName || null}
+        onClose={() => setUnmergeState(null)}
+        onUnmerge={handleUnmerge}
       />
     </AdminPageShell>
   );
