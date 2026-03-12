@@ -14,6 +14,7 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import Link from "next/link";
 import { useAuthStore } from "@/stores/auth-store";
+
 export default function AuthButton({
   inSheet = false,
   type = "all",
@@ -30,15 +31,6 @@ export default function AuthButton({
     return () => clearTimeout(timer);
   }, []);
 
-  const handleLogin = async () => {
-    await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
-      },
-    });
-  };
-
   const handleLogout = async () => {
     await supabase.auth.signOut({ scope: "global" });
     if (typeof window !== "undefined") {
@@ -53,6 +45,7 @@ export default function AuthButton({
   }
 
   if (isUserLoggedIn && user) {
+// ... existing initials and returns ...
     const initials =
       user.displayName?.substring(0, 2).toUpperCase() ||
       user.email?.substring(0, 2).toUpperCase() ||
@@ -179,8 +172,8 @@ export default function AuthButton({
 
   // Render standard Login button if unauthenticated
   return (
-    <Button size="sm" onClick={handleLogin}>
-      Login
+    <Button size="sm" asChild>
+      <Link href="/login">Login</Link>
     </Button>
   );
 }

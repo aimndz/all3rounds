@@ -5,21 +5,37 @@ import { NextRequest } from "next/server";
 export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url);
   const code = requestUrl.searchParams.get("code");
-  const next = requestUrl.searchParams.get("next") ?? "/";
+  // Try to get 'next' from query param or the fallback cookie
+  const nextFromCookie = request.cookies.get("auth-redirect")?.value;
+  const next = nextFromCookie
+    ? decodeURIComponent(nextFromCookie)
+    : (requestUrl.searchParams.get("next") ?? "/");
 
   if (code) {
     const supabase = await createClient();
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
       // Validate 'next' to prevent open redirect vulnerabilities
-      // Ensure it's a relative path starting with / but NOT // (protocol-relative)
       const safeNext =
         next.startsWith("/") && !next.startsWith("//") ? next : "/";
 
-      return NextResponse.redirect(`${requestUrl.origin}${safeNext}`);
+      const response = NextResponse.redirect(`${requestUrl.origin}${safeNext}`);
+
+      // Clear the temporary redirect cookie if it exists
+      if (nextFromCookie) {
+        response.cookies.set("auth-redirect", "", { maxAge: 0, path: "/" });
+      }
+
+      return response;
     }
   }
 
   // If anything fails, redirect to the home page with an error
-  return NextResponse.redirect(`${requestUrl.origin}/?error=auth_failed`);
+  const fallbackResponse = NextResponse.redirect(
+    `${requestUrl.origin}/?error=auth_failed`,
+  );
+  if (nextFromCookie) {
+    fallbackResponse.cookies.set("auth-redirect", "", { maxAge: 0, path: "/" });
+  }
+  return fallbackResponse;
 }
