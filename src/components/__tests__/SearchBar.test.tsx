@@ -16,9 +16,7 @@ describe("SearchBar", () => {
   });
   it("renders search input and button", () => {
     render(<SearchBar />);
-    expect(
-      screen.getByPlaceholderText(/search for a line/i),
-    ).toBeInTheDocument();
+    expect(screen.getByPlaceholderText(/search lines/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /search/i })).toBeInTheDocument();
   });
 
@@ -30,7 +28,7 @@ describe("SearchBar", () => {
   it("navigates to search page on submit", async () => {
     const user = userEvent.setup();
     render(<SearchBar />);
-    const input = screen.getByPlaceholderText(/search for a line/i);
+    const input = screen.getByPlaceholderText(/search lines/i);
     await user.type(input, "test query");
     await user.click(screen.getByRole("button", { name: /search/i }));
     expect(mockPush).toHaveBeenCalledWith("/search?q=test%20query");
@@ -46,7 +44,7 @@ describe("SearchBar", () => {
   it("trims whitespace before navigating", async () => {
     const user = userEvent.setup();
     render(<SearchBar />);
-    const input = screen.getByPlaceholderText(/search for a line/i);
+    const input = screen.getByPlaceholderText(/search lines/i);
     await user.type(input, "  hello  ");
     await user.click(screen.getByRole("button", { name: /search/i }));
     expect(mockPush).toHaveBeenCalledWith("/search?q=hello");

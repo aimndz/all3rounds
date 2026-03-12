@@ -1,5 +1,75 @@
 import { describe, it, expect } from "vitest";
-import { groupParticipants } from "../participant-grouping";
+import {
+  groupParticipants,
+  sortParticipantsByTitle,
+} from "../participant-grouping";
+
+describe("sortParticipantsByTitle", () => {
+  const p = (id: string, name: string, aka: string[] = []) => ({
+    label: "S" + id,
+    emcee: { id, name, aka },
+  });
+
+  it("sorts 2v2 participants into title order", () => {
+    const participants = [
+      p("3", "Atoms"),
+      p("4", "Cygnus"),
+      p("1", "Negho G"),
+      p("2", "Pamoso"),
+    ];
+    const result = sortParticipantsByTitle(
+      participants,
+      "Negho G / Pamoso vs Atoms / Cygnus",
+    );
+    expect(result.map((r) => r.emcee?.name)).toEqual([
+      "Negho G",
+      "Pamoso",
+      "Atoms",
+      "Cygnus",
+    ]);
+  });
+
+  it("matches a merged emcee via aka", () => {
+    // "Negho G" was merged into "Negho Gy" — the old name is now in aka[]
+    const participants = [
+      p("3", "Atoms"),
+      p("4", "Cygnus"),
+      p("1", "Negho Gy", ["Negho G"]),
+      p("2", "Pamoso"),
+    ];
+    const result = sortParticipantsByTitle(
+      participants,
+      "Negho G / Pamoso vs Atoms / Cygnus",
+    );
+    expect(result.map((r) => r.emcee?.name)).toEqual([
+      "Negho Gy",
+      "Pamoso",
+      "Atoms",
+      "Cygnus",
+    ]);
+  });
+
+  it("handles 1v1 titles", () => {
+    const participants = [p("2", "Smugglaz"), p("1", "Loonie")];
+    const result = sortParticipantsByTitle(participants, "Loonie vs Smugglaz");
+    expect(result.map((r) => r.emcee?.name)).toEqual(["Loonie", "Smugglaz"]);
+  });
+
+  it("returns participants unchanged when title is empty", () => {
+    const participants = [p("1", "A"), p("2", "B")];
+    expect(sortParticipantsByTitle(participants, "")).toEqual(participants);
+  });
+
+  it("appends unmatched participants at the end", () => {
+    const participants = [p("3", "Extra"), p("1", "A"), p("2", "B")];
+    const result = sortParticipantsByTitle(participants, "A vs B");
+    expect(result.map((r) => r.emcee?.name)).toEqual(["A", "B", "Extra"]);
+  });
+
+  it("returns empty array for empty input", () => {
+    expect(sortParticipantsByTitle([], "A vs B")).toEqual([]);
+  });
+});
 
 describe("groupParticipants", () => {
   it("returns empty array when no participants", () => {
