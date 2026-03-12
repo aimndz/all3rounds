@@ -21,9 +21,7 @@ import {
   ChevronRight,
   ChevronDown,
   ExternalLink,
-  Calendar,
   Mic2,
-  Clock,
   ArrowLeft,
   Plus,
   Maximize2,
@@ -322,8 +320,8 @@ export default function BattlePage() {
   /**
    * Executes a batch action on selected lines (update attributes or delete)
    */
-  const handleBatchAction = useCallback(async (
-    config: {
+  const handleBatchAction = useCallback(
+    async (config: {
       action: "set_round" | "set_emcee" | "update" | "delete";
       value?: string;
       updates?: {
@@ -331,123 +329,126 @@ export default function BattlePage() {
         emcee_id?: string | null;
         speaker_ids?: string[] | null;
       };
-    }
-  ) => {
-    const { action, value, updates } = config;
-    if (selectedIds.size === 0) return;
-    
-    setBatchSaving(true);
+    }) => {
+      const { action, value, updates } = config;
+      if (selectedIds.size === 0) return;
 
-    // Track a target line to scroll to after the operation (mostly for deletion)
-    let targetLineId: number | null = null;
-    if (data?.lines) {
-      if (action === "delete") {
-        // If deleting, find the nearest line that STAYS to maintain scroll position
-        const firstIdx = data.lines.findIndex((l) => selectedIds.has(l.id));
-        if (firstIdx !== -1) {
-          // Try to find a line before the selection
-          for (let i = firstIdx - 1; i >= 0; i--) {
-            if (!selectedIds.has(data.lines[i].id)) {
-              targetLineId = data.lines[i].id;
-              break;
-            }
-          }
-          // If no line before, try to find a line after
-          if (targetLineId === null) {
-            for (let i = firstIdx + 1; i < data.lines.length; i++) {
+      setBatchSaving(true);
+
+      // Track a target line to scroll to after the operation (mostly for deletion)
+      let targetLineId: number | null = null;
+      if (data?.lines) {
+        if (action === "delete") {
+          // If deleting, find the nearest line that STAYS to maintain scroll position
+          const firstIdx = data.lines.findIndex((l) => selectedIds.has(l.id));
+          if (firstIdx !== -1) {
+            // Try to find a line before the selection
+            for (let i = firstIdx - 1; i >= 0; i--) {
               if (!selectedIds.has(data.lines[i].id)) {
                 targetLineId = data.lines[i].id;
                 break;
               }
             }
+            // If no line before, try to find a line after
+            if (targetLineId === null) {
+              for (let i = firstIdx + 1; i < data.lines.length; i++) {
+                if (!selectedIds.has(data.lines[i].id)) {
+                  targetLineId = data.lines[i].id;
+                  break;
+                }
+              }
+            }
           }
+        } else {
+          // For updates, just stay on the first selected line
+          const firstSelected = data.lines.find((l) => selectedIds.has(l.id));
+          if (firstSelected) targetLineId = firstSelected.id;
         }
-      } else {
-        // For updates, just stay on the first selected line
-        const firstSelected = data.lines.find((l) => selectedIds.has(l.id));
-        if (firstSelected) targetLineId = firstSelected.id;
       }
-    }
 
-    try {
-      const res = await fetch("/api/lines/batch", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          lineIds: Array.from(selectedIds),
-          action,
-          value: value ?? null,
-          updates,
-        }),
-      });
-
-      if (!res.ok) {
-        const d = await res.json();
-        const isRateLimit = res.status === 429;
-        toast({
-          variant: isRateLimit ? "default" : "destructive",
-          title: isRateLimit ? "Rate Limit" : "Action Failed",
-          description: isRateLimit
-            ? "Too many requests. Please try again later."
-            : d.error || "Batch operation failed.",
+      try {
+        const res = await fetch("/api/lines/batch", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            lineIds: Array.from(selectedIds),
+            action,
+            value: value ?? null,
+            updates,
+          }),
         });
-        return;
+
+        if (!res.ok) {
+          const d = await res.json();
+          const isRateLimit = res.status === 429;
+          toast({
+            variant: isRateLimit ? "default" : "destructive",
+            title: isRateLimit ? "Rate Limit" : "Action Failed",
+            description: isRateLimit
+              ? "Too many requests. Please try again later."
+              : d.error || "Batch operation failed.",
+          });
+          return;
+        }
+
+        // Deletion resets the selection UI
+        if (action === "delete") {
+          clearSelection();
+        }
+
+        // Refresh data
+        const newBattleData = await fetchBattle();
+
+        toast({
+          title: "Success",
+          description:
+            action === "delete"
+              ? `Successfully deleted ${selectedIds.size} lines.`
+              : `Successfully updated ${selectedIds.size} lines.`,
+        });
+
+        // Maintain scroll position if we have a target line
+        if (targetLineId !== null && newBattleData?.lines) {
+          setTimeout(() => {
+            const container = transcriptContainerRef.current;
+            const targetEl = container?.querySelector(
+              `[data-line-id="${targetLineId}"]`,
+            ) as HTMLElement;
+
+            if (targetEl && container) {
+              const containerRect = container.getBoundingClientRect();
+              const targetRect = targetEl.getBoundingClientRect();
+              container.scrollTo({
+                top:
+                  container.scrollTop +
+                  (targetRect.top - containerRect.top) -
+                  60,
+                behavior: "smooth",
+              });
+            }
+          }, 100);
+        }
+      } catch (err) {
+        console.error("Batch UI handler error:", err);
+        toast({
+          variant: "destructive",
+          title: "System Error",
+          description:
+            "A network error occurred while performing the batch action.",
+        });
+      } finally {
+        setBatchSaving(false);
       }
-
-      // Deletion resets the selection UI
-      if (action === "delete") {
-        clearSelection();
-      }
-
-      // Refresh data
-      const newBattleData = await fetchBattle();
-
-      toast({
-        title: "Success",
-        description:
-          action === "delete"
-            ? `Successfully deleted ${selectedIds.size} lines.`
-            : `Successfully updated ${selectedIds.size} lines.`,
-      });
-
-      // Maintain scroll position if we have a target line
-      if (targetLineId !== null && newBattleData?.lines) {
-        setTimeout(() => {
-          const container = transcriptContainerRef.current;
-          const targetEl = container?.querySelector(
-            `[data-line-id="${targetLineId}"]`,
-          ) as HTMLElement;
-
-          if (targetEl && container) {
-            const containerRect = container.getBoundingClientRect();
-            const targetRect = targetEl.getBoundingClientRect();
-            container.scrollTo({
-              top:
-                container.scrollTop + (targetRect.top - containerRect.top) - 60,
-              behavior: "smooth",
-            });
-          }
-        }, 100);
-      }
-    } catch (err) {
-      console.error("Batch UI handler error:", err);
-      toast({
-        variant: "destructive",
-        title: "System Error",
-        description: "A network error occurred while performing the batch action.",
-      });
-    } finally {
-      setBatchSaving(false);
-    }
-  }, [
-    selectedIds,
-    data?.lines,
-    clearSelection,
-    fetchBattle,
-    toast,
-    transcriptContainerRef
-  ]);
-
+    },
+    [
+      selectedIds,
+      data?.lines,
+      clearSelection,
+      fetchBattle,
+      toast,
+      transcriptContainerRef,
+    ],
+  );
 
   const { battle, lines } = data || {
     battle: {} as BattleData["battle"],
@@ -675,7 +676,7 @@ export default function BattlePage() {
               </div>
 
               {/* Meta bar */}
-              <div className="border-border flex flex-wrap items-center gap-x-4 gap-y-2 border-t px-5 py-3 sm:px-6">
+              <div className="border-border flex flex-col items-start gap-4 border-t px-5 py-5 sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:gap-x-12">
                 <div className="flex flex-col">
                   <h1 className="text-foreground text-lg font-bold tracking-tight sm:text-xl">
                     {battle.title}
@@ -683,24 +684,21 @@ export default function BattlePage() {
                   <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1">
                     {battle.event_name && (
                       <span className="text-foreground flex items-center gap-1.5 text-xs font-medium">
-                        <Mic2 className="text-muted-foreground h-3 w-3" />
                         {battle.event_name}
                       </span>
                     )}
                     {battle.event_date && (
                       <span className="text-muted-foreground flex items-center gap-1.5 text-xs">
-                        <Calendar className="h-3 w-3" />
                         {formatDate(battle.event_date)}
                       </span>
                     )}
                     <span className="text-muted-foreground flex items-center gap-1.5 text-xs">
-                      <Clock className="h-3 w-3" />
                       {lines.length} lines
                     </span>
                   </div>
                 </div>
 
-                <div className="ml-auto flex items-center gap-2">
+                <div className="flex items-center gap-2">
                   <a
                     href={battle.url}
                     target="_blank"
@@ -739,9 +737,8 @@ export default function BattlePage() {
             >
               <div className="mb-2 flex items-center justify-between px-1 md:mb-4">
                 <div className="flex items-center gap-2">
-                  <div className="bg-primary h-1.5 w-1.5 rounded-full" />
                   <div className="flex items-center gap-2">
-                    <h2 className="text-foreground/70 text-[11px] font-black tracking-[0.2em] uppercase">
+                    <h2 className="text-foreground/70 text-[11px] font-semibold tracking-[0.2em] uppercase">
                       Transcript
                     </h2>
                   </div>
