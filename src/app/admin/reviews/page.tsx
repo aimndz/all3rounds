@@ -6,7 +6,10 @@ import { PageHeader } from "@/components/admin/PageHeader";
 import { CardSkeleton } from "@/components/admin/CardSkeleton";
 import { DataPagination } from "@/components/admin/DataPagination";
 import { StatusFilterTabs } from "@/components/admin/StatusFilterTabs";
-import { SuggestionCard, SuggestionLog } from "@/components/admin/SuggestionCard";
+import {
+  SuggestionCard,
+  SuggestionLog,
+} from "@/components/admin/SuggestionCard";
 import { usePaginatedFetch } from "@/hooks/use-paginated-fetch";
 import { useToast } from "@/hooks/use-toast";
 import { History } from "lucide-react";
@@ -36,7 +39,11 @@ export default function AdminReviewsPage() {
     extraParams: { status: statusFilter },
   });
 
-  const handleOverride = async (id: string, action: string, currentStatus?: string) => {
+  const handleOverride = async (
+    id: string,
+    action: string,
+    currentStatus?: string,
+  ) => {
     // Determine the new action based on the current status
     const newAction = currentStatus === "approved" ? "reject" : "approve";
     const confirmMsg =
@@ -76,10 +83,10 @@ export default function AdminReviewsPage() {
 
   return (
     <AdminPageShell error={error}>
-      <PageHeader 
-        title="Review Audit Log" 
+      <PageHeader
+        title="Review Audit Log"
         icon={History}
-        itemCount={total} 
+        itemCount={total}
         itemLabel="ITEMS"
       >
         <StatusFilterTabs
@@ -95,9 +102,8 @@ export default function AdminReviewsPage() {
       {loading ? (
         <CardSkeleton count={5} />
       ) : reviews.length === 0 ? (
-        <div className="rounded-[2.5rem] border border-dashed border-white/10 bg-white/5 py-40 text-center">
-          <History className="mx-auto mb-4 h-12 w-12 text-white/10" />
-          <p className="text-sm font-bold text-white/20 uppercase tracking-widest">
+        <div className="rounded-2xl border border-dashed border-white/5 py-36 text-center">
+          <p className="text-xs font-medium tracking-widest text-white/20 uppercase">
             No audit records found
           </p>
         </div>

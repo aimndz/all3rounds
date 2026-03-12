@@ -2,11 +2,14 @@
 
 import Header from "@/components/Header";
 import { Button } from "@/components/ui/button";
-import { Check, RotateCcw } from "lucide-react";
+import { RotateCcw } from "lucide-react";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { CardSkeleton } from "@/components/admin/CardSkeleton";
 import { DataPagination } from "@/components/admin/DataPagination";
-import { SuggestionCard, SuggestionLog } from "@/components/admin/SuggestionCard";
+import {
+  SuggestionCard,
+  SuggestionLog,
+} from "@/components/admin/SuggestionCard";
 import { usePaginatedFetch } from "@/hooks/use-paginated-fetch";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
@@ -63,11 +66,7 @@ export default function ReviewsPage() {
     <div className="selection:bg-primary/20 min-h-screen bg-[#09090b] text-[#fafafa]">
       <Header />
       <main className="mx-auto max-w-5xl px-4 py-12">
-        <PageHeader 
-          title="PENDING FIXES" 
-          itemCount={total} 
-          itemLabel="ITEMS"
-        >
+        <PageHeader title="PENDING FIXES" itemCount={total} itemLabel="ITEMS">
           <Button
             variant="outline"
             size="icon"
@@ -88,10 +87,9 @@ export default function ReviewsPage() {
         {loading ? (
           <CardSkeleton count={3} />
         ) : suggestions.length === 0 ? (
-          <div className="rounded-[2.5rem] border border-dashed border-white/10 bg-white/5 py-40 text-center">
-            <Check className="mx-auto mb-4 h-12 w-12 text-white/10" />
-            <p className="text-sm font-bold text-white/20 uppercase tracking-widest">
-              {`"Zero pending items. The database is clean."`}
+          <div className="rounded-2xl border border-dashed border-white/5 py-36 text-center">
+            <p className="text-xs font-medium tracking-widest text-[#fafafa]/20 uppercase">
+              No pending reviews
             </p>
           </div>
         ) : (
