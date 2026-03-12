@@ -84,11 +84,22 @@ export async function POST(request: NextRequest) {
       throw linesError;
     }
 
+    // 2b. Update speaker_ids arrays: replace sourceId with targetId
+    // speaker_ids is a UUID[] column used for multi-speaker lines (2v2, 3v3).
+    // We use raw SQL because Supabase JS client cannot do array element replacement.
+    const { error: speakerIdsError } = await adminClient.rpc(
+      "merge_speaker_ids",
+      { old_emcee_id: sourceId, new_emcee_id: targetId },
+    );
+
+    if (speakerIdsError) {
+      console.error("Update speaker_ids error:", speakerIdsError);
+      throw speakerIdsError;
+    }
+
     // We should also update edit_history if we change the lines, but since
     // edit history acts mostly as an audit log, changing emcee_id in lines
-    // doesn't invalidate the old history pointing to the line_id. Actually,
-    // if someone edited the line to set emcee_id=sourceId, the old_value/new_value
-    // text will remain as the old UUID in the edit_history table. That is fine for a log.
+    // doesn't invalidate the old history pointing to the line_id. That is fine for a log.
 
     // 3. Reassign Battle Participants
     // We need to carefully handle the UNIQUE(battle_id, emcee_id) constraint.
@@ -161,7 +172,7 @@ export async function POST(request: NextRequest) {
 
     if (deleteError) throw deleteError;
 
-    // 6. Invalidate caches
+    // 7. Invalidate caches
     await invalidateCachePattern("emcees:*");
     await invalidateCachePattern("battles:*");
     await invalidateCachePattern("battle:*");

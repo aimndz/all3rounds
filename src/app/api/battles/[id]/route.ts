@@ -8,6 +8,7 @@ import {
   invalidateCache,
   invalidateCachePattern,
 } from "@/lib/cache";
+import { sortParticipantsByTitle } from "@/features/battle/utils/participant-grouping";
 import { z } from "zod";
 
 const UpdateBattleSchema = z.object({
@@ -45,11 +46,17 @@ export async function GET(
     );
   }
 
-  // Fetch participants (emcees in this battle)
-  const { data: participants } = await supabase
+  const { data: rawParticipants } = await supabase
     .from("battle_participants")
-    .select("label, emcee:emcees ( id, name )")
+    .select("label, emcee:emcees ( id, name, aka )")
     .eq("battle_id", id);
+
+  const normalized = (rawParticipants ?? []).map((p) => ({
+    ...p,
+    emcee: Array.isArray(p.emcee) ? (p.emcee[0] ?? null) : p.emcee,
+  }));
+
+  const participants = sortParticipantsByTitle(normalized, battle.title ?? "");
 
   // Fetch all lines for this battle, ordered by timestamp
   const { data: lines, error: linesError } = await supabase
@@ -81,7 +88,7 @@ export async function GET(
   // Create a map to look up emcee information locally if needed
   const emceeMap = new Map<string, { id: string; name: string }>();
   if (participants) {
-    participants.forEach(p => {
+    participants.forEach((p) => {
       if (p.emcee) {
         // Handle potential array return from supabase
         const e = Array.isArray(p.emcee) ? p.emcee[0] : p.emcee;
@@ -108,7 +115,7 @@ export async function GET(
   // We use the 'emceeMap' (built from battle_participants) to attach full emcee info.
   const transformedLines = (lines || []).map((line: RawLine) => {
     const mappedEmcees: { id: string; name: string }[] = [];
-    
+
     // 1. Resolve multi-speakers via the 'speaker_ids' array
     if (line.speaker_ids && Array.isArray(line.speaker_ids)) {
       line.speaker_ids.forEach((id: string) => {
@@ -118,12 +125,19 @@ export async function GET(
     }
 
     // 2. Identify single speaker (legacy/fallback) if speaker_ids is empty
-    const fallbackEmcee = Array.isArray(line.emcee) ? line.emcee[0] : line.emcee;
+    const fallbackEmcee = Array.isArray(line.emcee)
+      ? line.emcee[0]
+      : line.emcee;
 
     return {
       ...line,
       // The frontend uses the 'emcees' array for 2v2/multi-speaker display
-      emcees: mappedEmcees.length > 0 ? mappedEmcees : fallbackEmcee ? [fallbackEmcee] : [],
+      emcees:
+        mappedEmcees.length > 0
+          ? mappedEmcees
+          : fallbackEmcee
+            ? [fallbackEmcee]
+            : [],
     };
   });
 
