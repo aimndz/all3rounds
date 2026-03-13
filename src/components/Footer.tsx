@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 export default function Footer() {
   return (
     <footer className="border-border/40 bg-background/95 w-full border-t py-6 backdrop-blur-sm">
@@ -14,8 +16,22 @@ export default function Footer() {
             </p>
           </div>
 
-          <div className="w-full md:w-auto md:text-right">
-            <p className="text-muted-foreground/30 text-[10px] font-medium tracking-tight">
+          <div className="flex w-full flex-col gap-4 md:w-auto md:flex-row md:items-center md:gap-8">
+            <nav className="flex gap-4">
+              <Link
+                href="/privacy"
+                className="text-muted-foreground/40 hover:text-foreground text-[10px] font-medium tracking-widest uppercase transition-colors"
+              >
+                Privacy
+              </Link>
+              <Link
+                href="/terms"
+                className="text-muted-foreground/40 hover:text-foreground text-[10px] font-medium tracking-widest uppercase transition-colors"
+              >
+                Terms
+              </Link>
+            </nav>
+            <p className="text-muted-foreground/30 text-[10px] font-medium tracking-tight md:text-right">
               © {new Date().getFullYear()} All3Rounds.
             </p>
           </div>
