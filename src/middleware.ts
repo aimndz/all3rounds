@@ -27,8 +27,10 @@ function buildCsp(nonce: string, isDev: boolean) {
     "frame-src https://www.youtube.com",
     "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://vitals.vercel-analytics.com",
     "font-src 'self'",
-    "upgrade-insecure-requests",
-  ].join("; ");
+    !isDev ? "upgrade-insecure-requests" : "",
+  ]
+    .filter(Boolean)
+    .join("; ");
 }
 
 export async function middleware(request: NextRequest) {
