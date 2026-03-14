@@ -15,7 +15,6 @@
     "test:e2e": "playwright test"
   },
   "dependencies": {
-    "@next/third-parties": "^16.1.6",
     "@supabase/ssr": "^0.8.0",
     "@supabase/supabase-js": "^2.95.3",
     "@upstash/ratelimit": "^2.0.8",
