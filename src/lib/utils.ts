@@ -36,3 +36,15 @@ export function formatEventDate(dateStr: string | null): string {
     month: "long",
   });
 }
+
+export function formatSpeakerName(name: string | null | undefined): string | null {
+  if (
+    !name ||
+    name === "Unknown" ||
+    name.toLowerCase().includes("unassigned") ||
+    name.toLowerCase().startsWith("speaker")
+  ) {
+    return null;
+  }
+  return name.replace(/_/g, " ");
+}

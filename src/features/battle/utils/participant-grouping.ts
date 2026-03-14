@@ -1,3 +1,5 @@
+import { formatSpeakerName } from "@/lib/utils";
+
 export type Participant = {
   label: string;
   emcee: { id: string; name: string; aka?: string[] } | null;
@@ -80,14 +82,16 @@ export function groupParticipants(
         emcees: participants
           .slice(0, 2)
           .map((p) => p.emcee)
-          .filter((e): e is { id: string; name: string } => !!e),
+          .filter((e): e is { id: string; name: string } => !!e)
+          .map(e => ({ ...e, name: formatSpeakerName(e.name) || "Unassigned" })),
       },
       {
         label: "Team 2",
         emcees: participants
           .slice(2, 4)
           .map((p) => p.emcee)
-          .filter((e): e is { id: string; name: string } => !!e),
+          .filter((e): e is { id: string; name: string } => !!e)
+          .map(e => ({ ...e, name: formatSpeakerName(e.name) || "Unassigned" })),
       },
     ];
   }
@@ -99,14 +103,16 @@ export function groupParticipants(
         emcees: participants
           .slice(0, 3)
           .map((p) => p.emcee)
-          .filter((e): e is { id: string; name: string } => !!e),
+          .filter((e): e is { id: string; name: string } => !!e)
+          .map(e => ({ ...e, name: formatSpeakerName(e.name) || "Unassigned" })),
       },
       {
         label: "Team 2",
         emcees: participants
           .slice(3, 6)
           .map((p) => p.emcee)
-          .filter((e): e is { id: string; name: string } => !!e),
+          .filter((e): e is { id: string; name: string } => !!e)
+          .map(e => ({ ...e, name: formatSpeakerName(e.name) || "Unassigned" })),
       },
     ];
   }
@@ -118,7 +124,10 @@ export function groupParticipants(
       group = { label: p.label || "Individual", emcees: [] };
       groups.push(group);
     }
-    group.emcees.push(p.emcee);
+    group.emcees.push({
+      ...p.emcee,
+      name: formatSpeakerName(p.emcee.name) || "Unassigned",
+    });
   });
 
   return groups;

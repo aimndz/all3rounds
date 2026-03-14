@@ -161,21 +161,6 @@ function SearchResults() {
             </p>
           </div>
         )}
-        {/* Disclaimer */}
-        {!loading && !error && query && results.length > 0 && (
-          <div className="border-primary/10 bg-primary/5 mb-4 rounded-xl border p-4 backdrop-blur-sm sm:p-4">
-            <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex items-start gap-3.5">
-                <AlertCircle className="text-primary h-4 w-4" />
-                <p className="text-muted-foreground max-w-xl text-[11px] leading-relaxed">
-                  Some labels (e.g. speaker_01) or arrangements are automated
-                  and awaiting review.
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
-
         <div id="results" className="scroll-mt-32">
           {/* Results list */}
           {!loading && !error && results.length > 0 && (
@@ -270,24 +255,6 @@ function SearchResults() {
           </div>
         )}
 
-        {/* Results list */}
-        {!loading && !error && results.length > 0 && (
-          <div className="space-y-2">
-            {results.map((result, i) => (
-              <div key={result.id}>
-                {i > 0 && <Separator className="my-2" />}
-                <ResultCard
-                  result={result}
-                  isLoggedIn={canEdit}
-                  isUserLoggedIn={isUserLoggedIn}
-                  onEdited={() => {
-                    fetchResults(query, page);
-                  }}
-                />
-              </div>
-            ))}
-          </div>
-        )}
 
         {/* Pagination */}
         {!loading && totalPages > 1 && (

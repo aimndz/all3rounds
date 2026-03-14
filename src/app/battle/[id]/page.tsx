@@ -28,7 +28,7 @@ import {
   Minimize2,
   Trash2,
 } from "lucide-react";
-import { cn, formatDateLong } from "@/lib/utils";
+import { cn, formatDateLong, formatSpeakerName } from "@/lib/utils";
 import { getSpeakerColor } from "@/lib/constants";
 import { StatusBadge, STATUS_CONFIG } from "@/components/StatusBadge";
 import {
@@ -477,16 +477,18 @@ export default function BattlePage() {
       return { roundGroups: [], speakerSet: [] };
     }
 
-    const speakers = [
-      ...new Set(
-        lines.map((l) => {
-          if (l.emcees && l.emcees.length > 0) {
-            return l.emcees.map((e) => e.name).join(" / ");
-          }
-          return l.emcee?.name || l.speaker_label || "Unknown";
-        }),
-      ),
-    ];
+    const speakers = (
+      [
+        ...new Set(
+          lines.map((l) => {
+            if (l.emcees && l.emcees.length > 0) {
+              return l.emcees.map((e) => formatSpeakerName(e.name)).join(" / ");
+            }
+            return formatSpeakerName(l.emcee?.name || l.speaker_label);
+          }),
+        ),
+      ].filter((s): s is string => s !== null) as string[]
+    ).filter((s) => s.trim().length > 0);
     speakers.forEach((s, i) => getSpeakerColor(s, i));
 
     const groups: RoundGroup[] = [];
@@ -495,21 +497,21 @@ export default function BattlePage() {
 
     lines.forEach((line) => {
       const round = line.round_number;
-      let speaker = "Unknown";
+      let speaker: string | null = null;
       if (line.emcees && line.emcees.length > 0) {
-        speaker = line.emcees.map((e) => e.name).join(" / ");
+        speaker = line.emcees.map((e) => formatSpeakerName(e.name)).join(" / ");
       } else {
-        speaker = line.emcee?.name || line.speaker_label || "Unknown";
+        speaker = formatSpeakerName(line.emcee?.name || line.speaker_label);
       }
 
       if (round !== currentRoundId) {
         currentRoundId = round;
-        currentTurnGrp = { speaker, lines: [line] };
+        currentTurnGrp = { speaker: speaker || "", lines: [line] };
         groups.push({ round, turns: [currentTurnGrp] });
-      } else if (currentTurnGrp && speaker === currentTurnGrp.speaker) {
+      } else if (currentTurnGrp && (speaker || "") === currentTurnGrp.speaker) {
         currentTurnGrp.lines.push(line);
       } else {
-        currentTurnGrp = { speaker, lines: [line] };
+        currentTurnGrp = { speaker: speaker || "", lines: [line] };
         groups[groups.length - 1].turns.push(currentTurnGrp);
       }
     });
@@ -690,30 +692,35 @@ export default function BattlePage() {
               {/* Meta bar */}
               <div className="border-border border-t px-4 py-2.5 sm:px-6 sm:py-5">
                 <div className="flex items-start justify-between gap-4">
-                  <div className="flex flex-1 flex-col min-w-0">
-                    <h1 className="text-foreground text-[15px] font-bold tracking-tight sm:text-xl truncate" title={battle.title}>
+                  <div className="flex min-w-0 flex-1 flex-col">
+                    <h1
+                      className="text-foreground truncate text-[15px] font-bold tracking-tight sm:text-xl"
+                      title={battle.title}
+                    >
                       {battle.title}
                     </h1>
                     <div className="text-muted-foreground/60 mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[10px] font-medium sm:gap-x-3 sm:text-xs">
                       {battle.event_name && (
-                        <span className="text-foreground/70 truncate max-w-[120px] sm:max-w-none">
+                        <span className="text-foreground/70 max-w-[120px] truncate sm:max-w-none">
                           {battle.event_name}
                         </span>
                       )}
-                      {battle.event_name && (battle.event_date || lines.length > 0) && (
-                        <span className="opacity-30">•</span>
-                      )}
+                      {battle.event_name &&
+                        (battle.event_date || lines.length > 0) && (
+                          <span className="opacity-30">•</span>
+                        )}
                       {battle.event_date && (
                         <span>{formatDate(battle.event_date)}</span>
                       )}
-                      {(battle.event_date || battle.event_name) && lines.length > 0 && (
-                        <span className="opacity-30">•</span>
-                      )}
+                      {(battle.event_date || battle.event_name) &&
+                        lines.length > 0 && (
+                          <span className="opacity-30">•</span>
+                        )}
                       <span>{lines.length} lines</span>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-1.5 shrink-0 pt-0.5 sm:gap-2">
+                  <div className="flex shrink-0 items-center gap-1.5 pt-0.5 sm:gap-2">
                     <a
                       href={battle.url}
                       target="_blank"
@@ -927,37 +934,39 @@ export default function BattlePage() {
                               return (
                                 <div key={ti}>
                                   {/* Speaker header (Sticky below Round header) */}
-                                  <div className="bg-background/80 sticky top-8.5 z-10 -ml-1 flex items-center gap-1.5 py-0.5 backdrop-blur-sm">
-                                    <Button
-                                      variant="ghost"
-                                      onClick={() =>
-                                        toggleTurnCollapse(turnKey)
-                                      }
-                                      className={`hover:bg-muted/50 h-auto justify-start gap-1.5 rounded-md px-2 py-1 text-left text-xs transition-colors ${speakerColor.text}`}
-                                    >
-                                      {isTurnCollapsed ? (
-                                        <ChevronRight className="h-3 w-3 shrink-0 opacity-50" />
-                                      ) : (
-                                        <ChevronDown className="h-3 w-3 shrink-0 opacity-50" />
-                                      )}
-                                      <span
-                                        className={`h-1.5 w-1.5 rounded-full ${speakerColor.dot}`}
-                                      />
-                                      <span className="font-bold tracking-tight">
-                                        {turn.speaker}
-                                      </span>
-                                    </Button>
+                                    {turn.speaker && (
+                                      <div className="bg-background/80 sticky top-8.5 z-10 -ml-1 flex items-center gap-1.5 py-0.5 backdrop-blur-sm">
+                                        <Button
+                                          variant="ghost"
+                                          onClick={() =>
+                                            toggleTurnCollapse(turnKey)
+                                          }
+                                          className={`hover:bg-muted/50 h-auto justify-start gap-1.5 rounded-md px-2 py-1 text-left text-xs transition-colors ${speakerColor.text}`}
+                                        >
+                                          {isTurnCollapsed ? (
+                                            <ChevronRight className="h-3 w-3 shrink-0 opacity-50" />
+                                          ) : (
+                                            <ChevronDown className="h-3 w-3 shrink-0 opacity-50" />
+                                          )}
+                                          <span
+                                            className={`h-1.5 w-1.5 rounded-full ${speakerColor.dot}`}
+                                          />
+                                          <span className="font-bold tracking-tight">
+                                            {turn.speaker}
+                                          </span>
+                                        </Button>
 
-                                    {editMode && (
-                                      <Checkbox
-                                        checked={turnAllSelected}
-                                        className="mt-1 h-3.5 w-3.5 shrink-0 cursor-pointer"
-                                        onCheckedChange={() =>
-                                          toggleSelectTurn(turn.lines)
-                                        }
-                                      />
+                                        {editMode && (
+                                          <Checkbox
+                                            checked={turnAllSelected}
+                                            className="mt-1 h-3.5 w-3.5 shrink-0 cursor-pointer"
+                                            onCheckedChange={() =>
+                                              toggleSelectTurn(turn.lines)
+                                            }
+                                          />
+                                        )}
+                                      </div>
                                     )}
-                                  </div>
 
                                   {/* Lines */}
                                   {!isTurnCollapsed && (

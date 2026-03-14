@@ -129,7 +129,9 @@ export async function GET(request: NextRequest) {
     round_number: row.round_number,
     speaker_label: row.speaker_label,
     speaker_ids: row.speaker_ids,
-    emcee: row.emcee_id ? { id: row.emcee_id, name: row.emcee_name || "Unknown" } : null,
+    emcee: row.emcee_id
+      ? { id: row.emcee_id, name: row.emcee_name || "Unknown" }
+      : null,
     battle: {
       id: row.battle_id,
       title: row.battle_title,
@@ -138,7 +140,10 @@ export async function GET(request: NextRequest) {
       event_date: row.battle_event_date,
       status: row.battle_status,
       url: `https://www.youtube.com/watch?v=${row.battle_youtube_id}`,
-      participants: [] as { label: string; emcee: { id: string; name: string } | null }[],
+      participants: [] as {
+        label: string;
+        emcee: { id: string; name: string } | null;
+      }[],
     },
     rank: row.rank,
     prev_line: undefined as SearchResult["prev_line"],
@@ -149,13 +154,15 @@ export async function GET(request: NextRequest) {
   // ── Batch Fetch Remaining Data (Emcees, Participants, Context) ──
   if (formattedData && formattedData.length > 0) {
     const uniqueEmceeIds = new Set<string>();
-    formattedData.forEach(row => {
-      row.speaker_ids?.forEach(id => uniqueEmceeIds.add(id));
+    formattedData.forEach((row) => {
+      row.speaker_ids?.forEach((id) => uniqueEmceeIds.add(id));
       if (row.emcee?.id) uniqueEmceeIds.add(row.emcee.id);
     });
 
-    const uniqueBattleIds = Array.from(new Set(formattedData.map(row => row.battle.id)));
-    
+    const uniqueBattleIds = Array.from(
+      new Set(formattedData.map((row) => row.battle.id)),
+    );
+
     const contextLineIds = new Set<number>();
     formattedData.forEach((row) => {
       contextLineIds.add(row.id - 1);
@@ -163,25 +170,59 @@ export async function GET(request: NextRequest) {
     });
     const queryIds = Array.from(contextLineIds);
 
-    const [emceesResult, participantsResult, contextResult] = await Promise.all([
-      uniqueEmceeIds.size > 0 
-        ? supabase.from("emcees").select("id, name").in("id", Array.from(uniqueEmceeIds))
-        : Promise.resolve({ data: [] as { id: string; name: string }[] | null, error: null }),
-      
-      uniqueBattleIds.length > 0
-        ? supabase.from("battle_participants").select("battle_id, label, emcee:emcees ( id, name )").in("battle_id", uniqueBattleIds)
-        : Promise.resolve({ data: [] as { battle_id: string; label: string; emcee: { id: string; name: string } | null }[] | null, error: null }),
+    const [emceesResult, participantsResult, contextResult] = await Promise.all(
+      [
+        uniqueEmceeIds.size > 0
+          ? supabase
+              .from("emcees")
+              .select("id, name")
+              .in("id", Array.from(uniqueEmceeIds))
+          : Promise.resolve({
+              data: [] as { id: string; name: string }[] | null,
+              error: null,
+            }),
 
-      queryIds.length > 0
-        ? supabase.from("lines").select("id, content, battle_id, speaker_label, round_number").in("id", queryIds)
-        : Promise.resolve({ data: [] as { id: number; content: string; battle_id: string; speaker_label: string | null; round_number: number | null }[] | null, error: null })
-    ]);
+        uniqueBattleIds.length > 0
+          ? supabase
+              .from("battle_participants")
+              .select("battle_id, label, emcee:emcees ( id, name )")
+              .in("battle_id", uniqueBattleIds)
+          : Promise.resolve({
+              data: [] as
+                | {
+                    battle_id: string;
+                    label: string;
+                    emcee: { id: string; name: string } | null;
+                  }[]
+                | null,
+              error: null,
+            }),
+
+        queryIds.length > 0
+          ? supabase
+              .from("lines")
+              .select("id, content, battle_id, speaker_label, round_number")
+              .in("id", queryIds)
+          : Promise.resolve({
+              data: [] as
+                | {
+                    id: number;
+                    content: string;
+                    battle_id: string;
+                    speaker_label: string | null;
+                    round_number: number | null;
+                  }[]
+                | null,
+              error: null,
+            }),
+      ],
+    );
 
     if (emceesResult.data) {
-      const emceeMap = new Map(emceesResult.data.map(e => [e.id, e]));
-      formattedData.forEach(row => {
+      const emceeMap = new Map(emceesResult.data.map((e) => [e.id, e]));
+      formattedData.forEach((row) => {
         const resolved: { id: string; name: string }[] = [];
-        row.speaker_ids?.forEach(id => {
+        row.speaker_ids?.forEach((id) => {
           const e = emceeMap.get(id);
           if (e) resolved.push(e);
         });
@@ -193,21 +234,27 @@ export async function GET(request: NextRequest) {
     }
 
     if (participantsResult.data) {
-      const participantMap = new Map<string, { label: string; emcee: { id: string; name: string } | null }[]>();
-      participantsResult.data.forEach(p => {
-        if (!participantMap.has(p.battle_id)) participantMap.set(p.battle_id, []);
+      const participantMap = new Map<
+        string,
+        { label: string; emcee: { id: string; name: string } | null }[]
+      >();
+      participantsResult.data.forEach((p) => {
+        if (!participantMap.has(p.battle_id))
+          participantMap.set(p.battle_id, []);
         participantMap.get(p.battle_id)?.push({
           label: p.label,
-          emcee: Array.isArray(p.emcee) ? p.emcee[0] : p.emcee
+          emcee: Array.isArray(p.emcee) ? p.emcee[0] : p.emcee,
         });
       });
-      formattedData.forEach(row => {
+      formattedData.forEach((row) => {
         row.battle.participants = participantMap.get(row.battle.id) || [];
       });
     }
 
     if (contextResult.data) {
-      const contextMap = new Map(contextResult.data.map(line => [line.id, line]));
+      const contextMap = new Map(
+        contextResult.data.map((line) => [line.id, line]),
+      );
       formattedData.forEach((row) => {
         const prev = contextMap.get(row.id - 1);
         if (prev && prev.battle_id === row.battle.id) {
