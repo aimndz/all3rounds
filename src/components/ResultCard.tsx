@@ -87,7 +87,7 @@ export default function ResultCard({
         className="group hover:bg-muted/30 active:bg-muted/45 relative block cursor-pointer py-4 transition-all duration-200 sm:-mx-4 sm:rounded-xl sm:px-4"
       >
         {/* Action Controls */}
-        <div className="absolute top-3 right-0 z-40 flex items-center sm:top-4 sm:right-4">
+        <div className="absolute top-3 right-0 z-10 flex items-center sm:top-4 sm:right-4">
           {isLoggedIn ? (
             <Button
               variant="ghost"

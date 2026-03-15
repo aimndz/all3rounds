@@ -26,7 +26,7 @@ export default function BetaBanner() {
         <Badge className="bg-primary text-primary-foreground hover:bg-primary pointer-events-none rounded-sm px-1.5 py-0.5 text-[9px] font-black tracking-tighter uppercase">
           Beta
         </Badge>
-        <p className="text-muted-foreground/90 max-w-[80vw] text-center text-[10px] leading-tight font-semibold tracking-tight sm:max-w-none sm:text-[11px]">
+        <p className="text-muted-foreground/90 max-w-[80vw] text-center text-[10px] leading-tight font-semibold tracking-tight sm:max-w-none sm:text-[11px] pr-8">
           Some transcripts may contain inaccuracies.{" "}
           <Link
             href="/random"
