@@ -239,6 +239,10 @@ export default function BattlesDirectory({
                   <Search className="text-muted-foreground/40 absolute top-1/2 left-3.5 h-4 w-4 -translate-y-1/2 transition-colors group-focus-within:text-primary/60" />
                   <input
                     type="text"
+                    spellCheck="false"
+                    autoComplete="off"
+                    autoCorrect="off"
+                    autoCapitalize="none"
                     placeholder="Search battles or events..."
                     className="border-border/50 bg-muted/5 text-foreground placeholder:text-muted-foreground/30 focus:border-primary/40 focus:bg-muted/10 focus:ring-primary/5 h-11 w-full rounded-2xl border pr-24 pl-11 text-sm transition-all outline-none focus:ring-4"
                     value={searchInput}

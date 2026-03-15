@@ -13,6 +13,10 @@ function Input({ className, type, ...props }: React.ComponentProps<"input">) {
         "aria-invalid:ring-destructive/40 aria-invalid:border-destructive",
         className,
       )}
+      spellCheck="false"
+      autoComplete="off"
+      autoCorrect="off"
+      autoCapitalize="none"
       {...props}
     />
   );
