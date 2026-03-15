@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { db } from "@/lib/db";
 import { checkRateLimit, getRateLimitHeaders } from "@/lib/rate-limit";
 import { getCached, setCached } from "@/lib/cache";
 import type { SearchResult } from "@/lib/types";
@@ -54,12 +55,12 @@ export async function GET(request: NextRequest) {
 
   let isSuperadmin = false;
   if (user) {
-    const { data: profile } = await supabase
-      .from("user_profiles")
-      .select("role")
-      .eq("id", user.id)
-      .single();
-    isSuperadmin = profile?.role === "superadmin";
+    // Profiling check via Pooler instead of REST
+    const profileRes = await db.query(
+      "SELECT role FROM user_profiles WHERE id = $1 LIMIT 1",
+      [user.id]
+    );
+    isSuperadmin = profileRes.rows[0]?.role === "superadmin";
   }
 
   if (!isSuperadmin) {
@@ -94,36 +95,51 @@ export async function GET(request: NextRequest) {
     });
   }
 
-  // --- Hybrid Search with retry on timeout ---
-  const MAX_RETRIES = 0; // DISABLED for production stability. Retries multiply load.
-  let data: SearchRpcRow[] | null = null;
-  let error: { code?: string; message?: string } | null = null;
-  let count: number | null = null;
+  // --- Hybrid Search with pooled connection ---
+  let data: SearchRpcRow[] = [];
+  let count = 0;
 
-  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
-    const result = await supabase
-      .rpc("search_all_hybrid", { search_term: query }, { count: "exact" })
-      .range(offset, offset + limit - 1);
+  try {
+    // 1. Get the paginated results
+    // The RPC returns 500 max by default in its definition, but we paginate here.
+    const searchRes = await db.query<SearchRpcRow>(
+      `SELECT * FROM search_all_hybrid($1) OFFSET $2 LIMIT $3`,
+      [query, offset, limit],
+    );
+    data = searchRes.rows.map((row: SearchRpcRow) => ({
+      ...row,
+      id: Number(row.id), // Handle BIGINT string
+    }));
 
-    data = result.data;
-    error = result.error;
-    count = result.count;
-
-    if (!error) break;
-
-    // Only retry on statement timeout (PostgreSQL error 57014) 
-    const isTimeout = error.code === "57014";
-    if (isTimeout) {
-      console.warn(`Search timeout for "${query}" (attempt ${attempt + 1}/${MAX_RETRIES + 1})`);
-      if (attempt < MAX_RETRIES) continue;
-      
-      return NextResponse.json(
-        { error: "The database is currently under heavy load. Please try again in a few seconds." },
-        { status: 503, headers: { "Retry-After": "5" } }
+    // 2. Get the total count if we have results
+    // Optimization: If results < limit and page 1, count is just data.length
+    if (page === 1 && data.length < limit) {
+      count = data.length;
+    } else {
+      const countRes = await db.query<{ count: string }>(
+        `SELECT count(*) FROM search_all_hybrid($1)`,
+        [query],
       );
+      count = parseInt(countRes.rows[0].count, 10);
+    }
+  } catch (err: unknown) {
+    // Type narrowing for database errors
+    if (err && typeof err === 'object' && 'code' in err && typeof (err as { code: unknown }).code === 'string') {
+      const error = err as { code: string; message?: string };
+      // Check for statement timeout (57014)
+      if (error.code === "57014") {
+        console.warn(`Search timeout for "${query}" through pooler.`);
+        return NextResponse.json(
+          {
+            error:
+              "The database is currently under heavy load. Please try again in a few seconds.",
+          },
+          { status: 503, headers: { "Retry-After": "5" } },
+        );
+      }
     }
 
-    console.error("Search RPC error:", error);
+    console.error("Search Pooler error:", err);
     return NextResponse.json(
       { error: "Search failed. Please try again." },
       { status: 500 },
@@ -180,56 +196,60 @@ export async function GET(request: NextRequest) {
     });
     const queryIds = Array.from(contextLineIds);
 
-    const [emceesResult, participantsResult, contextResult] = await Promise.all(
-      [
-        uniqueEmceeIds.size > 0
-          ? supabase
-              .from("emcees")
-              .select("id, name")
-              .in("id", Array.from(uniqueEmceeIds))
-          : Promise.resolve({
-              data: [] as { id: string; name: string }[] | null,
-              error: null,
-            }),
+    const [emceesResult, participantsResult, contextResult] = await Promise.all([
+      uniqueEmceeIds.size > 0
+        ? db.query<{ id: string; name: string }>(
+            "SELECT id, name FROM emcees WHERE id = ANY($1)",
+            [Array.from(uniqueEmceeIds)]
+          )
+        : Promise.resolve({ rows: [] as { id: string; name: string }[] }),
 
-        uniqueBattleIds.length > 0
-          ? supabase
-              .from("battle_participants")
-              .select("battle_id, label, emcee:emcees ( id, name )")
-              .in("battle_id", uniqueBattleIds)
-          : Promise.resolve({
-              data: [] as
-                | {
-                    battle_id: string;
-                    label: string;
-                    emcee: { id: string; name: string } | null;
-                  }[]
-                | null,
-              error: null,
-            }),
+      uniqueBattleIds.length > 0
+        ? db.query<{
+            battle_id: string;
+            label: string;
+            emcee_id: string | null;
+            emcee_name: string | null;
+          }>(
+            `SELECT bp.battle_id, bp.label, e.id as emcee_id, e.name as emcee_name 
+             FROM battle_participants bp
+             LEFT JOIN emcees e ON bp.emcee_id = e.id
+             WHERE bp.battle_id = ANY($1)`,
+            [uniqueBattleIds]
+          )
+        : Promise.resolve({
+            rows: [] as {
+              battle_id: string;
+              label: string;
+              emcee_id: string | null;
+              emcee_name: string | null;
+            }[],
+          }),
 
-        queryIds.length > 0
-          ? supabase
-              .from("lines")
-              .select("id, content, battle_id, speaker_label, round_number")
-              .in("id", queryIds)
-          : Promise.resolve({
-              data: [] as
-                | {
-                    id: number;
-                    content: string;
-                    battle_id: string;
-                    speaker_label: string | null;
-                    round_number: number | null;
-                  }[]
-                | null,
-              error: null,
-            }),
-      ],
-    );
+      queryIds.length > 0
+        ? db.query<{
+            id: number | string;
+            content: string;
+            battle_id: string;
+            speaker_label: string | null;
+            round_number: number | null;
+          }>(
+            "SELECT id, content, battle_id, speaker_label, round_number FROM lines WHERE id = ANY($1)",
+            [queryIds]
+          )
+        : Promise.resolve({
+            rows: [] as {
+              id: number | string;
+              content: string;
+              battle_id: string;
+              speaker_label: string | null;
+              round_number: number | null;
+            }[],
+          }),
+    ]);
 
-    if (emceesResult.data) {
-      const emceeMap = new Map(emceesResult.data.map((e) => [e.id, e]));
+    if (emceesResult.rows.length > 0) {
+      const emceeMap = new Map(emceesResult.rows.map((e) => [e.id, e]));
       formattedData.forEach((row) => {
         const resolved: { id: string; name: string }[] = [];
         row.speaker_ids?.forEach((id) => {
@@ -243,17 +263,17 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    if (participantsResult.data) {
+    if (participantsResult.rows.length > 0) {
       const participantMap = new Map<
         string,
         { label: string; emcee: { id: string; name: string } | null }[]
       >();
-      participantsResult.data.forEach((p) => {
+      participantsResult.rows.forEach((p) => {
         if (!participantMap.has(p.battle_id))
           participantMap.set(p.battle_id, []);
         participantMap.get(p.battle_id)?.push({
           label: p.label,
-          emcee: Array.isArray(p.emcee) ? p.emcee[0] : p.emcee,
+          emcee: p.emcee_id ? { id: p.emcee_id, name: p.emcee_name || "Unknown" } : null,
         });
       });
       formattedData.forEach((row) => {
@@ -261,15 +281,15 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    if (contextResult.data) {
+    if (contextResult.rows.length > 0) {
       const contextMap = new Map(
-        contextResult.data.map((line) => [line.id, line]),
+        contextResult.rows.map((line) => [Number(line.id), line]),
       );
       formattedData.forEach((row) => {
         const prev = contextMap.get(row.id - 1);
         if (prev && prev.battle_id === row.battle.id) {
           row.prev_line = {
-            id: prev.id,
+            id: Number(prev.id),
             content: prev.content,
             speaker_label: prev.speaker_label,
             round_number: prev.round_number,
@@ -278,7 +298,7 @@ export async function GET(request: NextRequest) {
         const next = contextMap.get(row.id + 1);
         if (next && next.battle_id === row.battle.id) {
           row.next_line = {
-            id: next.id,
+            id: Number(next.id),
             content: next.content,
             speaker_label: next.speaker_label,
             round_number: next.round_number,
