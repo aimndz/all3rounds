@@ -1,5 +1,24 @@
-import { type NextRequest } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 import { updateSession } from "@/lib/supabase/middleware";
+
+// Bots probing for these paths will be rejected instantly to save Supabase CPU
+const BOT_BLOCKLIST = [
+  /\.php$/,
+  /\.env$/,
+  /\.sh_history$/,
+  /\.aws_json$/,
+  /wp-content/,
+  /wp-includes/,
+  /wp-admin/,
+  /cgi-bin/,
+  /\.jsp$/,
+  /\.git/,
+  /\.sql$/,
+  /\.bak$/,
+  /SystemManager/,
+  /pentaho/,
+  /artemis/,
+];
 
 function buildCsp(nonce: string, isDev: boolean) {
   const scriptSrc = [
@@ -36,6 +55,13 @@ function buildCsp(nonce: string, isDev: boolean) {
 }
 
 export async function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+
+  // 1. Immediately block malicious bot probes to protect Supabase CPU
+  if (BOT_BLOCKLIST.some((pattern) => pattern.test(pathname))) {
+    return new NextResponse(null, { status: 404 });
+  }
+
   const response = await updateSession(request);
   const nonce = crypto.randomUUID();
   const isDev = process.env.NODE_ENV !== "production";
