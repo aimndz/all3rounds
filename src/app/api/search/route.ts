@@ -100,22 +100,26 @@ export async function GET(request: NextRequest) {
   let count = 0;
 
   try {
-    // 1. Get the paginated results
-    // The RPC returns 500 max by default in its definition, but we paginate here.
-    const searchRes = await db.query<SearchRpcRow>(
-      `SELECT * FROM search_all_hybrid($1) OFFSET $2 LIMIT $3`,
+    // 1. Get the results and total count in ONE query using window function
+    // This halves the connection-hold time for search requests.
+    // full_count will be the same for all rows in the paginated set.
+    const searchRes = await db.query<SearchRpcRow & { full_count: string }>(
+      `SELECT *, count(*) OVER() AS full_count FROM search_all_hybrid($1) OFFSET $2 LIMIT $3`,
       [query, offset, limit],
     );
-    data = searchRes.rows.map((row: SearchRpcRow) => ({
+    
+    data = searchRes.rows.map((row) => ({
       ...row,
-      id: Number(row.id), // Handle BIGINT string
+      id: Number(row.id),
     }));
 
-    // 2. Get the total count if we have results
-    // Optimization: If results < limit and page 1, count is just data.length
-    if (page === 1 && data.length < limit) {
-      count = data.length;
+    if (data.length > 0) {
+      count = parseInt(searchRes.rows[0].full_count, 10);
+    } else if (page === 1) {
+      count = 0;
     } else {
+      // Fallback: If page > 1 and no results, we need a separate count to show pagination correctly
+      // (This only happens if someone manually goes to an out-of-bounds page)
       const countRes = await db.query<{ count: string }>(
         `SELECT count(*) FROM search_all_hybrid($1)`,
         [query],
@@ -123,23 +127,27 @@ export async function GET(request: NextRequest) {
       count = parseInt(countRes.rows[0].count, 10);
     }
   } catch (err: unknown) {
-    // Type narrowing for database errors
-    if (err && typeof err === 'object' && 'code' in err && typeof (err as { code: unknown }).code === 'string') {
-      const error = err as { code: string; message?: string };
-      // Check for statement timeout (57014)
-      if (error.code === "57014") {
-        console.warn(`Search timeout for "${query}" through pooler.`);
-        return NextResponse.json(
-          {
-            error:
-              "The database is currently under heavy load. Please try again in a few seconds.",
-          },
-          { status: 503, headers: { "Retry-After": "5" } },
-        );
-      }
+    const error = err as { code?: string; message?: string };
+    
+    // Check for statement timeout (57014) - Postgres level
+    if (error.code === "57014") {
+      console.warn(`Search STATEMENT timeout for "${query}".`);
+      return NextResponse.json(
+        { error: "The database is busy. Please try again in a few seconds." },
+        { status: 503, headers: { "Retry-After": "5" } },
+      );
     }
 
-    console.error("Search Pooler error:", err);
+    // Check for connection timeout - Pooler level
+    if (error.message?.includes("timeout exceeded when trying to connect")) {
+      console.error(`Search CONNECTION timeout for "${query}". Pool might be full.`);
+      return NextResponse.json(
+        { error: "Too many people searching. Please try again." },
+        { status: 503, headers: { "Retry-After": "5" } },
+      );
+    }
+
+    console.error("Search Pooler error details:", err);
     return NextResponse.json(
       { error: "Search failed. Please try again." },
       { status: 500 },
