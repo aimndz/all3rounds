@@ -24,7 +24,7 @@ const redis =
 
 export const RATE_LIMITS = {
   // General browsing / API access
-  anonymous: { maxRequests: 10, window: "60 s" },
+  anonymous: { maxRequests: 15, window: "60 s" },
   authenticated: { maxRequests: 60, window: "60 s" },
   directory: { maxRequests: 100, window: "60 s" },
 

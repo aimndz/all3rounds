@@ -8,6 +8,7 @@ import {
   invalidateCache,
   invalidateCachePattern,
 } from "@/lib/cache";
+import { checkRateLimit, getRateLimitHeaders } from "@/lib/rate-limit";
 import { sortParticipantsByTitle } from "@/features/battle/utils/participant-grouping";
 import { z } from "zod";
 
@@ -18,10 +19,25 @@ const UpdateBattleSchema = z.object({
 });
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
+
+  const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+  const rateRes = await checkRateLimit(`ip:${ip}:battle`, "anonymous");
+  if (!rateRes.allowed) {
+    return NextResponse.json(
+      { error: "Too many requests. Please wait a moment." },
+      { 
+        status: 429,
+        headers: {
+          ...getRateLimitHeaders(rateRes),
+          "Retry-After": "60",
+        }
+      }
+    );
+  }
 
   const cacheKey = `battle:${id}`;
   const cachedData = await getCached(cacheKey);
