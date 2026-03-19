@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { createClient } from "@/lib/supabase/server";
+import { createPublicClient } from "@/lib/supabase/server";
 import BattlesDirectory from "./BattlesDirectory";
 import { BattlesSkeleton } from "@/components/PageSkeletons";
 
@@ -7,10 +7,10 @@ import { BattlesSkeleton } from "@/components/PageSkeletons";
 // Page Export (Server Component)
 // ============================================================================
 
-export const revalidate = 3600; // 1 hour cache during spike
+export const revalidate = 86400; // 24 hours (1 day)
 
 export default async function BattlesPage() {
-  const supabase = await createClient();
+  const supabase = createPublicClient();
 
   // Fetch initial data on the server
   // Note: We use the same parameters as the default client state

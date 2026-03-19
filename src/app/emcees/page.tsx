@@ -1,12 +1,12 @@
 import { Suspense } from "react";
-import { createClient } from "@/lib/supabase/server";
+import { createPublicClient } from "@/lib/supabase/server";
 import EmceesDirectory from "./EmceesDirectory";
 import { EmceesSkeleton } from "@/components/PageSkeletons";
 
-export const revalidate = 600; // 10 minutes
+export const revalidate = 86400; // 24 hours (1 day)
 
 export default async function EmceesPage() {
-  const supabase = await createClient();
+  const supabase = createPublicClient();
 
   const { data: initialEmcees, error, count } = await supabase
     .from("emcees")

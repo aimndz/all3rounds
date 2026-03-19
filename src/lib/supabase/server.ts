@@ -33,6 +33,24 @@ export async function createClient() {
 }
 
 /**
+ * Creates a Supabase client for static page generation (SSG/ISR).
+ * Does NOT use cookies to avoid triggering dynamic rendering.
+ * Recommended for: directories, sitemap, public public data.
+ */
+export function createPublicClient() {
+  return createSupabaseClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+      },
+    },
+  );
+}
+
+/**
  * Creates an admin Supabase client that bypasses RLS.
  * Uses the service_role key - ONLY use on the server side!
  * Good for: updating/deleting data after user is authenticated

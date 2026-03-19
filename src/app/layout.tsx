@@ -1,5 +1,4 @@
 import type { Metadata, Viewport } from "next";
-import { headers } from "next/headers";
 import Script from "next/script";
 import { Inter, Montserrat } from "next/font/google";
 import "./globals.css";
@@ -70,7 +69,6 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const nonce = (await headers()).get("x-nonce") ?? undefined;
   const analyticsSrc =
     process.env.NODE_ENV === "production"
       ? "/_vercel/insights/script.js"
@@ -90,15 +88,14 @@ export default async function RootLayout({
           <ErrorBoundary>{children}</ErrorBoundary>
         </AuthProvider>
         <Toaster />
-        <Script src={analyticsSrc} strategy="afterInteractive" nonce={nonce} />
+        <Script src={analyticsSrc} strategy="afterInteractive" />
         {process.env.NEXT_PUBLIC_GA_ID && (
           <>
             <Script
               src={`https://www.googletagmanager.com/gtag/js?id=${process.env.NEXT_PUBLIC_GA_ID}`}
               strategy="afterInteractive"
-              nonce={nonce}
             />
-            <Script id="google-analytics" strategy="afterInteractive" nonce={nonce}>
+            <Script id="google-analytics" strategy="afterInteractive">
               {`
                 window.dataLayer = window.dataLayer || [];
                 function gtag(){dataLayer.push(arguments);}

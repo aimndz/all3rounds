@@ -1,11 +1,11 @@
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { createPublicClient } from "@/lib/supabase/server";
 import EmceeProfile from "./EmceeProfile";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Battle } from "@/features/battles/hooks/use-battles-data";
 
-export const revalidate = 600; // 10 minutes
+export const revalidate = 86400; // 24 hours (1 day)
 
 export default async function EmceeProfilePage({
   params,
@@ -13,7 +13,7 @@ export default async function EmceeProfilePage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const supabase = await createClient();
+  const supabase = createPublicClient();
 
   // 1. Fetch emcee basic info
   const emceePromise = supabase

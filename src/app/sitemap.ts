@@ -1,7 +1,7 @@
 import { MetadataRoute } from "next";
-import { createClient } from "@/lib/supabase/server";
+import { createPublicClient } from "@/lib/supabase/server";
 
-export const revalidate = 3600; // 1 hour
+export const revalidate = 86400; // 24 hours (1 day)
 
 import { getSiteUrl } from "@/lib/utils";
  
@@ -55,7 +55,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   ];
 
   try {
-    const supabase = await createClient();
+    const supabase = createPublicClient();
 
     const [battlesRes, emceesRes] = await Promise.all([
       supabase.from("battles").select("id").neq("status", "excluded"),
