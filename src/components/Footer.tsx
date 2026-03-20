@@ -26,16 +26,18 @@ export default function Footer() {
               </h3>
               <nav className="flex flex-col gap-2">
                 <Link
-                  href="/privacy-policy"
-                  rel="privacy-policy"
-                  className="text-muted-foreground hover:text-foreground text-xs transition-colors"
-                >
+                   href="/privacy-policy"
+                   rel="privacy-policy"
+                   prefetch={false}
+                   className="text-muted-foreground hover:text-foreground text-xs transition-colors"
+                 >
                   Privacy Policy
                 </Link>
                 <Link
-                  href="/terms-of-service"
-                  className="text-muted-foreground hover:text-foreground text-xs transition-colors"
-                >
+                   href="/terms-of-service"
+                   prefetch={false}
+                   className="text-muted-foreground hover:text-foreground text-xs transition-colors"
+                 >
                   Terms of Service
                 </Link>
               </nav>

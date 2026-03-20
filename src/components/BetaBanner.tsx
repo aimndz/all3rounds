@@ -30,6 +30,7 @@ export default function BetaBanner() {
           Some transcripts may contain inaccuracies.{" "}
           <Link
             href="/random"
+            prefetch={false}
             className="text-primary inline-flex items-center gap-0.5 underline-offset-2 transition-colors hover:underline"
           >
             Help improve them.
