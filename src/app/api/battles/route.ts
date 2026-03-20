@@ -1,40 +1,45 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getCached, setCached } from "@/lib/cache";
-import { checkRateLimit, getRateLimitHeaders } from "@/lib/rate-limit";
 import { parseSearchTokens, scoreBattle } from "@/lib/fuzzy-utils";
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
 
   const q = searchParams.get("q") || "";
-  const status = searchParams.get("status") || "all";
   const year = searchParams.get("year") || "all";
   const sort = searchParams.get("sort") || "latest";
 
-  // --- Rate limiting ---
-  const rateLimitKey = `battles_dir:${request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown"}`;
-  const rateRes = await checkRateLimit(rateLimitKey, "directory");
+  const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10));
+  const limit = Math.min(
+    Math.max(1, parseInt(searchParams.get("limit") || "48", 10)),
+    50,
+  );
+  const offset = (page - 1) * limit;
 
-  if (!rateRes.allowed) {
-    return NextResponse.json(
-      { error: "Too many requests. Please wait a moment." },
-      {
-        status: 429,
-        headers: {
-          ...getRateLimitHeaders(rateRes),
-          "Retry-After": "60",
-        },
-      },
-    );
+  // Normalize parameters to prevent cache key pollution
+  const cleanQ = q.trim().toLowerCase().slice(0, 100);
+  const validStatuses = ["raw", "arranged", "reviewing", "reviewed", "excluded"];
+  const rawStatus = (searchParams.get("status") || "all").toLowerCase();
+  const cleanStatus = validStatuses.includes(rawStatus) ? rawStatus : (rawStatus === "all" ? "all" : "invalid");
+  const cleanYear = /^\d{4}$/.test(year) ? year : "all";
+  const cleanSort = sort === "oldest" ? "oldest" : "latest";
+
+  // --- Early return for invalid status ---
+  if (cleanStatus === "invalid") {
+    return NextResponse.json({ battles: [], count: 0 });
   }
 
   // --- Cache check ---
-  const cacheKey = `battles:q:${q || "none"}:status:${status}:year:${year}:sort:${sort}`;
+  const cacheKey = `battles:q:${cleanQ || "none"}:status:${cleanStatus}:year:${cleanYear}:sort:${cleanSort}:p:${page}:l:${limit}`;
 
   const cachedData = await getCached(cacheKey);
   if (cachedData) {
-    return NextResponse.json(cachedData);
+    return NextResponse.json(cachedData, {
+      headers: {
+        "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=59",
+      },
+    });
   }
 
   // --- Database Fetch ---
@@ -43,9 +48,9 @@ export async function GET(request: NextRequest) {
 
     let data, error, count;
 
-    if (q) {
+    if (cleanQ) {
       // 1. Parse search query into meaningful tokens (stripping "vs", etc.)
-      const tokens = parseSearchTokens(q);
+      const tokens = parseSearchTokens(cleanQ);
 
       if (tokens.length === 0) {
         data = [];
@@ -57,14 +62,14 @@ export async function GET(request: NextRequest) {
           .select("id, title, youtube_id, event_name, event_date, status, url")
           .neq("status", "excluded");
 
-        if (status !== "all") {
-          query = query.eq("status", status);
+        if (cleanStatus !== "all") {
+          query = query.eq("status", cleanStatus);
         }
 
-        if (year !== "all") {
+        if (cleanYear !== "all") {
           query = query
-            .gte("event_date", `${year}-01-01`)
-            .lte("event_date", `${year}-12-31`);
+            .gte("event_date", `${cleanYear}-01-01`)
+            .lte("event_date", `${cleanYear}-12-31`);
         }
 
         // Combine all tokens into a single OR query for efficiency
@@ -75,7 +80,8 @@ export async function GET(request: NextRequest) {
           })
           .join(",");
 
-        query = query.or(orConditions).limit(500);
+        // Reduced candidate limit for efficiency since we re-rank anyway
+        query = query.or(orConditions).limit(200);
 
         const broadResult = await query;
         if (broadResult.error) {
@@ -100,16 +106,18 @@ export async function GET(request: NextRequest) {
               const dateB = b.battle.event_date
                 ? new Date(b.battle.event_date).getTime()
                 : 0;
-              if (sort === "oldest") return dateA - dateB;
+              if (cleanSort === "oldest") return dateA - dateB;
               return dateB - dateA;
             });
 
           count = scored.length;
-          data = scored.map((s) => ({ ...s.battle, score: s.score }));
+          // Split for pagination
+          const paginated = scored.slice(offset, offset + limit);
+          data = paginated.map((s) => ({ ...s.battle, score: s.score }));
         }
       }
     } else {
-      // Standard fetch — return ALL battles matching filters (no per-row pagination)
+      // Standard fetch
       let query = supabase
         .from("battles")
         .select("id, title, youtube_id, event_name, event_date, status, url", {
@@ -118,22 +126,25 @@ export async function GET(request: NextRequest) {
         .neq("status", "excluded");
 
       // Apply Status Filter
-      if (status !== "all") {
-        query = query.eq("status", status);
+      if (cleanStatus !== "all") {
+        query = query.eq("status", cleanStatus);
       }
 
       // Apply Year Filter
-      if (year !== "all") {
+      if (cleanYear !== "all") {
         query = query
-          .gte("event_date", `${year}-01-01`)
-          .lte("event_date", `${year}-12-31`);
+          .gte("event_date", `${cleanYear}-01-01`)
+          .lte("event_date", `${cleanYear}-12-31`);
       }
 
       // Apply Sort
       query = query.order("event_date", {
-        ascending: sort === "oldest",
+        ascending: cleanSort === "oldest",
         nullsFirst: false,
       });
+
+      // Apply Pagination
+      query = query.range(offset, offset + limit - 1);
 
       const result = await query;
       data = result.data;

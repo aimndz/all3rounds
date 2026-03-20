@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { checkRateLimit, getRateLimitHeaders } from "@/lib/rate-limit";
 import { getCached, setCached } from "@/lib/cache";
 
 export async function GET(request: NextRequest) {
@@ -9,28 +8,18 @@ export async function GET(request: NextRequest) {
   const sort = searchParams.get("sort") || "name_asc";
   const minBattles = parseInt(searchParams.get("minBattles") || "0");
   const page = parseInt(searchParams.get("page") || "1");
-  const limit = parseInt(searchParams.get("limit") || "48");
+  const limit = Math.min(parseInt(searchParams.get("limit") || "48", 10), 50);
   const offset = (page - 1) * limit;
 
-  // --- Rate limiting ---
-  const rateLimitKey = `emcees:${request.headers.get("x-forwarded-for") || "unknown"}`;
-  const rateRes = await checkRateLimit(rateLimitKey, "anonymous");
-
-  if (!rateRes.allowed) {
-    return NextResponse.json(
-      { error: "Too many requests. Please wait a moment." },
-      {
-        status: 429,
-        headers: getRateLimitHeaders(rateRes),
-      },
-    );
-  }
-
   // --- Cache check ---
-  const cacheKey = `emcees:q:${query || "all"}:s:${sort}:m:${minBattles}:p:${page}`;
+  const cacheKey = `emcees:q:${query || "all"}:s:${sort}:m:${minBattles}:p:${page}:l:${limit}`;
   const cachedData = await getCached(cacheKey);
   if (cachedData) {
-    return NextResponse.json(cachedData);
+    return NextResponse.json(cachedData, {
+      headers: {
+        "Cache-Control": "public, s-maxage=600, stale-while-revalidate=59",
+      },
+    });
   }
 
   const supabase = await createClient();
@@ -83,5 +72,9 @@ export async function GET(request: NextRequest) {
 
   await setCached(cacheKey, response, 600); // 10 minutes
 
-  return NextResponse.json(response);
+  return NextResponse.json(response, {
+    headers: {
+      "Cache-Control": "public, s-maxage=600, stale-while-revalidate=59",
+    },
+  });
 }

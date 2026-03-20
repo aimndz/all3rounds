@@ -1,6 +1,5 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { checkRateLimit, getRateLimitHeaders } from "@/lib/rate-limit";
 import { getCached, setCached } from "@/lib/cache";
 import { apiError, apiSuccess } from "@/lib/api-utils";
 import { uuidSchema } from "@/lib/schemas";
@@ -16,20 +15,6 @@ export async function GET(
   const idValidation = uuidSchema.safeParse(id);
   if (!idValidation.success) {
     return apiError("Invalid emcee ID", 400);
-  }
-
-  // 2. Rate limiting
-  const rateLimitKey = `emcee_api:${id}:${request.headers.get("x-forwarded-for") || "unknown"}`;
-  const rateRes = await checkRateLimit(rateLimitKey, "anonymous");
-
-  if (!rateRes.allowed) {
-    return NextResponse.json(
-      { error: "Too many requests. Please wait a moment." },
-      {
-        status: 429,
-        headers: getRateLimitHeaders(rateRes),
-      },
-    );
   }
 
   // 3. Cache check
