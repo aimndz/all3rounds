@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS emcees (
 -- ============================================
 -- 1.5 Battle Status Type
 -- ============================================
-CREATE TYPE battle_status AS ENUM ('raw', 'arranged', 'reviewing', 'reviewed');
+CREATE TYPE battle_status AS ENUM ('raw', 'arranged', 'reviewing', 'reviewed', 'excluded');
 
 -- ============================================
 -- 2. Battles

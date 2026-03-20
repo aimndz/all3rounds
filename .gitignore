@@ -75,3 +75,5 @@ output.json
 *.mp4
 *.webm
 *.pem
+
+supabase/.temp/
