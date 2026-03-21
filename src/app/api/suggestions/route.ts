@@ -5,6 +5,8 @@ import { verifyCsrf } from "@/lib/csrf";
 import { z } from "zod";
 
 export const dynamic = "force-dynamic";
+export const fetchCache = "force-no-store";
+export const revalidate = 0;
 
 const CreateSuggestionSchema = z.object({
   line_id: z.number().int().positive("Invalid line ID"),
@@ -156,10 +158,17 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  return NextResponse.json({
-    data,
-    total: count || 0,
-    page,
-    limit,
-  });
+  return NextResponse.json(
+    {
+      data,
+      total: count || 0,
+      page,
+      limit,
+    },
+    {
+      headers: {
+        "Cache-Control": "no-store, max-age=0, must-revalidate",
+      },
+    },
+  );
 }

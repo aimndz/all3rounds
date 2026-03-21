@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { requirePermission } from "@/lib/auth";
 import { invalidateCache } from "@/lib/cache";
+import { revalidatePath } from "next/cache";
 import { verifyCsrf } from "@/lib/csrf";
 import { z } from "zod";
 
@@ -137,6 +138,10 @@ export async function PATCH(
     }
 
     await invalidateCache("admin:stats");
+
+    // Clear Next.js Data Cache for the suggestions list and the reviews page
+    revalidatePath("/api/suggestions");
+    revalidatePath("/reviews");
 
     return NextResponse.json({ success: true });
   } catch (error) {
