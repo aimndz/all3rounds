@@ -1,6 +1,8 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import { Play } from "lucide-react";
+import Image from "next/image";
 
 interface YouTubeLoopPlayerProps {
   videoId: string;
@@ -35,12 +37,26 @@ export default function YouTubeLoopPlayer({
   const playerRef = useRef<YT.Player | null>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
+  const [hasInteracted, setHasInteracted] = useState(autoplay || !!playerKey);
+  const [prevProps, setPrevProps] = useState({ autoplay, playerKey });
+
+  // Update state when props change during render to avoid cascading useEffect renders
+  if (prevProps.autoplay !== autoplay || prevProps.playerKey !== playerKey) {
+    if (autoplay || playerKey) {
+      setHasInteracted(true);
+    }
+    setPrevProps({ autoplay, playerKey });
+  }
+
   useEffect(() => {
+    if (!hasInteracted) return;
+
     let mounted = true;
 
     const loadApi = () => {
       if (!window.YT) {
         const tag = document.createElement("script");
+        tag.id = "youtube-iframe-api";
         tag.src = "https://www.youtube.com/iframe_api";
         const firstScriptTag = document.getElementsByTagName("script")[0];
         firstScriptTag.parentNode?.insertBefore(tag, firstScriptTag);
@@ -59,6 +75,7 @@ export default function YouTubeLoopPlayer({
       // Create a specific container inside the ref
       containerRef.current.innerHTML = "";
       const playerDiv = document.createElement("div");
+      playerDiv.className = "w-full h-full";
       containerRef.current.appendChild(playerDiv);
 
       playerRef.current = new YT.Player(playerDiv, {
@@ -67,7 +84,7 @@ export default function YouTubeLoopPlayer({
         videoId,
         playerVars: {
           start: Math.round(startTime),
-          autoplay: autoplay ? 1 : 0,
+          autoplay: 1, // Auto-play is safely 1 here because user interacted to reach here
           modestbranding: 1,
           rel: 0,
           playsinline: 1,
@@ -78,7 +95,7 @@ export default function YouTubeLoopPlayer({
           onReady: (event: YT.PlayerEvent) => {
             if (!mounted) return;
             if (onReady) onReady(event.target);
-            if (autoplay) event.target.playVideo();
+            event.target.playVideo();
           },
         },
       });
@@ -104,9 +121,11 @@ export default function YouTubeLoopPlayer({
         } catch {}
       }
     };
-  }, [videoId, startTime, endTime, playerKey]);
+  }, [videoId, startTime, endTime, playerKey, hasInteracted, onReady]);
 
   useEffect(() => {
+    if (!hasInteracted) return;
+
     if (intervalRef.current) clearInterval(intervalRef.current);
 
     intervalRef.current = setInterval(() => {
@@ -129,7 +148,34 @@ export default function YouTubeLoopPlayer({
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
-  }, [startTime, endTime]);
+  }, [startTime, endTime, hasInteracted]);
+
+  if (!hasInteracted) {
+    return (
+      <div
+        className={`group focus-within:ring-primary relative flex cursor-pointer items-center justify-center bg-black outline-none focus-within:ring-2 ${className}`}
+        onClick={() => setHasInteracted(true)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") setHasInteracted(true);
+        }}
+        tabIndex={0}
+      >
+        <Image
+          src={`https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`}
+          alt="Video thumbnail"
+          fill
+          unoptimized={true}
+          className="absolute inset-0 h-full w-full object-cover opacity-60 transition-opacity duration-300 group-hover:opacity-100"
+          loading="lazy"
+        />
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="rounded-full border border-white/10 bg-black/80 p-4 shadow-xl backdrop-blur-md transition-all duration-300">
+            <Play className="ml-1 h-6 w-6 fill-white text-white transition-colors" />
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
