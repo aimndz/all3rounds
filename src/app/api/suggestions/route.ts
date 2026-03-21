@@ -129,6 +129,9 @@ export async function GET(request: NextRequest) {
   const from = (page - 1) * limit;
   const to = from + limit - 1;
 
+  const order = searchParams.get("order") || "asc";
+  const ascending = order === "asc";
+
   // Fetch suggestions with line context and suggester info
   // Note: user_profiles is joined via user_id
   const { data, error, count } = await adminClient
@@ -147,7 +150,7 @@ export async function GET(request: NextRequest) {
       { count: "exact" },
     )
     .in("status", filterStatuses)
-    .order("created_at", { ascending: false })
+    .order("created_at", { ascending })
     .range(from, to);
 
   if (error) {

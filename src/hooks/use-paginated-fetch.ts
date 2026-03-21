@@ -73,15 +73,25 @@ export function usePaginatedFetch<T>(url: string, options: FetchOptions = {}) {
   // Method to remove an item manually from state (useful for approvals/rejections)
   const removeItem = useCallback(
     (idKey: keyof T, idValue: unknown) => {
+      const isLastOnPage = data.length === 1;
+
       setData((prev) => prev.filter((item) => item[idKey] !== idValue));
-      setTotal((prev) => prev - 1);
+      setTotal((prev) => {
+        const nextTotal = prev - 1;
+        return nextTotal < 0 ? 0 : nextTotal;
+      });
       
-      // If we cleared the page, go back if possible
-      if (data.length === 1 && page > 1) {
-        setPage(page - 1);
+      // If we cleared the current page, either go back or refresh to pull next batch
+      if (isLastOnPage) {
+        if (page > 1) {
+          setPage((p) => p - 1);
+        } else {
+          // Stay on page 1 but refetch to bring in shifted items
+          fetchData(1);
+        }
       }
     },
-    [data.length, page]
+    [data.length, page, fetchData]
   );
   
   // Method to update a single item in place
