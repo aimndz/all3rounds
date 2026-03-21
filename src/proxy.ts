@@ -21,14 +21,30 @@ const BOT_BLOCKLIST = [
   /artemis/,
 ];
 
-// 2. These paths are safe to cache publicly because they don't contain user-specific data
-const PUBLIC_CACHE_PATHS: Record<string, string> = {
-  "/": "public, s-maxage=3600, stale-while-revalidate=59",
-  "/privacy-policy": "public, s-maxage=31536000, stale-while-revalidate=59",
-  "/terms-of-service": "public, s-maxage=31536000, stale-while-revalidate=59",
-  "/battles": "public, s-maxage=86400, stale-while-revalidate=59",
-  "/emcees": "public, s-maxage=86400, stale-while-revalidate=59",
-};
+// 2. These paths are safe to cache publicly because they don't contain user-specific data.
+// We use regex to support sub-paths like /battles/slug or /emcees/slug.
+const PUBLIC_CACHE_CONFIGS = [
+  {
+    pattern: /^\/$/,
+    cache: "public, max-age=3600, s-maxage=3600, stale-while-revalidate=59",
+  },
+  {
+    pattern: /^\/privacy-policy$/,
+    cache: "public, max-age=14400, s-maxage=31536000, stale-while-revalidate=59",
+  },
+  {
+    pattern: /^\/terms-of-service$/,
+    cache: "public, max-age=14400, s-maxage=31536000, stale-while-revalidate=59",
+  },
+  {
+    pattern: /^\/battles?(\/.*)?$/,
+    cache: "public, max-age=3600, s-maxage=86400, stale-while-revalidate=59",
+  },
+  {
+    pattern: /^\/emcees?(\/.*)?$/,
+    cache: "public, max-age=3600, s-maxage=86400, stale-while-revalidate=59",
+  },
+];
 
 function buildCsp(isDev: boolean) {
   const scriptSrc = [
@@ -80,7 +96,9 @@ export async function proxy(request: NextRequest) {
   const shouldLimit = isSearch || isApiRequest || isAuthOrAdmin;
 
   // Bypass rate limiting for localhost to prevent developer lockout.
-  const isLocalhost = request.nextUrl.hostname === "localhost" || request.nextUrl.hostname === "127.0.0.1";
+  const isLocalhost =
+    request.nextUrl.hostname === "localhost" ||
+    request.nextUrl.hostname === "127.0.0.1";
 
   if (shouldLimit && !isLocalhost) {
     const ip =
@@ -113,16 +131,19 @@ export async function proxy(request: NextRequest) {
   }
 
   // 2. Determine if this is a static route eligible for CDN caching
-  const isStaticRoute = !!PUBLIC_CACHE_PATHS[pathname];
+  const cacheConfig = PUBLIC_CACHE_CONFIGS.find((config) =>
+    config.pattern.test(pathname),
+  );
 
   // 3. Skip session check for static routes to avoid setting cookies that prevent CDN caching
   let response: NextResponse;
-  if (isStaticRoute) {
+  if (cacheConfig) {
     response = NextResponse.next();
-    response.headers.set("Cache-Control", PUBLIC_CACHE_PATHS[pathname]);
+    response.headers.set("Cache-Control", cacheConfig.cache);
   } else {
     response = await updateSession(request);
   }
+
 
   const isDev = process.env.NODE_ENV !== "production";
   const csp = buildCsp(isDev);

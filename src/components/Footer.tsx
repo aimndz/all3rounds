@@ -27,7 +27,6 @@ export default function Footer() {
               <nav className="flex flex-col gap-2">
                 <Link
                    href="/privacy-policy"
-                   rel="privacy-policy"
                    prefetch={false}
                    className="text-muted-foreground hover:text-foreground text-xs transition-colors"
                  >
