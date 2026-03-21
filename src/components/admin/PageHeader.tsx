@@ -19,21 +19,30 @@ export function PageHeader({
   children,
 }: PageHeaderProps) {
   return (
-    <div className="border-border/40 mb-8 flex flex-col justify-between gap-4 border-b pb-6 md:flex-row md:items-end">
-      <div className="flex flex-col gap-3 space-y-1 md:flex-row md:items-center">
-        <h1 className="flex items-center gap-2 text-3xl font-semibold tracking-tight text-white uppercase">
-          {Icon && <Icon className={`h-8 w-8 ${iconClassName}`} />}
+    <div className="border-border/40 mb-6 flex flex-col justify-between gap-4 border-b pb-4 md:flex-row md:items-end">
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:gap-4">
+        <h1 className="text-2xl font-bold tracking-tight text-white uppercase sm:text-3xl flex items-center gap-2">
+          {Icon && <Icon className={`h-6 w-6 sm:h-8 sm:w-8 ${iconClassName}`} />}
           {title}
         </h1>
-        {itemCount !== undefined && (
-          <div className="flex w-fit h-9 items-center rounded-xl border border-white/5 bg-white/5 px-4 text-xs font-bold tracking-tighter text-white/60">
-            {itemCount} {itemLabel}
+        
+        <div className="flex items-center justify-between gap-2 w-full md:w-auto md:justify-start">
+          {itemCount !== undefined && (
+            <div className="flex w-fit h-7 items-center rounded-lg border border-white/5 bg-white/5 px-2.5 text-[10px] font-bold tracking-widest text-white/40 uppercase sm:h-8 sm:text-xs sm:px-3">
+              {itemCount} {itemLabel}
+            </div>
+          )}
+
+          {/* Mobile Actions - shown alongside count items on mobile */}
+          <div className="flex items-center gap-2 md:hidden">
+            {children}
           </div>
-        )}
+        </div>
       </div>
 
+      {/* Desktop Actions */}
       {children && (
-        <div className="flex items-center gap-3 w-full md:w-auto overflow-x-auto pb-1 md:pb-0">
+        <div className="hidden md:flex items-center gap-3">
           {children}
         </div>
       )}

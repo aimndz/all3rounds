@@ -3,7 +3,7 @@
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
-import { RotateCcw } from "lucide-react";
+import { RotateCw, ArrowUpDown } from "lucide-react";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { CardSkeleton } from "@/components/admin/CardSkeleton";
 import { DataPagination } from "@/components/admin/DataPagination";
@@ -14,9 +14,17 @@ import {
 import { usePaginatedFetch } from "@/hooks/use-paginated-fetch";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export default function ReviewsPage() {
   const [processingId, setProcessingId] = useState<string | null>(null);
+  const [sortBy, setSortBy] = useState<"asc" | "desc">("asc");
   const { toast } = useToast();
 
   const {
@@ -31,7 +39,10 @@ export default function ReviewsPage() {
     removeItem,
   } = usePaginatedFetch<SuggestionLog>("/api/suggestions", {
     limit: 10,
-    extraParams: { status: "pending,flagged" },
+    extraParams: { 
+      status: "pending,flagged",
+      order: sortBy 
+    },
   });
 
   const handleReview = async (id: string, action: "approve" | "reject") => {
@@ -68,15 +79,33 @@ export default function ReviewsPage() {
       <Header />
       <main className="mx-auto max-w-5xl px-4 py-12">
         <PageHeader title="PENDING FIXES" itemCount={total} itemLabel="ITEMS">
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={refetch}
-            className="hover:bg-primary/5 hover:text-primary h-9 w-9 rounded-xl border-white/10 bg-transparent text-white transition-all active:scale-95"
-            disabled={loading}
-          >
-            <RotateCcw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
-          </Button>
+          <div className="flex items-center gap-2">
+            <Select 
+              value={sortBy} 
+              onValueChange={(v: "asc" | "desc") => setSortBy(v)}
+            >
+              <SelectTrigger className="border-border/50 bg-white/5 focus:ring-primary/5 h-9 w-32 rounded-xl text-xs sm:w-36">
+                <div className="flex items-center gap-2">
+                  <ArrowUpDown className="text-white/40 h-3 w-3" />
+                  <SelectValue placeholder="Sort" />
+                </div>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="desc">Latest</SelectItem>
+                <SelectItem value="asc">Oldest</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={refetch}
+              className="border-border/50 bg-white/5 hover:bg-white/10 h-9 w-9 rounded-xl text-white/40 transition-all active:scale-95 hover:text-white"
+              disabled={loading}
+            >
+              <RotateCw className="h-4 w-4" />
+            </Button>
+          </div>
         </PageHeader>
 
         {error && (

@@ -1,17 +1,11 @@
+import { formatDistanceToNow } from "date-fns";
 import { useState } from "react";
 import Link from "next/link";
 import { formatTime } from "@/lib/utils";
 import YouTubeLoopPlayer from "@/components/YouTubeLoopPlayer";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import {
-  Check,
-  X,
-  Loader2,
-  Clock,
-  ExternalLink,
-  UndoIcon,
-} from "lucide-react";
+import { Check, X, Loader2, ExternalLink, UndoIcon } from "lucide-react";
 
 /** Shared type matching API response */
 export type SuggestionLog = {
@@ -37,24 +31,42 @@ export type SuggestionLog = {
 interface SuggestionCardProps {
   suggestion: SuggestionLog;
   variant: "review" | "audit";
-  onAction?: (id: string, action: "approve" | "reject", currentStatus?: string) => void;
+  onAction?: (
+    id: string,
+    action: "approve" | "reject",
+    currentStatus?: string,
+  ) => void;
   processingId?: string | null;
 }
 
-export function SuggestionCard({ suggestion: s, variant, onAction, processingId }: SuggestionCardProps) {
+export function SuggestionCard({
+  suggestion: s,
+  variant,
+  onAction,
+  processingId,
+}: SuggestionCardProps) {
   const [playerKey, setPlayerKey] = useState(0);
-  
+
   const reloadPlayer = () => setPlayerKey((p) => p + 1);
   const isProcessing = processingId === s.id;
 
+  // Relative time ago (e.g. 5 mins ago)
+  const timeAgo = formatDistanceToNow(new Date(s.created_at), {
+    addSuffix: true,
+  });
+
   // Audit state classes
-  const borderColor = 
-    variant === "audit" && s.status === "approved" ? "border-primary/20" :
-    variant === "audit" && s.status === "rejected" ? "border-destructive/20" : 
-    "border-white/5 hover:border-primary/40 focus-within:border-primary/40";
-    
+  const borderColor =
+    variant === "audit" && s.status === "approved"
+      ? "border-primary/20"
+      : variant === "audit" && s.status === "rejected"
+        ? "border-destructive/20"
+        : "border-white/5 hover:border-primary/40 focus-within:border-primary/40";
+
   return (
-    <div className={`group relative flex flex-col gap-0 overflow-hidden rounded-3xl border bg-[#141417] transition-all duration-500 md:flex-row ${borderColor}`}>
+    <div
+      className={`group relative flex flex-col gap-0 overflow-hidden rounded-3xl border bg-[#141417] transition-all duration-500 md:flex-row ${borderColor}`}
+    >
       <div className="relative aspect-video w-full shrink-0 overflow-hidden bg-black md:w-[320px]">
         <YouTubeLoopPlayer
           key={`${s.id}-${playerKey}`}
@@ -67,92 +79,115 @@ export function SuggestionCard({ suggestion: s, variant, onAction, processingId 
         />
       </div>
 
-      <div className="flex flex-1 flex-col p-6 lg:px-8">
-        <div className="mb-5 flex items-start justify-between">
-          <div className="flex flex-col gap-1 pr-4">
-            <Link
-              href={`/battle/${s.lines.battle.id}?t=${Math.floor(s.lines.start_time)}`}
-              prefetch={false}
-              target="_blank"
-              title="View Full Battle"
-              className="text-primary/60 hover:text-primary focus:text-primary flex items-center gap-1.5 font-bold tracking-wider transition-all active:scale-95"
-            >
-              <span className="line-clamp-1">{s.lines.battle.title.toUpperCase()}</span>
-              <ExternalLink className="h-4 w-4 shrink-0" />
-            </Link>
+      <div className="flex flex-1 flex-col p-4 sm:p-5 lg:px-6">
+        <div className="mb-0 flex flex-col justify-between gap-4 md:mb-4 md:flex-row md:items-start">
+          <div className="flex min-w-0 flex-1 flex-col gap-1.5">
             <div className="flex items-center gap-2">
+              <Link
+                href={`/battle/${s.lines.battle.id}?t=${Math.floor(s.lines.start_time)}`}
+                prefetch={false}
+                target="_blank"
+                title="View Full Battle"
+                className="hover:text-primary focus:text-primary flex items-center gap-1.5 text-[13px] font-bold tracking-tight text-white transition-all active:scale-95 sm:text-[14px]"
+              >
+                <span className="line-clamp-1 uppercase">
+                  {s.lines.battle.title}
+                </span>
+                <ExternalLink className="h-3 w-3 shrink-0 opacity-40" />
+              </Link>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[9px] font-normal tracking-wider text-white/20 uppercase">
+              <span className="text-white/40">
+                BY: {s.user?.display_name || "ANON"}
+              </span>
+              <span className="opacity-40">•</span>
+              <span className="whitespace-nowrap">{timeAgo}</span>
+              <span className="opacity-40">•</span>
+              <span className="hidden sm:inline">REF:</span>
+              <span className="text-white/40">
+                #{s.line_id.toString().padStart(4, "0")}
+              </span>
+            </div>
+
+            <div className="mt-0.5 flex items-center gap-2">
               <Button
                 variant="ghost"
                 onClick={reloadPlayer}
-                className="hover:bg-primary/10 hover:text-primary focus:bg-primary/10 focus:ring-1 focus:ring-primary flex h-6 w-fit items-center gap-1.5 rounded-md bg-white/5 px-2 py-0.5 text-white/60 transition-all active:scale-95 outline-none"
+                className="hover:bg-primary/10 hover:text-primary flex h-5 w-fit items-center gap-1.5 rounded-md border border-white/5 bg-white/5 px-2 py-0 text-white/40 transition-all outline-none active:scale-95"
                 title="Replay Segment"
               >
-                <Clock className="h-2.5 w-2.5" />
-                <span className="text-[9px] font-semibold">
-                  {formatTime(s.lines.start_time)}-{formatTime(s.lines.end_time)}
+                <span className="font-mono text-[9px] font-normal tracking-tight">
+                  {formatTime(s.lines.start_time)}-
+                  {formatTime(s.lines.end_time)}
                 </span>
               </Button>
             </div>
           </div>
-          
-          <div className="flex flex-col items-end gap-1 text-right shrink-0">
-            {variant === "audit" && (
-              <Badge variant="outline" className={`rounded px-2 py-0.5 mb-1 border-transparent text-[9px] font-semibold tracking-wider uppercase ${s.status === "approved" ? "bg-primary/20 text-primary" : "bg-destructive/20 text-destructive"}`}>
-                {s.status}
-              </Badge>
-            )}
-            
+
+          <div className="flex shrink-0 items-center justify-between gap-1 md:flex-col md:items-end">
             {variant === "audit" ? (
-              <>
-                <p className="text-[10px] font-bold text-white/40">
-                  Reviewed by: <span className="text-white">{s.reviewer?.display_name || "Unknown"}</span>
+              <div className="flex flex-col md:items-end">
+                <Badge
+                  variant="outline"
+                  className={`mb-1 rounded border-transparent px-1.5 py-0 text-[8px] font-normal tracking-wider uppercase ${s.status === "approved" ? "bg-primary/20 text-primary" : "bg-destructive/20 text-destructive"}`}
+                >
+                  {s.status}
+                </Badge>
+                <p className="text-[8px] leading-none font-normal text-white/30">
+                  AUDITED_BY:{" "}
+                  <span className="text-white/60">
+                    {s.reviewer?.display_name || "UNKNOWN"}
+                  </span>
                 </p>
-                <p className="text-[9px] font-bold text-white/20">
-                  Suggested by: {s.user?.display_name || "Anon"}
-                </p>
-              </>
-            ) : (
-              <>
-                <p className="text-[9px] font-bold whitespace-nowrap text-white/20">
-                  SUBMITTED_BY: {s.user?.display_name?.toUpperCase() || "ANON"}
-                </p>
-                <p className="text-[10px] font-semibold text-white/10">
-                  S_#{s.line_id.toString().padStart(4, "0")}
-                </p>
-              </>
-            )}
+              </div>
+            ) : null}
           </div>
         </div>
 
-        <div className="flex flex-1 flex-col gap-4">
+        <div className="flex flex-1 flex-col gap-4 px-0.5">
           <div className="space-y-1">
             <span className="text-[8px] font-semibold tracking-[0.2em] text-white/20 uppercase">
               {variant === "audit" ? "ORIGINAL" : "CURRENT"}
             </span>
-            <p className={`border-l-2 pl-3 text-sm leading-relaxed font-medium transition-colors ${
-              variant === "audit" && s.status === "rejected" ? "border-primary/50 text-white" : 
-              variant === "audit" ? "border-white/5 text-white/40 line-through" :
-              "border-white/5 text-white/40"
-            }`}>
-               {variant === "review" ? `"${s.original_content}"` : s.original_content}
+            <p
+              className={`border-l-2 pl-3 text-xs leading-relaxed font-medium transition-colors sm:text-sm ${
+                variant === "audit" && s.status === "rejected"
+                  ? "border-primary/50 text-white"
+                  : variant === "audit"
+                    ? "border-white/5 text-white/40 line-through"
+                    : "border-white/5 text-white/40"
+              }`}
+            >
+              {variant === "review"
+                ? `${s.original_content}`
+                : s.original_content}
             </p>
           </div>
           <div className="relative space-y-1">
-            <span className={`text-[8px] font-semibold tracking-[0.2em] uppercase ${variant === "review" ? "text-primary/60" : "text-white/20"}`}>
+            <span
+              className={`text-[8px] font-semibold tracking-[0.2em] uppercase ${variant === "review" ? "text-primary/60" : "text-white/20"}`}
+            >
               SUGGESTION
             </span>
-            <p className={`border-l-2 pl-3 text-base leading-snug font-semibold tracking-tight transition-all ${
-              variant === "review" ? "text-white border-primary" :
-              s.status === "approved" ? "text-primary border-primary" : 
-              "decoration-destructive/50 border-white/5 text-white/40 line-through"
-            }`}>
+            <p
+              className={`border-l pl-3 text-sm leading-snug font-semibold tracking-tight transition-all sm:text-base ${
+                variant === "review"
+                  ? "border-primary text-white"
+                  : s.status === "approved"
+                    ? "text-primary border-primary"
+                    : "decoration-destructive/50 border-white/5 text-white/40 line-through"
+              }`}
+            >
               {s.suggested_content}
             </p>
           </div>
-          
+
           {variant === "audit" && s.review_note && (
-            <div className="mt-2 text-xs whitespace-pre-wrap text-white/60 bg-white/5 rounded-xl p-3 border border-white/5">
-              <span className="mr-2 text-[10px] font-bold text-white/40 uppercase">Note:</span>
+            <div className="mt-1 rounded-lg border border-white/5 bg-white/5 p-3 text-[11px] whitespace-pre-wrap text-white/50">
+              <span className="mr-2 text-[9px] font-normal text-white/30 uppercase">
+                Note:
+              </span>
               {s.review_note}
             </div>
           )}
@@ -160,7 +195,7 @@ export function SuggestionCard({ suggestion: s, variant, onAction, processingId 
 
         {/* Actions Row */}
         {onAction && (
-          <div className="mt-6 flex items-center justify-end gap-3 border-t border-white/5 pt-5">
+          <div className="mt-4 flex items-center justify-end gap-4 border-t border-white/5 pt-4">
             {variant === "review" ? (
               <>
                 <Button
@@ -179,7 +214,11 @@ export function SuggestionCard({ suggestion: s, variant, onAction, processingId 
                   disabled={isProcessing}
                   className="shadow-primary/10 bg-primary hover:bg-primary/90 h-8 rounded-xl px-6 text-[10px] font-semibold text-black uppercase shadow-lg transition-all active:scale-95"
                 >
-                  {isProcessing ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="mr-1.5 h-4 w-4" />}
+                  {isProcessing ? (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  ) : (
+                    <Check className="mr-1.5 h-4 w-4" />
+                  )}
                   Approve
                 </Button>
               </>
@@ -196,7 +235,8 @@ export function SuggestionCard({ suggestion: s, variant, onAction, processingId 
                 ) : (
                   <>
                     <UndoIcon className="mr-2 h-3 w-3" />
-                    Override to {s.status === "approved" ? "Rejection" : "Approval"}
+                    Override to{" "}
+                    {s.status === "approved" ? "Rejection" : "Approval"}
                   </>
                 )}
               </Button>
