@@ -69,11 +69,6 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const analyticsSrc =
-    process.env.NODE_ENV === "production"
-      ? "/_vercel/insights/script.js"
-      : "https://va.vercel-scripts.com/v1/script.debug.js";
-
   return (
     <html
       lang="en"
@@ -88,7 +83,6 @@ export default async function RootLayout({
           <ErrorBoundary>{children}</ErrorBoundary>
         </AuthProvider>
         <Toaster />
-        <Script src={analyticsSrc} strategy="afterInteractive" />
         {process.env.NEXT_PUBLIC_GA_ID && (
           <>
             <Script
