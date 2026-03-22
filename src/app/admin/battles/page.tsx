@@ -9,7 +9,7 @@ import { TableSkeleton } from "@/components/admin/TableSkeleton";
 import { DataPagination } from "@/components/admin/DataPagination";
 import { usePaginatedFetch } from "@/hooks/use-paginated-fetch";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
-import { Search, Users, ExternalLink, ArrowUpDown, X } from "lucide-react";
+import { Search, Users, ArrowUpDown, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -154,8 +154,8 @@ export default function BattleAdminPage() {
 
   return (
     <AdminPageShell error={error}>
-      <PageHeader title="Battle Directory" itemCount={total} itemLabel="TOTAL">
-        <div className="flex w-full flex-col items-center gap-4 md:w-auto md:flex-row">
+      <PageHeader title="Battles" itemCount={loading ? undefined : total}>
+        <div className="flex w-full items-center gap-4 md:w-auto md:flex-row">
           {selectedBattleIds.size > 0 && (
             <div className="flex items-center gap-3">
               <span className="text-primary text-[10px] font-semibold tracking-widest whitespace-nowrap uppercase">
@@ -226,155 +226,236 @@ export default function BattleAdminPage() {
         <TableSkeleton rows={8} cols={5} />
       ) : (
         <>
-          <div className="overflow-hidden rounded-3xl border border-white/5 bg-[#141417] shadow-xl">
-            <div className="overflow-x-auto">
-              <Table className="w-full text-left">
-                <TableHeader>
-                  <TableRow className="border-b border-white/5 bg-white/2 hover:bg-white/2">
-                    <TableHead className="w-12 px-6 py-4">
-                      <Checkbox
-                        checked={
-                          battles.length > 0 &&
-                          selectedBattleIds.size === battles.length
-                        }
-                        onCheckedChange={toggleAll}
-                        className="data-[state=checked]:bg-primary data-[state=checked]:border-primary border-white/20"
-                      />
-                    </TableHead>
-                    <TableHead className="px-6 py-4 text-[10px] font-semibold tracking-widest text-white/40 uppercase">
-                      Battle Title
-                    </TableHead>
-                    <TableHead className="px-6 py-4 text-[10px] font-semibold tracking-widest text-white/40 uppercase">
-                      Participants
-                    </TableHead>
-                    <TableHead className="px-6 py-4 text-[10px] font-semibold tracking-widest text-white/40 uppercase">
-                      Event
-                    </TableHead>
-                    <TableHead className="px-6 py-4 text-center text-[10px] font-semibold tracking-widest text-white/40 uppercase">
-                      Status
-                    </TableHead>
-                    <TableHead className="px-6 py-4 text-right text-[10px] font-semibold tracking-widest text-white/40 uppercase">
-                      Actions
-                    </TableHead>
+          {/* Desktop Table View */}
+          <div className="hidden overflow-hidden rounded-2xl border border-white/5 bg-[#141417] shadow-xl md:block">
+            <Table className="w-full text-left">
+              <TableHeader>
+                <TableRow className="border-b border-white/5 bg-white/2 hover:bg-white/2">
+                  <TableHead className="w-10 px-6 py-3">
+                    <Checkbox
+                      checked={
+                        battles.length > 0 &&
+                        selectedBattleIds.size === battles.length
+                      }
+                      onCheckedChange={toggleAll}
+                      className="data-[state=checked]:bg-primary data-[state=checked]:border-primary border-white/20"
+                    />
+                  </TableHead>
+                  <TableHead className="px-6 py-3 text-[10px] font-semibold tracking-widest text-white/40 uppercase">
+                    Battle
+                  </TableHead>
+                  <TableHead className="px-6 py-3 text-[10px] font-semibold tracking-widest text-white/40 uppercase">
+                    Emcees
+                  </TableHead>
+                  <TableHead className="px-6 py-3 text-[10px] font-semibold tracking-widest text-white/40 uppercase">
+                    Event
+                  </TableHead>
+                  <TableHead className="px-6 py-3 text-center text-[10px] font-semibold tracking-widest text-white/40 uppercase">
+                    Status
+                  </TableHead>
+                  <TableHead className="px-6 py-3 text-right text-[10px] font-semibold tracking-widest text-white/40 uppercase">
+                    Actions
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody className="divide-y divide-white/5 text-sm">
+                {battles.length === 0 ? (
+                  <TableRow>
+                    <TableCell
+                      colSpan={6}
+                      className="border-transparent px-6 py-12 text-center text-[10px] font-semibold tracking-widest text-white/40 uppercase"
+                    >
+                      No battles found
+                    </TableCell>
                   </TableRow>
-                </TableHeader>
-                <TableBody className="divide-y divide-white/5 text-sm">
-                  {battles.length === 0 ? (
-                    <TableRow>
-                      <TableCell
-                        colSpan={6}
-                        className="border-transparent px-6 py-12 text-center text-sm font-bold text-white/40"
-                      >
-                        No battles found matching {`"${search}"`}
+                ) : (
+                  battles.map((b) => (
+                    <TableRow
+                      key={b.id}
+                      className={`group border-white/5 transition-colors hover:bg-white/2 ${selectedBattleIds.has(b.id) ? "bg-primary/5" : ""}`}
+                    >
+                      <TableCell className="px-6 py-3">
+                        <Checkbox
+                          checked={selectedBattleIds.has(b.id)}
+                          onCheckedChange={() => toggleBattle(b.id)}
+                          className="data-[state=checked]:bg-primary data-[state=checked]:border-primary border-white/20"
+                        />
+                      </TableCell>
+                      <TableCell className="max-w-[300px] px-6 py-4">
+                        <Link
+                          href={`/battle/${b.id}`}
+                          prefetch={false}
+                          className="group/link flex flex-col hover:cursor-pointer"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          <div className="group-hover/link:text-primary truncate text-sm font-semibold text-white transition-colors">
+                            {b.title}
+                          </div>
+                          <div className="mt-0.5 flex items-center gap-1 font-mono text-[9px] text-white/20">
+                            YT: {b.youtube_id}
+                          </div>
+                        </Link>
+                      </TableCell>
+                      <TableCell className="px-6 py-4">
+                        <div className="flex flex-wrap gap-1">
+                          {b.battle_participants?.length > 0 ? (
+                            b.battle_participants.map((p) => (
+                              <Badge
+                                key={p.id}
+                                variant="outline"
+                                className="hover:border-destructive/30 hover:bg-destructive/10 hover:text-destructive flex cursor-pointer items-center gap-1 rounded-md border border-white/5 bg-white/5 px-2 py-0.5 text-[8px] font-semibold tracking-widest text-white/60 uppercase transition-colors"
+                                onClick={() => removeParticipant(p.id)}
+                              >
+                                {p.emcees?.name}
+                              </Badge>
+                            ))
+                          ) : (
+                            <span className="text-[9px] text-white/20 italic">
+                              Empty
+                            </span>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell className="px-6 py-4">
+                        <div className="text-[11px] font-bold text-white/70">
+                          {b.event_name || "—"}
+                        </div>
+                        <div className="mt-0.5 text-[9px] tracking-tighter text-white/30 uppercase">
+                          {b.event_date
+                            ? new Date(b.event_date).toLocaleDateString()
+                            : ""}
+                        </div>
+                      </TableCell>
+                      <TableCell className="px-6 py-4 text-center">
+                        <Badge
+                          variant="outline"
+                          className={`rounded-md border-transparent px-2 py-0.5 text-[8px] font-semibold tracking-widest uppercase ${
+                            b.status === "raw"
+                              ? "bg-white/5 text-white/30"
+                              : b.status === "arranged"
+                                ? "bg-blue-500/10 text-blue-400"
+                                : b.status === "reviewing"
+                                  ? "bg-amber-500/10 text-amber-400"
+                                  : "bg-emerald-500/10 text-emerald-400"
+                          }`}
+                        >
+                          {b.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="px-6 py-4 text-right">
+                        <Button
+                          variant="ghost"
+                          onClick={() => {
+                            setSelectedBattleIds(new Set([b.id]));
+                            setIsBulkAssignOpen(true);
+                          }}
+                          className="text-primary hover:text-primary-foreground hover:bg-primary h-7 px-2.5 text-[9px] font-semibold tracking-widest uppercase transition-colors"
+                        >
+                          Assign
+                        </Button>
                       </TableCell>
                     </TableRow>
-                  ) : (
-                    battles.map((b) => (
-                      <TableRow
-                        key={b.id}
-                        className={`group border-white/5 transition-colors hover:bg-white/2 ${selectedBattleIds.has(b.id) ? "bg-primary/5" : ""}`}
-                      >
-                        <TableCell className="px-6 py-4">
-                          <Checkbox
-                            checked={selectedBattleIds.has(b.id)}
-                            onCheckedChange={() => toggleBattle(b.id)}
-                            className="data-[state=checked]:bg-primary data-[state=checked]:border-primary border-white/20"
-                          />
-                        </TableCell>
-                        <TableCell className="max-w-[400px] px-6 py-4">
-                          <Link
-                            href={`/battle/${b.id}`}
-                            prefetch={false}
-                            className="group/link flex flex-col hover:cursor-pointer overflow-hidden"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                          >
-                            <div className="group-hover/link:text-primary text-sm font-bold text-white underline-offset-4 transition-colors hover:underline whitespace-nowrap overflow-x-auto custom-scrollbar pb-1">
-                              {b.title}
-                            </div>
-                            <div className="mt-0.5 flex items-center gap-1 font-mono text-[9px] text-white/20">
-                              YT: {b.youtube_id}{" "}
-                              <ExternalLink className="h-3 w-3" />
-                            </div>
-                          </Link>
-                        </TableCell>
-                        <TableCell className="px-6 py-4">
-                          <div className="flex min-w-[150px] flex-wrap gap-1.5">
-                            {b.battle_participants &&
-                            b.battle_participants.length > 0 ? (
-                              b.battle_participants.map((p) => (
-                                <Badge
-                                  key={p.id}
-                                  variant="outline"
-                                  className="hover:border-destructive/30 hover:bg-destructive/10 hover:text-destructive flex cursor-pointer items-center gap-1 rounded-lg border border-white/10 bg-white/5 px-2 py-0.5 text-[9px] font-semibold tracking-widest text-white/80 transition-colors"
-                                  title="Click to remove"
-                                  onClick={() => removeParticipant(p.id)}
-                                >
-                                  {p.emcees?.name || "Unknown"}
-                                  <span className="opacity-50 hover:opacity-100">
-                                    &times;
-                                  </span>
-                                </Badge>
-                              ))
-                            ) : (
-                              <span className="text-[10px] text-white/20 italic">
-                                No emcees assigned
-                              </span>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell className="px-6 py-4">
-                          <div className="text-xs font-semibold text-white/80">
-                            {b.event_name || "—"}
-                          </div>
-                          {b.event_date && (
-                            <div className="mt-1 text-[10px] text-white/40">
-                              {new Date(b.event_date).toLocaleDateString()}
-                            </div>
-                          )}
-                        </TableCell>
-                        <TableCell className="px-6 py-4 text-center">
-                          <Badge
-                            variant="outline"
-                            className={`rounded-md border-transparent px-2 py-0.5 text-[9px] font-semibold tracking-wider whitespace-nowrap uppercase ${
-                              b.status === "raw"
-                                ? "bg-white/5 text-white/40"
-                                : b.status === "arranged"
-                                  ? "bg-blue-500/10 text-blue-400"
-                                  : b.status === "reviewing"
-                                    ? "bg-amber-500/10 text-amber-400"
-                                    : "bg-emerald-500/10 text-emerald-400"
-                            }`}
-                          >
-                            {b.status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="px-6 py-4 text-right">
-                          <Button
-                            variant="ghost"
-                            onClick={() => {
-                              setSelectedBattleIds(new Set([b.id]));
-                              setIsBulkAssignOpen(true);
-                            }}
-                            className="text-primary hover:text-primary-foreground hover:bg-primary h-8 px-3 text-[10px] font-semibold tracking-widest uppercase transition-colors"
-                          >
-                            Assign
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </div>
+                  ))
+                )}
+              </TableBody>
+            </Table>
           </div>
 
-          <DataPagination
-            page={page}
-            totalItems={total}
-            itemsPerPage={limit}
-            onPageChange={setPage}
-          />
+          {/* Mobile Card View */}
+          <div className="grid gap-3 md:hidden">
+            {battles.map((b) => (
+              <div
+                key={b.id}
+                className={`rounded-2xl border border-white/5 bg-[#141417] p-4 shadow-lg transition-all ${selectedBattleIds.has(b.id) ? "ring-primary/40 bg-primary/5 ring-1" : ""}`}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-start gap-3">
+                    <Checkbox
+                      checked={selectedBattleIds.has(b.id)}
+                      onCheckedChange={() => toggleBattle(b.id)}
+                      className="data-[state=checked]:bg-primary data-[state=checked]:border-primary mt-1 border-white/20"
+                    />
+                    <div>
+                      <Link
+                        href={`/battle/${b.id}`}
+                        target="_blank"
+                        className="hover:text-primary text-sm leading-tight font-semibold text-white transition-colors"
+                      >
+                        {b.title}
+                      </Link>
+                      <div className="mt-1 flex items-center gap-1.5 font-mono text-[9px] text-white/20">
+                        YT: {b.youtube_id}
+                        <Badge
+                          variant="outline"
+                          className={`rounded-sm border-transparent px-1 py-0 text-[7px] font-semibold tracking-widest uppercase ${
+                            b.status === "raw"
+                              ? "bg-white/5 text-white/30"
+                              : b.status === "arranged"
+                                ? "bg-blue-500/10 text-blue-400"
+                                : b.status === "reviewing"
+                                  ? "bg-amber-500/10 text-amber-400"
+                                  : "bg-emerald-500/10 text-emerald-400"
+                          }`}
+                        >
+                          {b.status}
+                        </Badge>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-4 flex flex-wrap gap-1.5">
+                  {b.battle_participants?.map((p) => (
+                    <Badge
+                      key={p.id}
+                      variant="outline"
+                      className="flex items-center gap-1 rounded-md border border-white/5 bg-white/5 px-2 py-0.5 text-[8px] font-semibold tracking-widest text-white/60 uppercase"
+                      onClick={() => removeParticipant(p.id)}
+                    >
+                      {p.emcees?.name}
+                      <X className="h-2 w-2 opacity-40" />
+                    </Badge>
+                  ))}
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setSelectedBattleIds(new Set([b.id]));
+                      setIsBulkAssignOpen(true);
+                    }}
+                    className="h-5 rounded-md border border-dashed border-white/10 bg-transparent px-2 text-[8px] font-semibold text-white/30 uppercase hover:bg-white/5 hover:text-white"
+                  >
+                    + Assign
+                  </Button>
+                </div>
+
+                <div className="mt-4 flex items-center justify-between border-t border-white/5 pt-3">
+                  <div className="text-[10px] font-bold tracking-widest text-white/40 uppercase">
+                    {b.event_name || "Unknown Event"}
+                  </div>
+                  <div className="text-[9px] font-medium text-white/20">
+                    {b.event_date
+                      ? new Date(b.event_date).toLocaleDateString()
+                      : ""}
+                  </div>
+                </div>
+              </div>
+            ))}
+            {battles.length === 0 && (
+              <div className="rounded-2xl border border-dashed border-white/10 px-6 py-12 text-center text-[10px] font-semibold tracking-widest text-white/40 uppercase">
+                No battles found
+              </div>
+            )}
+          </div>
+
+          <div className="mt-6">
+            <DataPagination
+              page={page}
+              totalItems={total}
+              itemsPerPage={limit}
+              onPageChange={setPage}
+            />
+          </div>
         </>
       )}
 

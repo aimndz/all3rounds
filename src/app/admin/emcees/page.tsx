@@ -150,7 +150,7 @@ export default function EmceeAdminPage() {
 
   return (
     <AdminPageShell error={error}>
-      <PageHeader title="Emcee Directory" itemCount={total} itemLabel="TOTAL">
+      <PageHeader title="Emcees" itemCount={loading ? undefined : total}>
         <div className="group relative w-full md:w-[320px]">
           <Search className="absolute top-1/2 left-4 h-4 w-4 -translate-y-1/2 text-white/20 transition-colors group-focus-within:text-white" />
           <Input
@@ -177,139 +177,222 @@ export default function EmceeAdminPage() {
       </PageHeader>
 
       {loading ? (
-        <TableSkeleton rows={8} cols={5} />
+        <TableSkeleton rows={8} cols={4} />
       ) : (
         <>
-          <div className="overflow-hidden rounded-3xl border border-white/5 bg-[#141417] shadow-xl">
-            <div className="overflow-x-auto">
-              <Table className="w-full text-left">
-                <TableHeader>
-                  <TableRow className="border-b border-white/5 bg-white/2 hover:bg-white/2">
-                    <TableHead className="px-6 py-4 text-[10px] font-semibold tracking-widest text-white/40 uppercase">
-                      Emcee
-                    </TableHead>
-                    <TableHead className="px-6 py-4 text-[10px] font-semibold tracking-widest text-white/40 uppercase">
-                      AKA
-                    </TableHead>
-                    <TableHead className="px-6 py-4 text-center text-[10px] font-semibold tracking-widest text-white/40 uppercase">
-                      Stats
-                    </TableHead>
-
-                    <TableHead className="px-6 py-4 text-right text-[10px] font-semibold tracking-widest text-white/40 uppercase">
-                      Actions
-                    </TableHead>
+          {/* Desktop Table View */}
+          <div className="hidden overflow-hidden rounded-2xl border border-white/5 bg-[#141417] shadow-xl md:block">
+            <Table className="w-full text-left">
+              <TableHeader>
+                <TableRow className="border-b border-white/5 bg-white/2 hover:bg-white/2">
+                  <TableHead className="px-6 py-3 text-[10px] font-semibold tracking-widest text-white/40 uppercase">
+                    Emcee
+                  </TableHead>
+                  <TableHead className="px-6 py-3 text-[10px] font-semibold tracking-widest text-white/40 uppercase">
+                    AKA
+                  </TableHead>
+                  <TableHead className="px-6 py-3 text-center text-[10px] font-semibold tracking-widest text-white/40 uppercase">
+                    Activity
+                  </TableHead>
+                  <TableHead className="px-6 py-3 text-right text-[10px] font-semibold tracking-widest text-white/40 uppercase">
+                    Actions
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody className="divide-y divide-white/5 text-sm">
+                {emcees.length === 0 ? (
+                  <TableRow>
+                    <TableCell
+                      colSpan={4}
+                      className="border-transparent px-6 py-12 text-center text-[10px] font-semibold tracking-widest text-white/40 uppercase"
+                    >
+                      No emcees found
+                    </TableCell>
                   </TableRow>
-                </TableHeader>
-                <TableBody className="divide-y divide-white/5 text-sm">
-                  {emcees.length === 0 ? (
-                    <TableRow>
-                      <TableCell
-                        colSpan={5}
-                        className="border-transparent px-6 py-12 text-center text-sm font-bold text-white/40"
-                      >
-                        No emcees found matching {`"${search}"`}
+                ) : (
+                  emcees.map((e) => (
+                    <TableRow
+                      key={e.id}
+                      className="group border-white/5 transition-colors hover:bg-white/2"
+                    >
+                      <TableCell className="px-6 py-4">
+                        <Link
+                          href={`/emcees/${e.id}`}
+                          prefetch={false}
+                          className="group/link flex flex-col hover:cursor-pointer"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          <div className="group-hover/link:text-primary text-sm font-semibold text-white transition-colors">
+                            {e.name}
+                          </div>
+                          <div className="mt-0.5 font-mono text-[9px] text-white/20">
+                            {e.id}
+                          </div>
+                        </Link>
                       </TableCell>
-                    </TableRow>
-                  ) : (
-                    emcees.map((e) => (
-                      <TableRow
-                        key={e.id}
-                        className="group border-white/5 transition-colors hover:bg-white/2"
-                      >
-                        <TableCell className="px-6 py-4 whitespace-nowrap">
-                          <Link
-                            href={`/emcees/${e.id}`}
-                            prefetch={false}
-                            className="group/link flex flex-col hover:cursor-pointer"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                          >
-                            <div className="group-hover/link:text-primary text-base font-bold text-white underline-offset-4 transition-colors hover:underline">
-                              {e.name}
-                            </div>
-                            <div className="mt-0.5 font-mono text-[10px] text-white/20">
-                              {e.id}
-                            </div>
-                          </Link>
-                        </TableCell>
-                        <TableCell className="px-6 py-4">
+                      <TableCell className="px-6 py-4">
+                        <div className="flex flex-wrap gap-1">
                           {e.aka && e.aka.length > 0 ? (
-                            <div className="flex flex-wrap gap-1.5">
-                              {e.aka.map((a, i) => (
-                                <Badge
-                                  key={i}
-                                  variant="outline"
-                                  onClick={() =>
-                                    setUnmergeState({ emcee: e, akaName: a })
-                                  }
-                                  className="cursor-pointer rounded-lg border border-white/10 bg-white/5 px-2 py-0.5 text-[9px] font-semibold tracking-widest text-white/60 uppercase transition-all hover:border-emerald-500/50 hover:bg-emerald-500/10 hover:text-emerald-400"
-                                >
-                                  {a}
-                                </Badge>
-                              ))}
-                            </div>
+                            e.aka.map((a, i) => (
+                              <Badge
+                                key={i}
+                                variant="outline"
+                                onClick={() =>
+                                  setUnmergeState({ emcee: e, akaName: a })
+                                }
+                                className="cursor-pointer rounded-md border border-white/5 bg-white/5 px-2 py-0.5 text-[8px] font-semibold tracking-widest text-white/50 uppercase transition-all hover:border-emerald-500/50 hover:bg-emerald-500/10 hover:text-emerald-400"
+                              >
+                                {a}
+                              </Badge>
+                            ))
                           ) : (
-                            <span className="text-[10px] text-white/20 italic">
+                            <span className="text-[9px] text-white/20 italic">
                               None
                             </span>
                           )}
-                        </TableCell>
-                        <TableCell className="px-6 py-4 text-center">
-                          <div className="flex flex-col items-center gap-1">
-                            <Badge
-                              variant="outline"
-                              className="bg-primary/10 text-primary rounded-md border-transparent px-2 py-0.5 text-[9px] font-semibold tracking-wider whitespace-nowrap uppercase"
-                            >
-                              {e.battle_count} Battles
-                            </Badge>
-                            <Badge
-                              variant="outline"
-                              className="rounded-md border-transparent bg-white/5 px-2 py-0.5 text-[9px] font-semibold tracking-wider whitespace-nowrap text-white/40 uppercase"
-                            >
-                              {e.line_count} Lines
-                            </Badge>
-                          </div>
-                        </TableCell>
+                        </div>
+                      </TableCell>
+                      <TableCell className="px-6 py-4 text-center">
+                        <div className="flex flex-col items-center gap-1">
+                          <Badge
+                            variant="outline"
+                            className="bg-primary/10 text-primary rounded-md border-transparent px-2 py-0.5 text-[8px] font-semibold tracking-widest uppercase"
+                          >
+                            {e.battle_count} Battles
+                          </Badge>
+                          <Badge
+                            variant="outline"
+                            className="rounded-md border-transparent bg-white/5 px-2 py-0.5 text-[8px] font-semibold tracking-widest text-white/30 uppercase"
+                          >
+                            {e.line_count} Lines
+                          </Badge>
+                        </div>
+                      </TableCell>
 
-                        <TableCell className="px-6 py-4 text-right">
-                          <div className="flex justify-end gap-1 transition-opacity">
-                            <Button
-                              variant="ghost"
-                              onClick={() => setEditEmcee(e)}
-                              className="h-8 px-3 text-[10px] font-semibold tracking-widest text-white/40 uppercase transition-colors hover:text-white"
-                            >
-                              Rename
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              onClick={() => setMergeSource(e)}
-                              className="h-8 px-3 text-[10px] font-semibold tracking-widest text-white/40 uppercase transition-colors hover:bg-purple-500/10 hover:text-purple-400"
-                            >
-                              Merge
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              onClick={() => setDeleteEmcee(e)}
-                              className="hover:text-destructive hover:bg-destructive/10 h-8 px-3 text-[10px] font-semibold tracking-widest text-white/40 uppercase transition-colors"
-                            >
-                              Delete
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </div>
+                      <TableCell className="px-6 py-4 text-right">
+                        <div className="flex justify-end gap-1">
+                          <Button
+                            variant="ghost"
+                            onClick={() => setEditEmcee(e)}
+                            className="h-7 px-2.5 text-[9px] font-semibold tracking-widest text-white/30 uppercase transition-colors hover:text-white"
+                          >
+                            Rename
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            onClick={() => setMergeSource(e)}
+                            className="h-7 px-2.5 text-[9px] font-semibold tracking-widest text-white/30 uppercase transition-colors hover:bg-purple-500/10 hover:text-purple-400"
+                          >
+                            Merge
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            onClick={() => setDeleteEmcee(e)}
+                            className="hover:text-destructive hover:bg-destructive/10 h-7 px-2.5 text-[9px] font-semibold tracking-widest text-white/30 uppercase transition-colors"
+                          >
+                            Delete
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
           </div>
 
-          <DataPagination
-            page={page}
-            totalItems={total}
-            itemsPerPage={limit}
-            onPageChange={setPage}
-          />
+          {/* Mobile Card View */}
+          <div className="grid gap-3 md:hidden">
+            {emcees.map((e) => (
+              <div
+                key={e.id}
+                className="rounded-2xl border border-white/5 bg-[#141417] p-4 shadow-lg transition-transform active:scale-[0.98]"
+              >
+                <div className="mb-4 flex items-start justify-between gap-4">
+                  <Link
+                    href={`/emcees/${e.id}`}
+                    target="_blank"
+                    className="group flex flex-col"
+                  >
+                    <div className="group-hover:text-primary text-sm font-semibold text-white transition-colors">
+                      {e.name}
+                    </div>
+                    <div className="mt-0.5 font-mono text-[9px] text-white/20">
+                      {e.id}
+                    </div>
+                  </Link>
+
+                  <div className="flex flex-col items-end gap-1">
+                    <Badge
+                      variant="outline"
+                      className="bg-primary/10 text-primary border-transparent px-1.5 py-0 text-[7px] font-semibold uppercase"
+                    >
+                      {e.battle_count} BTL
+                    </Badge>
+                    <Badge
+                      variant="outline"
+                      className="border-transparent bg-white/5 px-1.5 py-0 text-[7px] font-semibold text-white/30 uppercase"
+                    >
+                      {e.line_count} LN
+                    </Badge>
+                  </div>
+                </div>
+
+                {e.aka && e.aka.length > 0 && (
+                  <div className="mb-4 flex flex-wrap gap-1">
+                    {e.aka.map((a, i) => (
+                      <Badge
+                        key={i}
+                        variant="outline"
+                        className="rounded-md border border-white/5 bg-white/5 px-2 py-0.5 text-[8px] font-semibold tracking-widest text-white/40 uppercase"
+                      >
+                        {a}
+                      </Badge>
+                    ))}
+                  </div>
+                )}
+
+                <div className="flex items-center justify-end gap-1 border-t border-white/5 pt-3">
+                  <Button
+                    variant="ghost"
+                    onClick={() => setEditEmcee(e)}
+                    className="h-7 px-2.5 text-[9px] font-semibold text-white/30 uppercase"
+                  >
+                    Rename
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    onClick={() => setMergeSource(e)}
+                    className="h-7 px-2.5 text-[9px] font-semibold text-white/30 uppercase"
+                  >
+                    Merge
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    onClick={() => setDeleteEmcee(e)}
+                    className="text-destructive/50 hover:text-destructive h-7 px-2.5 text-[9px] font-semibold uppercase"
+                  >
+                    Delete
+                  </Button>
+                </div>
+              </div>
+            ))}
+            {emcees.length === 0 && (
+              <div className="rounded-2xl border border-dashed border-white/10 px-6 py-12 text-center text-[10px] font-semibold tracking-widest text-white/40 uppercase">
+                No emcees found
+              </div>
+            )}
+          </div>
+
+          <div className="mt-6">
+            <DataPagination
+              page={page}
+              totalItems={total}
+              itemsPerPage={limit}
+              onPageChange={setPage}
+            />
+          </div>
         </>
       )}
 
