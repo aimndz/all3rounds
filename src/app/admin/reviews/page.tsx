@@ -12,7 +12,6 @@ import {
 } from "@/components/admin/SuggestionCard";
 import { usePaginatedFetch } from "@/hooks/use-paginated-fetch";
 import { useToast } from "@/hooks/use-toast";
-import { History } from "lucide-react";
 
 const FILTER_OPTIONS = [
   { value: "all", label: "All Items" },
@@ -83,12 +82,7 @@ export default function AdminReviewsPage() {
 
   return (
     <AdminPageShell error={error}>
-      <PageHeader
-        title="Review Audit Log"
-        icon={History}
-        itemCount={total}
-        itemLabel="ITEMS"
-      >
+      <PageHeader title="Audit Log" itemCount={loading ? undefined : total}>
         <StatusFilterTabs
           options={FILTER_OPTIONS}
           value={statusFilter}

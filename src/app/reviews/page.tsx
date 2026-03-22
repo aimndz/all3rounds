@@ -78,7 +78,7 @@ export default function ReviewsPage() {
     <div className="selection:bg-primary/20 min-h-screen bg-[#09090b] text-[#fafafa]">
       <Header />
       <main className="mx-auto max-w-5xl px-4 py-12">
-        <PageHeader title="PENDING FIXES" itemCount={total} itemLabel="ITEMS">
+        <PageHeader title="PENDING FIXES" itemCount={loading ? undefined : total}>
           <div className="flex items-center gap-2">
             <Select 
               value={sortBy} 
