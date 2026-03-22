@@ -33,6 +33,8 @@ node_modules/
 dist/
 build/
 .next/
+.open-next/
+.wrangler/
 out/
 .vercel
 coverage/

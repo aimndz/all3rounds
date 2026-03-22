@@ -30,11 +30,13 @@ const PUBLIC_CACHE_CONFIGS = [
   },
   {
     pattern: /^\/privacy-policy$/,
-    cache: "public, max-age=14400, s-maxage=31536000, stale-while-revalidate=59",
+    cache:
+      "public, max-age=14400, s-maxage=31536000, stale-while-revalidate=59",
   },
   {
     pattern: /^\/terms-of-service$/,
-    cache: "public, max-age=14400, s-maxage=31536000, stale-while-revalidate=59",
+    cache:
+      "public, max-age=14400, s-maxage=31536000, stale-while-revalidate=59",
   },
   {
     pattern: /^\/battles?(\/.*)?$/,
@@ -79,7 +81,7 @@ function buildCsp(isDev: boolean) {
     .join("; ");
 }
 
-export default async function proxy(request: NextRequest) {
+export default async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // 1. Immediately block malicious bot probes
@@ -143,7 +145,6 @@ export default async function proxy(request: NextRequest) {
   } else {
     response = await updateSession(request);
   }
-
 
   const isDev = process.env.NODE_ENV !== "production";
   const csp = buildCsp(isDev);
