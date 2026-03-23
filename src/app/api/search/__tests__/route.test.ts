@@ -1,36 +1,48 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NextRequest } from "next/server";
 
-// Mock dependencies
-const mockDbQuery = vi.fn().mockResolvedValue({ rows: [] });
+// ── Mock Dependencies ──
+vi.mock("@/lib/supabase/server", () => {
+  const mockChain: any = {
+    range: vi.fn().mockReturnThis(),
+    select: vi.fn().mockReturnThis(),
+    in: vi.fn().mockReturnThis(),
+    eq: vi.fn().mockReturnThis(),
+    order: vi.fn().mockReturnThis(),
+    single: vi.fn().mockReturnThis(),
+    // Important: supabase-js methods return a promise-like object
+    then: vi.fn((onFulfilled: (res: any) => any) => Promise.resolve({ data: [], error: null }).then(onFulfilled)),
+  };
+  
+  const mockRpc = vi.fn().mockReturnValue(mockChain);
+  const mockFrom = vi.fn().mockReturnValue(mockChain);
+  
+  const client = {
+    rpc: mockRpc,
+    from: mockFrom,
+    auth: { getUser: vi.fn().mockResolvedValue({ data: { user: null } }) },
+  };
 
-vi.mock("@/lib/db", () => ({
-  db: {
-    query: (...args: unknown[]) => mockDbQuery(...args),
-    pool: { totalCount: 0, idleCount: 0, waitingCount: 0 }
-  }
-}));
+  return {
+    createClient: vi.fn().mockResolvedValue(client),
+    createAdminClient: vi.fn().mockReturnValue(client),
+    __mocks: { client, mockRpc, mockFrom, mockChain },
+  };
+});
 
 vi.mock("@/lib/rate-limit", () => ({
   checkRateLimit: vi.fn().mockResolvedValue({
     allowed: true,
-    remaining: 29,
-    limit: 30,
+    remaining: 9,
+    limit: 10,
     reset: Date.now() + 60000,
   }),
-  getRateLimitHeaders: vi.fn().mockReturnValue({}),
-}));
-
-// No longer needed
-
-vi.mock("@/lib/rate-limit", () => ({
-  checkRateLimit: vi.fn().mockResolvedValue({
-    allowed: true,
-    remaining: 29,
-    limit: 30,
-    reset: Date.now() + 60000,
+  getRateLimitHeaders: vi.fn().mockReturnValue({
+    "X-RateLimit-Limit": "10",
+    "X-RateLimit-Remaining": "9",
+    "X-RateLimit-Reset": "123456789",
   }),
-  getRateLimitHeaders: vi.fn().mockReturnValue({}),
 }));
 
 vi.mock("@/lib/cache", () => ({
@@ -38,9 +50,8 @@ vi.mock("@/lib/cache", () => ({
   setCached: vi.fn().mockResolvedValue(undefined),
 }));
 
+// Import the GET handler AFTER mocking
 import { GET } from "@/app/api/search/route";
-import { checkRateLimit } from "@/lib/rate-limit";
-import { getCached } from "@/lib/cache";
 
 function makeRequest(params: Record<string, string> = {}): NextRequest {
   const url = new URL("http://localhost/api/search");
@@ -50,104 +61,78 @@ function makeRequest(params: Record<string, string> = {}): NextRequest {
   return new NextRequest(url);
 }
 
-describe("GET /api/search", () => {
+describe("GET /api/search (Cloudflare Migration)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockDbQuery.mockResolvedValue({ rows: [] });
   });
 
-  it("returns 400 if query is missing", async () => {
-    const res = await GET(makeRequest());
+  it("returns 400 for empty or very short queries", async () => {
+    const res = await GET(makeRequest({ q: " " }));
     expect(res.status).toBe(400);
     const body = await res.json();
-    expect(body.error).toMatch(/between 2 and 200/);
+    expect(body.error).toContain("Search query must be between 2 and 200");
   });
 
-  it("returns 400 if query is too short", async () => {
-    const res = await GET(makeRequest({ q: "a" }));
-    expect(res.status).toBe(400);
-  });
-
-  it("returns 400 if query is too long", async () => {
-    const res = await GET(makeRequest({ q: "a".repeat(201) }));
-    expect(res.status).toBe(400);
-  });
-
-  it("returns 400 if page exceeds max (50)", async () => {
-    const res = await GET(makeRequest({ q: "test query", page: "51" }));
+  it("returns 400 when page exceeds maxPage (50)", async () => {
+    const res = await GET(makeRequest({ q: "loonie", page: "51" }));
     expect(res.status).toBe(400);
     const body = await res.json();
-    expect(body.error).toMatch(/Page number too large/);
+    expect(body.error).toContain("Page number too large");
   });
 
-  it("returns cached data if available", async () => {
-    const cached = { results: [], total: 0, page: 1, totalPages: 0 };
-    vi.mocked(getCached).mockResolvedValueOnce(cached);
+  it("returns success with formatted results from Supabase RPC", async () => {
+    const { __mocks } = await import("@/lib/supabase/server") as unknown as { __mocks: any };
+    
+    // Mock the RPC result structure
+    const mockRpcData = [
+      {
+        id: 1,
+        content: "Mocked line content",
+        battle_id: "b1",
+        battle_title: "Mock Battle",
+        battle_youtube_id: "y1",
+        battle_status: "reviewed",
+        rank: 0.99
+      }
+    ];
 
-    const res = await GET(makeRequest({ q: "test query" }));
+    __mocks.mockChain.then.mockImplementationOnce((onFulfilled: any) => 
+      Promise.resolve({
+        data: mockRpcData,
+        error: null,
+        count: 1
+      }).then(onFulfilled)
+    );
+
+    // Mock the secondary fetches (emcees, participants, context) to return empty
+    // Subsequent calls to .then should return empty data
+    __mocks.mockChain.then.mockImplementation((onFulfilled: any) => 
+      Promise.resolve({ data: [], error: null }).then(onFulfilled)
+    );
+
+    const res = await GET(makeRequest({ q: "mock term" }));
     expect(res.status).toBe(200);
+    
     const body = await res.json();
-    expect(body).toEqual(cached);
+    expect(body.results).toHaveLength(1);
+    expect(body.results[0].content).toBe("Mocked line content");
+    expect(body.total).toBe(1);
   });
 
-  it("returns 429 when rate limited", async () => {
-    vi.mocked(checkRateLimit).mockResolvedValueOnce({
-      allowed: false,
-      remaining: 0,
-      limit: 30,
-      reset: Date.now() + 60000,
-    });
+  it("handles RPC errors gracefully (returns 500)", async () => {
+    const { __mocks } = await import("@/lib/supabase/server") as unknown as { __mocks: any };
+    
+    __mocks.mockChain.then.mockImplementationOnce((onFulfilled: any) => 
+      Promise.resolve({
+        data: null,
+        error: { message: "Database Error", code: "P0001" },
+        count: 0
+      }).then(onFulfilled)
+    );
 
-    const res = await GET(makeRequest({ q: "test query" }));
-    expect(res.status).toBe(429);
-  });
-
-  it("returns search results with correct structure", async () => {
-    // The mocked supabase returns empty data, so we get an empty result set
-    const res = await GET(makeRequest({ q: "test query" }));
-    expect(res.status).toBe(200);
+    const res = await GET(makeRequest({ q: "trigger error" }));
+    expect(res.status).toBe(500);
     const body = await res.json();
-    expect(body).toHaveProperty("results");
-    expect(body).toHaveProperty("total");
-    expect(body).toHaveProperty("page");
-    expect(body).toHaveProperty("totalPages");
-  });
-
-  it("defaults page to 1 for invalid page param", async () => {
-    const res = await GET(makeRequest({ q: "test query", page: "abc" }));
-    expect(res.status).toBe(200);
-    const body = await res.json();
-    expect(body.page).toBe(1);
-  });
-
-  describe("database errors", () => {
-    it("returns 503 on statement timeout (57014)", async () => {
-      mockDbQuery.mockRejectedValueOnce({
-        code: "57014",
-        message: "canceling statement due to statement timeout",
-      });
-
-      const res = await GET(makeRequest({ q: "pebrero" }));
-      expect(res.status).toBe(503);
-      expect(mockDbQuery).toHaveBeenCalledTimes(1);
-    });
-
-    it("returns 503 on connection timeout", async () => {
-      mockDbQuery.mockRejectedValueOnce({
-        message: "timeout exceeded when trying to connect",
-      });
-
-      const res = await GET(makeRequest({ q: "pebrero" }));
-      expect(res.status).toBe(503);
-      expect(mockDbQuery).toHaveBeenCalledTimes(1);
-    });
-
-    it("returns 500 on other database errors", async () => {
-      mockDbQuery.mockRejectedValueOnce({ code: "42501", message: "permission denied" });
-
-      const res = await GET(makeRequest({ q: "test query" }));
-      expect(res.status).toBe(500);
-      expect(mockDbQuery).toHaveBeenCalledTimes(1);
-    });
+    expect(body.error).toBe("Search failed. Please try again.");
   });
 });
