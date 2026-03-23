@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { createPublicClient } from "@/lib/supabase/server";
+import { uuidSchema } from "@/lib/schemas";
 import EmceeProfile from "./EmceeProfile";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Battle } from "@/features/battles/hooks/use-battles-data";
@@ -13,6 +14,11 @@ export default async function EmceeProfilePage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+  
+  // Validate UUID to prevent database errors on bot probes (e.g. /emcees/gfdg)
+  if (!uuidSchema.safeParse(id).success) {
+    notFound();
+  }
 
 
   const supabase = createPublicClient();

@@ -9,6 +9,7 @@ import {
   invalidateCachePattern,
 } from "@/lib/cache";
 import { sortParticipantsByTitle } from "@/features/battle/utils/participant-grouping";
+import { uuidSchema } from "@/lib/schemas";
 import { z } from "zod";
 
 const UpdateBattleSchema = z.object({
@@ -22,6 +23,15 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
+  
+  // Validate UUID to prevent database errors on bot probes
+  const idValidation = uuidSchema.safeParse(id);
+  if (!idValidation.success) {
+    return NextResponse.json(
+      { error: "Invalid battle ID" },
+      { status: 400 },
+    );
+  }
 
 
   const cacheKey = `battle:${id}`;

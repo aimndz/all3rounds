@@ -4,6 +4,7 @@ import { requirePermission } from "@/lib/auth";
 import { invalidateCache } from "@/lib/cache";
 import { revalidatePath } from "next/cache";
 import { verifyCsrf } from "@/lib/csrf";
+import { uuidSchema } from "@/lib/schemas";
 import { z } from "zod";
 
 const ReviewSuggestionSchema = z.object({
@@ -24,6 +25,15 @@ export async function PATCH(
   }
 
   const { id } = await params;
+  
+  // Validate UUID to prevent database errors on bot probes
+  const idValidation = uuidSchema.safeParse(id);
+  if (!idValidation.success) {
+    return NextResponse.json(
+      { error: "Invalid suggestion ID" },
+      { status: 400 },
+    );
+  }
 
   // ── Auth & Permission Check ──
   const auth = await requirePermission("suggestions:review");
