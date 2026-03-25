@@ -37,6 +37,14 @@ type SearchResultsListProps = {
   onResultEdited: () => void;
 };
 
+type SearchApiResponse = {
+  results: SearchResult[];
+  total: number;
+  totalPages: number;
+};
+
+const SEARCH_RESULTS_CACHE_TTL_MS = 30_000;
+
 const SearchResultsList = memo(function SearchResultsList({
   results,
   canEdit,
@@ -76,6 +84,9 @@ function SearchResults() {
   const [error, setError] = useState("");
   const prevQueryRef = useRef(query);
   const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const responseCacheRef = useRef<
+    Map<string, { data: SearchApiResponse; cachedAt: number }>
+  >(new Map());
   const { canEdit, isUserLoggedIn } = useAuthStore();
 
   useEffect(() => {
@@ -88,12 +99,35 @@ function SearchResults() {
   }, [query]);
 
   const fetchResults = useCallback(
-    async (q: string, p: number, signal?: AbortSignal) => {
+    async (
+      q: string,
+      p: number,
+      signal?: AbortSignal,
+      options?: { forceRefresh?: boolean },
+    ) => {
       if (!q) {
         setLoading(false);
         setResults([]);
         setTotal(0);
         setTotalPages(0);
+        setIsInitialLoad(false);
+        return;
+      }
+
+      const cacheKey = `${q.toLowerCase()}::${p}`;
+      const now = Date.now();
+      const cached = responseCacheRef.current.get(cacheKey);
+      const useCachedData =
+        !options?.forceRefresh &&
+        cached &&
+        now - cached.cachedAt <= SEARCH_RESULTS_CACHE_TTL_MS;
+
+      if (useCachedData) {
+        setError("");
+        setResults(cached.data.results);
+        setTotal(cached.data.total);
+        setTotalPages(cached.data.totalPages);
+        setLoading(false);
         setIsInitialLoad(false);
         return;
       }
@@ -125,7 +159,13 @@ function SearchResults() {
 
           if (!res.ok) throw new Error("Search failed");
 
-          const data = await res.json();
+          const data = (await res.json()) as SearchApiResponse;
+
+          responseCacheRef.current.set(cacheKey, {
+            data,
+            cachedAt: Date.now(),
+          });
+
           if (!signal?.aborted) {
             setResults(data.results);
             setTotal(data.total);
@@ -188,7 +228,7 @@ function SearchResults() {
       }
 
       refreshTimerRef.current = setTimeout(() => {
-        void fetchResults(q, p);
+        void fetchResults(q, p, undefined, { forceRefresh: true });
         refreshTimerRef.current = null;
       }, 250);
     },
@@ -269,7 +309,9 @@ function SearchResults() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => fetchResults(query, page)}
+              onClick={() =>
+                fetchResults(query, page, undefined, { forceRefresh: true })
+              }
               className="border-destructive/20 hover:bg-destructive/10 hover:text-destructive h-8 px-3 text-xs font-bold"
             >
               Retry
