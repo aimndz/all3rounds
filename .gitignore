@@ -79,3 +79,5 @@ output.json
 *.pem
 
 supabase/.temp/
+
+.agent/*

@@ -64,7 +64,11 @@ export async function GET(request: NextRequest) {
   let countRows = 0;
 
   try {
-    const { data: searchData, error: searchError, count } = await supabase
+    const {
+      data: searchData,
+      error: searchError,
+      count,
+    } = await supabase
       .rpc("search_fast", { search_term: query }, { count: "exact" })
       .range(offset, offset + limit - 1);
 
@@ -72,7 +76,6 @@ export async function GET(request: NextRequest) {
 
     data = (searchData as SearchRpcRow[]) || [];
     countRows = count || 0;
-    
   } catch (err: unknown) {
     console.error(`Search engine error:`, err);
     return NextResponse.json(
@@ -115,22 +118,26 @@ export async function GET(request: NextRequest) {
       const uniqueEmceeIds = new Set<string>();
       formattedData.forEach((row) => {
         row.speaker_ids?.forEach((id) => uniqueEmceeIds.add(id));
-        if (row.emcee?.id) uniqueEmceeIds.add(row.emcee.id);
+        if (row.emcee?.id && row.emcee.name === "Unknown") {
+          uniqueEmceeIds.add(row.emcee.id);
+        }
       });
 
       const uniqueBattleIds = Array.from(
         new Set(formattedData.map((row) => row.battle.id)),
       );
 
-      const contextLineIds = formattedData.flatMap((row) => [
-        row.id - 1,
-        row.id + 1,
-      ]);
+      const contextLineIds = Array.from(
+        new Set(formattedData.flatMap((row) => [row.id - 1, row.id + 1])),
+      );
 
       interface ParticipantRow {
         battle_id: string;
         label: string;
-        emcee: { id: string; name: string } | { id: string; name: string }[] | null;
+        emcee:
+          | { id: string; name: string }
+          | { id: string; name: string }[]
+          | null;
       }
 
       interface LineRow {
@@ -148,7 +155,9 @@ export async function GET(request: NextRequest) {
                 .from("emcees")
                 .select("id, name")
                 .in("id", Array.from(uniqueEmceeIds))
-            : Promise.resolve({ data: [] as { id: string; name: string }[] | null }),
+            : Promise.resolve({
+                data: [] as { id: string; name: string }[] | null,
+              }),
 
           uniqueBattleIds.length > 0
             ? supabase
@@ -166,7 +175,8 @@ export async function GET(request: NextRequest) {
         ]);
 
       const emceesData = emceesResult.data || [];
-      const participantsData = (participantsResult.data as unknown as ParticipantRow[]) || [];
+      const participantsData =
+        (participantsResult.data as unknown as ParticipantRow[]) || [];
       const contextData = (contextResult.data as unknown as LineRow[]) || [];
 
       if (emceesData.length > 0) {
@@ -190,11 +200,14 @@ export async function GET(request: NextRequest) {
       }
 
       if (participantsData.length > 0) {
-        const participantMap = new Map<string, { label: string; emcee: { id: string; name: string } | null }[]>();
+        const participantMap = new Map<
+          string,
+          { label: string; emcee: { id: string; name: string } | null }[]
+        >();
         participantsData.forEach((p) => {
           if (!participantMap.has(p.battle_id))
             participantMap.set(p.battle_id, []);
-          
+
           const emceeObj = Array.isArray(p.emcee) ? p.emcee[0] : p.emcee;
           participantMap.get(p.battle_id)?.push({
             label: p.label,
@@ -207,9 +220,7 @@ export async function GET(request: NextRequest) {
       }
 
       if (contextData.length > 0) {
-        const contextMap = new Map(
-          contextData.map((line) => [line.id, line]),
-        );
+        const contextMap = new Map(contextData.map((line) => [line.id, line]));
         formattedData.forEach((row) => {
           const prev = contextMap.get(row.id - 1);
           if (prev && prev.battle_id === row.battle.id) {
@@ -250,4 +261,3 @@ export async function GET(request: NextRequest) {
     },
   });
 }
-

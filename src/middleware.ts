@@ -16,11 +16,13 @@ const PUBLIC_CACHE_CONFIGS = [
   },
   {
     pattern: /^\/privacy-policy$/,
-    cache: "public, max-age=14400, s-maxage=31536000, stale-while-revalidate=59",
+    cache:
+      "public, max-age=14400, s-maxage=31536000, stale-while-revalidate=59",
   },
   {
     pattern: /^\/terms-of-service$/,
-    cache: "public, max-age=14400, s-maxage=31536000, stale-while-revalidate=59",
+    cache:
+      "public, max-age=14400, s-maxage=31536000, stale-while-revalidate=59",
   },
   {
     pattern: /^\/battles?(\/.*)?$/,
@@ -65,19 +67,24 @@ function buildCsp(isDev: boolean) {
     .join("; ");
 }
 
+const IS_DEV = process.env.NODE_ENV !== "production";
+const CSP_HEADER = buildCsp(IS_DEV);
+
 export default async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  const isDev = process.env.NODE_ENV !== "production";
 
   // 1. Maintain Original Rate Limit Logic (API, Search, Auth, Admin)
   const isSearch = pathname === "/api/search";
   const isApiRequest = pathname.startsWith("/api/");
-  const isAuthOrAdmin = pathname.startsWith("/admin") || pathname.startsWith("/login") || pathname.startsWith("/auth");
+  const isAuthOrAdmin =
+    pathname.startsWith("/admin") ||
+    pathname.startsWith("/login") ||
+    pathname.startsWith("/auth");
   const shouldLimit = isSearch || isApiRequest || isAuthOrAdmin;
 
   let rateLimitHeaders: Record<string, string> = {};
 
-  if (shouldLimit && !isDev) {
+  if (shouldLimit && !IS_DEV) {
     const ip = getClientIp(request);
     const rateLimitType = isSearch ? "search" : "anonymous";
     const rateLimitKey = `ip:${ip}:${rateLimitType}`;
@@ -85,12 +92,17 @@ export default async function middleware(request: NextRequest) {
     rateLimitHeaders = getRateLimitHeaders(rateRes) as Record<string, string>;
 
     if (!rateRes.allowed) {
-      return NextResponse.json({ error: "Too many requests" }, { status: 429, headers: rateLimitHeaders });
+      return NextResponse.json(
+        { error: "Too many requests" },
+        { status: 429, headers: rateLimitHeaders },
+      );
     }
   }
 
   // 2. Optimized Cache & Session Logic
-  const cacheConfig = PUBLIC_CACHE_CONFIGS.find((config) => config.pattern.test(pathname));
+  const cacheConfig = PUBLIC_CACHE_CONFIGS.find((config) =>
+    config.pattern.test(pathname),
+  );
 
   let response: NextResponse;
   if (cacheConfig || isApiRequest) {
@@ -106,12 +118,16 @@ export default async function middleware(request: NextRequest) {
   }
 
   // 3. Global Headers
-  response.headers.set("Content-Security-Policy", buildCsp(isDev));
-  Object.entries(rateLimitHeaders).forEach(([key, value]) => response.headers.set(key, value));
+  response.headers.set("Content-Security-Policy", CSP_HEADER);
+  Object.entries(rateLimitHeaders).forEach(([key, value]) =>
+    response.headers.set(key, value),
+  );
 
   return response;
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|manifest|.*\\.(?:svg|png|jpg|jpeg|gif|webp|js|css|map|ico)).*)"],
+  matcher: [
+    "/((?!_next/static|_next/image|favicon.ico|manifest|.*\\.(?:svg|png|jpg|jpeg|gif|webp|js|css|map|ico)).*)",
+  ],
 };

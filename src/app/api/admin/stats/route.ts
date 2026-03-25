@@ -18,7 +18,7 @@ export async function GET(_request: NextRequest) {
   interface SuggestionData {
     status: string;
     reviewed_by: string | null;
-    reviewed_at: string;
+    reviewed_at: string | null;
   }
   let allSuggestions: SuggestionData[] = [];
   let from = 0;
@@ -94,8 +94,8 @@ export async function GET(_request: NextRequest) {
     }
   > = {};
 
-  suggestions?.forEach((sugg) => {
-    if (!sugg.reviewed_by) return;
+  for (const sugg of suggestions) {
+    if (!sugg.reviewed_by) continue;
 
     if (sugg.status === "approved") totalApproved++;
     if (sugg.status === "rejected") totalRejected++;
@@ -119,12 +119,12 @@ export async function GET(_request: NextRequest) {
     m.total++;
 
     if (
-      !m.last_review ||
-      new Date(sugg.reviewed_at) > new Date(m.last_review)
+      sugg.reviewed_at &&
+      (!m.last_review || sugg.reviewed_at > m.last_review)
     ) {
       m.last_review = sugg.reviewed_at;
     }
-  });
+  }
 
   const moderatorArray = Object.values(modStats).sort(
     (a, b) => b.total - a.total,

@@ -56,9 +56,17 @@ export async function getUserWithRole(): Promise<{
   user: AuthUser | null;
   role: UserRole;
 }> {
-  //Fast exit for completely anonymous users
-  const cookieStore = await cookies();
-  const hasAuthCookie = cookieStore.getAll().some((cookie) => cookie.name.includes("-auth-token"));
+  // Fast exit for completely anonymous users.
+  // In non-request contexts (e.g. some tests), cookies() can throw.
+  let hasAuthCookie = false;
+  try {
+    const cookieStore = await cookies();
+    hasAuthCookie = cookieStore
+      .getAll()
+      .some((cookie) => cookie.name.includes("-auth-token"));
+  } catch {
+    return { user: null, role: "viewer" };
+  }
 
   if (!hasAuthCookie) {
     return { user: null, role: "viewer" };

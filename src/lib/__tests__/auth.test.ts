@@ -1,17 +1,23 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { UserRole } from "../auth";
 
+vi.mock("next/headers", () => ({
+  cookies: vi.fn(),
+}));
+
 // Mock the supabase server module
 vi.mock("@/lib/supabase/server", () => ({
   createClient: vi.fn(),
   createAdminClient: vi.fn(),
 }));
 
+import { cookies } from "next/headers";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { hasPermission, getUserWithRole, requirePermission } from "../auth";
 
 const mockCreateClient = vi.mocked(createClient);
 const mockCreateAdminClient = vi.mocked(createAdminClient);
+const mockCookies = vi.mocked(cookies);
 
 function setupMocks(
   user: {
@@ -21,6 +27,14 @@ function setupMocks(
   } | null,
   profile: { role: string; display_name: string } | null,
 ) {
+  mockCookies.mockResolvedValue({
+    getAll: vi
+      .fn()
+      .mockReturnValue(
+        user ? [{ name: "sb-test-auth-token", value: "token" }] : [],
+      ),
+  } as unknown as Awaited<ReturnType<typeof cookies>>);
+
   const mockAuthGetUser = vi.fn().mockResolvedValue({
     data: { user },
   });
