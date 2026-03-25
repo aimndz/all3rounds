@@ -3,6 +3,8 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import Image from "next/image";
 
+export const dynamic = "force-static";
+
 export default function Home() {
   return (
     <div className="bg-background flex min-h-dvh flex-col">
