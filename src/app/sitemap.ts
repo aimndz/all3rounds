@@ -1,10 +1,11 @@
 import { MetadataRoute } from "next";
 import { createPublicClient } from "@/lib/supabase/server";
 
+export const dynamic = "force-static";
 export const revalidate = 86400; // 24 hours (1 day)
 
 import { getSiteUrl } from "@/lib/utils";
- 
+
 const siteUrl = getSiteUrl();
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
