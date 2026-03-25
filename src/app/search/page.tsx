@@ -1,7 +1,7 @@
 "use client";
 
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
-import { useEffect, useState, useCallback, Suspense } from "react";
+import { useEffect, useState, useCallback, Suspense, useRef } from "react";
 import { useAuthStore } from "@/stores/auth-store";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
@@ -36,14 +36,18 @@ function SearchResults() {
   const [loading, setLoading] = useState(!!query);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [error, setError] = useState("");
-  const [prevQuery, setPrevQuery] = useState(query);
+  const prevQueryRef = useRef(query);
+  const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { canEdit, isUserLoggedIn } = useAuthStore();
 
-  // Reset loading state when query changes via URL
-  if (query !== prevQuery) {
-    setPrevQuery(query);
-    if (!!query) setLoading(true);
-  }
+  useEffect(() => {
+    if (query !== prevQueryRef.current) {
+      prevQueryRef.current = query;
+      if (query) {
+        setLoading(true);
+      }
+    }
+  }, [query]);
 
   const fetchResults = useCallback(
     async (q: string, p: number, signal?: AbortSignal) => {
@@ -131,6 +135,28 @@ function SearchResults() {
     return () => controller.abort();
   }, [query, page, fetchResults]);
 
+  useEffect(() => {
+    return () => {
+      if (refreshTimerRef.current) {
+        clearTimeout(refreshTimerRef.current);
+      }
+    };
+  }, []);
+
+  const scheduleRefresh = useCallback(
+    (q: string, p: number) => {
+      if (refreshTimerRef.current) {
+        clearTimeout(refreshTimerRef.current);
+      }
+
+      refreshTimerRef.current = setTimeout(() => {
+        void fetchResults(q, p);
+        refreshTimerRef.current = null;
+      }, 250);
+    },
+    [fetchResults],
+  );
+
   const handlePageChange = (newPage: number) => {
     const params = new URLSearchParams(searchParams.toString());
     params.set("page", newPage.toString());
@@ -173,7 +199,7 @@ function SearchResults() {
                     isLoggedIn={canEdit}
                     isUserLoggedIn={isUserLoggedIn}
                     onEdited={() => {
-                      fetchResults(query, page);
+                      scheduleRefresh(query, page);
                     }}
                   />
                 </div>
@@ -254,7 +280,6 @@ function SearchResults() {
             </p>
           </div>
         )}
-
 
         {/* Pagination */}
         {!loading && totalPages > 1 && (
