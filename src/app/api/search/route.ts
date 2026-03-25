@@ -46,7 +46,9 @@ export async function GET(request: NextRequest) {
   }
 
   // --- Cache check ---
-  const cacheKey = `search:v2:${query.toLowerCase()}:${page}`;
+  const normalizedQuery = query.toLowerCase();
+  const cacheKey = `search:v2:${normalizedQuery}:${page}`;
+  const totalCacheKey = `search:v2:total:${normalizedQuery}`;
   const cachedData = await getCached(cacheKey);
   if (cachedData) {
     return NextResponse.json(cachedData, {
@@ -63,19 +65,31 @@ export async function GET(request: NextRequest) {
   let data: SearchRpcRow[] = [];
   let countRows = 0;
 
+  const cachedTotal = await getCached<number>(totalCacheKey);
+  const shouldRequestExactCount = page === 1 || cachedTotal === null;
+
   try {
     const {
       data: searchData,
       error: searchError,
       count,
     } = await supabase
-      .rpc("search_fast", { search_term: query }, { count: "exact" })
+      .rpc(
+        "search_fast",
+        { search_term: query },
+        shouldRequestExactCount ? { count: "exact" } : undefined,
+      )
       .range(offset, offset + limit - 1);
 
     if (searchError) throw searchError;
 
     data = (searchData as SearchRpcRow[]) || [];
-    countRows = count || 0;
+    if (typeof count === "number") {
+      countRows = count;
+      await setCached(totalCacheKey, countRows, 3600);
+    } else {
+      countRows = cachedTotal ?? 0;
+    }
   } catch (err: unknown) {
     console.error(`Search engine error:`, err);
     return NextResponse.json(
