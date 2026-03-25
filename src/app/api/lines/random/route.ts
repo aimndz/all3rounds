@@ -7,8 +7,9 @@ export async function GET() {
   const supabase = await createClient();
 
   // 1. Get a random valid line ID instantly using the Postgres function
-  const { data: randomLineId, error: randomError } = await supabase
-    .rpc("get_random_valid_line_id");
+  const { data: randomLineId, error: randomError } = await supabase.rpc(
+    "get_random_valid_line_id",
+  );
 
   if (randomError || !randomLineId) {
     console.error("Failed to get random line ID:", randomError);
@@ -40,7 +41,11 @@ export async function GET() {
         event_name,
         event_date,
         url,
-        status
+        status,
+        battle_participants (
+          label,
+          emcee:emcees ( id, name )
+        )
       )
     `,
     )
@@ -59,18 +64,17 @@ export async function GET() {
     ? rawLine.battle[0]
     : rawLine.battle;
 
-  // Fetch battle participants
-  const { data: participants } = await supabase
-    .from("battle_participants")
-    .select("label, emcee:emcees ( id, name )")
-    .eq("battle_id", battle.id);
+  const participants = (battle?.battle_participants || []).map((p) => ({
+    label: p.label,
+    emcee: Array.isArray(p.emcee) ? (p.emcee[0] ?? null) : p.emcee,
+  }));
 
   const line = {
     ...rawLine,
     emcee: Array.isArray(rawLine.emcee) ? rawLine.emcee[0] : rawLine.emcee,
     battle: {
       ...battle,
-      participants: participants || [],
+      participants,
     },
   };
 
