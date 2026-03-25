@@ -9,6 +9,7 @@ import {
   useRef,
 } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
+import dynamic from "next/dynamic";
 import { useToast } from "@/hooks/use-toast";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
@@ -41,10 +42,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import BatchActionBar from "@/features/battle/components/BatchActionBar";
-import BattleEditModal from "@/features/battle/components/BattleEditModal";
-import BattleAddLineModal from "@/features/battle/components/BattleAddLineModal";
-import SuggestCorrectionModal from "@/components/SuggestCorrectionModal";
-import { LoginModal } from "@/components/LoginModal";
 import { useAuthStore } from "@/stores/auth-store";
 import type { SearchResult } from "@/lib/types";
 import { LineItem } from "@/features/battle/components/LineItem";
@@ -60,6 +57,23 @@ import { useYouTubePlayer } from "@/features/battle/hooks/use-youtube-player";
 import { useLineSelection } from "@/features/battle/hooks/use-line-selection";
 import { useInlineEdit } from "@/features/battle/hooks/use-inline-edit";
 import { useAutoScroll } from "@/features/battle/hooks/use-auto-scroll";
+
+const BattleEditModal = dynamic(
+  () => import("@/features/battle/components/BattleEditModal"),
+  { ssr: false },
+);
+const BattleAddLineModal = dynamic(
+  () => import("@/features/battle/components/BattleAddLineModal"),
+  { ssr: false },
+);
+const SuggestCorrectionModal = dynamic(
+  () => import("@/components/SuggestCorrectionModal"),
+  { ssr: false },
+);
+const LoginModal = dynamic(
+  () => import("@/components/LoginModal").then((m) => m.LoginModal),
+  { ssr: false },
+);
 
 // ============================================================================
 // Helpers
