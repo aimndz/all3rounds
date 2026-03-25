@@ -98,6 +98,13 @@ export default function BattlePage() {
   const loadMoreSentinelRef = useRef<HTMLDivElement>(null);
   const lastDeepLinkHandledRef = useRef<number | null>(null);
 
+  const deepLinkLineId = useMemo(() => {
+    const raw = searchParams.get("lineId");
+    if (!raw) return null;
+    const parsed = Number.parseInt(raw, 10);
+    return Number.isFinite(parsed) ? parsed : null;
+  }, [searchParams]);
+
   // -- Auth --
   const { isUserLoggedIn, canEdit, canDelete } = useAuthStore();
 
@@ -111,7 +118,7 @@ export default function BattlePage() {
     error,
     fetchBattle,
     fetchMoreLines,
-  } = useBattleData(battleId);
+  } = useBattleData(battleId, deepLinkLineId);
   const { player, activeTime, playerRef, seekTo } = useYouTubePlayer(
     data?.battle.youtube_id,
     "youtube-player",
@@ -171,13 +178,6 @@ export default function BattlePage() {
     editMode,
     lastClickedLineId,
   );
-
-  const deepLinkLineId = useMemo(() => {
-    const raw = searchParams.get("lineId");
-    if (!raw) return null;
-    const parsed = Number.parseInt(raw, 10);
-    return Number.isFinite(parsed) ? parsed : null;
-  }, [searchParams]);
 
   // Wrap startInlineEdit to also track lastClickedLineId
   const startInlineEdit = useCallback(

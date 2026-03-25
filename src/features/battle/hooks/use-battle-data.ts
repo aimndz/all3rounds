@@ -49,7 +49,10 @@ export type RoundGroup = {
   turns: Turn[];
 };
 
-export function useBattleData(battleId: string) {
+export function useBattleData(
+  battleId: string,
+  initialLineId: number | null = null,
+) {
   const PAGE_SIZE = 200;
   const [data, setData] = useState<BattleData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -58,7 +61,15 @@ export function useBattleData(battleId: string) {
   const [error, setError] = useState("");
 
   const fetchBattle = useCallback(() => {
-    return fetch(`/api/battles/${battleId}?limit=${PAGE_SIZE}&offset=0`)
+    const params = new URLSearchParams({
+      limit: String(PAGE_SIZE),
+      offset: "0",
+    });
+    if (initialLineId) {
+      params.set("lineId", String(initialLineId));
+    }
+
+    return fetch(`/api/battles/${battleId}?${params.toString()}`)
       .then(async (res) => {
         if (!res.ok) {
           const d = await res.json().catch(() => ({}));
@@ -76,7 +87,7 @@ export function useBattleData(battleId: string) {
         return null;
       })
       .finally(() => setLoading(false));
-  }, [battleId]);
+  }, [battleId, initialLineId]);
 
   const fetchMoreLines = useCallback(() => {
     if (!data || loadingMore || !hasMore) {
@@ -85,8 +96,12 @@ export function useBattleData(battleId: string) {
 
     setLoadingMore(true);
 
+    const currentOffset = data.lines_pagination?.offset ?? 0;
+    const currentPageLoaded = data.lines_pagination?.loaded ?? PAGE_SIZE;
+    const nextOffset = currentOffset + currentPageLoaded;
+
     return fetch(
-      `/api/battles/${battleId}?limit=${PAGE_SIZE}&offset=${data.lines.length}`,
+      `/api/battles/${battleId}?limit=${PAGE_SIZE}&offset=${nextOffset}`,
     )
       .then(async (res) => {
         if (!res.ok) {
@@ -103,7 +118,13 @@ export function useBattleData(battleId: string) {
 
           return {
             ...prev,
-            lines: [...prev.lines, ...d.lines],
+            lines: [
+              ...prev.lines,
+              ...d.lines.filter(
+                (line) =>
+                  !prev.lines.some((existing) => existing.id === line.id),
+              ),
+            ],
             lines_pagination: d.lines_pagination,
           };
         });

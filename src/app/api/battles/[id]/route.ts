@@ -27,10 +27,12 @@ export async function GET(
 
   const rawLimit = Number.parseInt(searchParams.get("limit") || "200", 10);
   const rawOffset = Number.parseInt(searchParams.get("offset") || "0", 10);
+  const rawLineId = Number.parseInt(searchParams.get("lineId") || "", 10);
   const limit = Number.isFinite(rawLimit)
     ? Math.min(Math.max(rawLimit, 1), 500)
     : 200;
   const offset = Number.isFinite(rawOffset) ? Math.max(rawOffset, 0) : 0;
+  const lineId = Number.isFinite(rawLineId) ? rawLineId : null;
 
   // Validate UUID to prevent database errors on bot probes
   const idValidation = uuidSchema.safeParse(id);
@@ -38,7 +40,31 @@ export async function GET(
     return NextResponse.json({ error: "Invalid battle ID" }, { status: 400 });
   }
 
-  const cacheKey = `battle:${id}:v2:${limit}:${offset}`;
+  const supabase = await createClient();
+
+  // If a deep-link line is provided, start from the page that contains it.
+  let effectiveOffset = offset;
+  if (lineId && offset === 0) {
+    const { data: targetLine } = await supabase
+      .from("lines")
+      .select("id, start_time")
+      .eq("battle_id", id)
+      .eq("id", lineId)
+      .maybeSingle();
+
+    if (targetLine) {
+      const { count: linesBeforeTarget } = await supabase
+        .from("lines")
+        .select("id", { count: "exact", head: true })
+        .eq("battle_id", id)
+        .lt("start_time", targetLine.start_time);
+
+      const beforeCount = linesBeforeTarget ?? 0;
+      effectiveOffset = Math.floor(beforeCount / limit) * limit;
+    }
+  }
+
+  const cacheKey = `battle:${id}:v2:${limit}:${effectiveOffset}`;
   const cachedData = await getCached(cacheKey);
   if (cachedData) {
     return NextResponse.json(cachedData, {
@@ -47,8 +73,6 @@ export async function GET(
       },
     });
   }
-
-  const supabase = await createClient();
 
   // Fetch battle details
   const { data: battle, error: battleError } = await supabase
@@ -100,9 +124,33 @@ export async function GET(
     )
     .eq("battle_id", id)
     .order("start_time", { ascending: true })
-    .range(offset, offset + limit);
+    .range(effectiveOffset, effectiveOffset + limit);
 
   if (linesError) {
+    if (
+      linesError.message.includes("Requested range not satisfiable") ||
+      linesError.code === "PGRST103"
+    ) {
+      const emptyResult = {
+        battle,
+        participants: participants || [],
+        lines: [],
+        lines_pagination: {
+          limit,
+          offset: effectiveOffset,
+          has_more: false,
+          loaded: 0,
+          total: totalLines ?? 0,
+        },
+      };
+
+      return NextResponse.json(emptyResult, {
+        headers: {
+          "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=59",
+        },
+      });
+    }
+
     console.error("Lines fetch error:", linesError);
     return NextResponse.json(
       { error: "Failed to fetch lines.", details: linesError.message },
@@ -175,7 +223,7 @@ export async function GET(
     lines: transformedLines,
     lines_pagination: {
       limit,
-      offset,
+      offset: effectiveOffset,
       has_more: hasMore,
       loaded: transformedLines.length,
       total: totalLines ?? transformedLines.length,
