@@ -1,34 +1,48 @@
 "use client";
 
+import { memo, useMemo, useState } from "react";
+import dynamic from "next/dynamic";
 import { SearchResult } from "@/lib/types";
-import EditLineModal from "./EditLineModal";
-import SuggestCorrectionModal from "./SuggestCorrectionModal";
-import { useState } from "react";
-import { LoginModal } from "./LoginModal";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { MessageSquarePlus, SquarePen } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { cn, formatTime, formatSpeakerName } from "@/lib/utils";
 
-export default function ResultCard({
-  result,
-  isLoggedIn,
-  isUserLoggedIn = false,
-  onEdited,
-}: {
+const EditLineModal = dynamic(() => import("./EditLineModal"), {
+  ssr: false,
+});
+const SuggestCorrectionModal = dynamic(
+  () => import("./SuggestCorrectionModal"),
+  {
+    ssr: false,
+  },
+);
+const LoginModal = dynamic(
+  () => import("./LoginModal").then((m) => m.LoginModal),
+  { ssr: false },
+);
+
+type ResultCardProps = {
   result: SearchResult;
   isLoggedIn: boolean;
   isUserLoggedIn?: boolean;
   onEdited?: () => void;
-}) {
+};
+
+function ResultCard({
+  result,
+  isLoggedIn,
+  isUserLoggedIn = false,
+  onEdited,
+}: ResultCardProps) {
   const [showEdit, setShowEdit] = useState(false);
   const [showSuggest, setShowSuggest] = useState(false);
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const router = useRouter();
 
   // Determine the most descriptive speaker label (handles teams for 2v2/3v3)
-  const speakerLabel = (() => {
+  const speakerLabel = useMemo(() => {
     const hasMultipleSpeakers = result.emcees && result.emcees.length > 1;
 
     if (hasMultipleSpeakers) {
@@ -56,10 +70,10 @@ export default function ResultCard({
         result.speaker_label ||
         "Unassigned",
     );
-  })();
+  }, [result]);
 
   // Build the matchup subtitle (e.g., "Emcee A vs Emcee B")
-  const battleMatchup = (() => {
+  const battleMatchup = useMemo(() => {
     const participants = result.battle.participants;
     if (!participants || participants.length === 0) return result.battle.title;
 
@@ -80,7 +94,7 @@ export default function ResultCard({
     return teamStrings.length < 2
       ? result.battle.title
       : teamStrings.join(" vs ");
-  })();
+  }, [result]);
 
   return (
     <>
@@ -237,3 +251,8 @@ export default function ResultCard({
     </>
   );
 }
+
+const MemoizedResultCard = memo(ResultCard);
+MemoizedResultCard.displayName = "ResultCard";
+
+export default MemoizedResultCard;
