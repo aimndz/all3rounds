@@ -1094,7 +1094,7 @@ export default function BattlePage() {
 
                                   {/* Lines */}
                                   {!isTurnCollapsed && (
-                                    <div className="border-border/20 ml-2 border-l py-0 pl-3">
+                                    <div className="border-border/20 ml-2 border-l py-0 pl-3 [content-visibility:auto] [contain-intrinsic-size:1px_720px]">
                                       {turn.lines.map(
                                         (line: BattleLine, li: number) => {
                                           const prevLine =
@@ -1119,6 +1119,7 @@ export default function BattlePage() {
                                           return (
                                             <div
                                               key={line.id}
+                                              className="[content-visibility:auto] [contain-intrinsic-size:1px_56px]"
                                               style={{
                                                 marginTop:
                                                   gapMargin > 0
