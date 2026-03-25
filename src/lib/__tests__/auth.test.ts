@@ -26,7 +26,10 @@ function setupMocks(
     user_metadata?: Record<string, string>;
   } | null,
   profile: { role: string; display_name: string } | null,
+  options?: { authDelayMs?: number },
 ) {
+  const authDelayMs = options?.authDelayMs ?? 0;
+
   mockCookies.mockResolvedValue({
     getAll: vi
       .fn()
@@ -35,9 +38,14 @@ function setupMocks(
       ),
   } as unknown as Awaited<ReturnType<typeof cookies>>);
 
-  const mockAuthGetUser = vi.fn().mockResolvedValue({
-    data: { user },
-  });
+  const mockAuthGetUser = vi.fn().mockImplementation(
+    () =>
+      new Promise<{ data: { user: typeof user } }>((resolve) => {
+        setTimeout(() => {
+          resolve({ data: { user } });
+        }, authDelayMs);
+      }),
+  );
 
   mockCreateClient.mockResolvedValue({
     auth: { getUser: mockAuthGetUser },
@@ -50,6 +58,8 @@ function setupMocks(
   mockCreateAdminClient.mockReturnValue({
     from: vi.fn().mockReturnValue({ select: selectFn }),
   } as unknown as ReturnType<typeof createAdminClient>);
+
+  return { mockAuthGetUser };
 }
 
 describe("hasPermission", () => {
@@ -142,6 +152,22 @@ describe("getUserWithRole", () => {
     );
     const result = await getUserWithRole();
     expect(result.user!.displayName).toBe("Meta User");
+  });
+
+  it("deduplicates concurrent user-role lookups", async () => {
+    const { mockAuthGetUser } = setupMocks(
+      { id: "u4", email: "dedup@test.com" },
+      { role: "admin", display_name: "Dedup User" },
+      { authDelayMs: 20 },
+    );
+
+    const [a, b] = await Promise.all([getUserWithRole(), getUserWithRole()]);
+
+    expect(a.role).toBe("admin");
+    expect(b.role).toBe("admin");
+    expect(mockCreateClient).toHaveBeenCalledTimes(1);
+    expect(mockCreateAdminClient).toHaveBeenCalledTimes(1);
+    expect(mockAuthGetUser).toHaveBeenCalledTimes(1);
   });
 });
 

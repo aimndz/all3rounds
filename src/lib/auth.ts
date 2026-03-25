@@ -19,6 +19,11 @@ export type AuthUser = {
   displayName: string;
 };
 
+type UserWithRoleResult = {
+  user: AuthUser | null;
+  role: UserRole;
+};
+
 // ============================================================================
 // Permissions Map
 // ============================================================================
@@ -44,6 +49,8 @@ const PERMISSIONS: Record<string, UserRole[]> = {
   "suggestions:review": ["superadmin", "admin", "moderator"],
 };
 
+const inFlightUserRoleLookups = new Map<string, Promise<UserWithRoleResult>>();
+
 // ============================================================================
 // Core Functions
 // ============================================================================
@@ -59,11 +66,18 @@ export async function getUserWithRole(): Promise<{
   // Fast exit for completely anonymous users.
   // In non-request contexts (e.g. some tests), cookies() can throw.
   let hasAuthCookie = false;
+  let authCookieFingerprint = "";
   try {
     const cookieStore = await cookies();
-    hasAuthCookie = cookieStore
+    const authCookies = cookieStore
       .getAll()
-      .some((cookie) => cookie.name.includes("-auth-token"));
+      .filter((cookie) => cookie.name.includes("-auth-token"));
+
+    hasAuthCookie = authCookies.length > 0;
+    authCookieFingerprint = authCookies
+      .map((cookie) => `${cookie.name}=${cookie.value}`)
+      .sort()
+      .join(";");
   } catch {
     return { user: null, role: "viewer" };
   }
@@ -72,37 +86,52 @@ export async function getUserWithRole(): Promise<{
     return { user: null, role: "viewer" };
   }
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return { user: null, role: "viewer" };
+  const lookupKey = authCookieFingerprint || "auth-cookie-present";
+  const existingLookup = inFlightUserRoleLookups.get(lookupKey);
+  if (existingLookup) {
+    return existingLookup;
   }
 
-  const adminClient = createAdminClient();
-  const { data: profile } = await adminClient
-    .from("user_profiles")
-    .select("role, display_name")
-    .eq("id", user.id)
-    .single();
+  const lookupPromise = (async (): Promise<UserWithRoleResult> => {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
-  const role = (profile?.role ?? "viewer") as UserRole;
+    if (!user) {
+      return { user: null, role: "viewer" };
+    }
 
-  return {
-    user: {
-      id: user.id,
-      email: user.email ?? "",
+    const adminClient = createAdminClient();
+    const { data: profile } = await adminClient
+      .from("user_profiles")
+      .select("role, display_name")
+      .eq("id", user.id)
+      .single();
+
+    const role = (profile?.role ?? "viewer") as UserRole;
+
+    return {
+      user: {
+        id: user.id,
+        email: user.email ?? "",
+        role,
+        displayName:
+          profile?.display_name ??
+          user.user_metadata?.full_name ??
+          user.email?.split("@")[0] ??
+          "User",
+      },
       role,
-      displayName:
-        profile?.display_name ??
-        user.user_metadata?.full_name ??
-        user.email?.split("@")[0] ??
-        "User",
-    },
-    role,
-  };
+    };
+  })();
+
+  inFlightUserRoleLookups.set(lookupKey, lookupPromise);
+  try {
+    return await lookupPromise;
+  } finally {
+    inFlightUserRoleLookups.delete(lookupKey);
+  }
 }
 
 /**
