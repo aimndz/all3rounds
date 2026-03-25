@@ -1,7 +1,14 @@
 "use client";
 
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
-import { useEffect, useState, useCallback, Suspense, useRef } from "react";
+import {
+  useEffect,
+  useState,
+  useCallback,
+  Suspense,
+  useRef,
+  useMemo,
+} from "react";
 import { useAuthStore } from "@/stores/auth-store";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
@@ -157,11 +164,30 @@ function SearchResults() {
     [fetchResults],
   );
 
-  const handlePageChange = (newPage: number) => {
-    const params = new URLSearchParams(searchParams.toString());
-    params.set("page", newPage.toString());
-    router.push(`${pathname}?${params.toString()}`, { scroll: true });
-  };
+  const handlePageChange = useCallback(
+    (newPage: number) => {
+      const params = new URLSearchParams(searchParams.toString());
+      params.set("page", newPage.toString());
+      router.push(`${pathname}?${params.toString()}`, { scroll: true });
+    },
+    [pathname, router, searchParams],
+  );
+
+  const paginationItems = useMemo(() => {
+    return Array.from({ length: totalPages }).map((_, i) => {
+      const p = i + 1;
+
+      if (p === 1 || p === totalPages || (p >= page - 2 && p <= page + 2)) {
+        return { type: "page" as const, page: p };
+      }
+
+      if (p === page - 3 || p === page + 3) {
+        return { type: "ellipsis" as const, page: p };
+      }
+
+      return null;
+    });
+  }, [page, totalPages]);
 
   return (
     <div className="bg-background min-h-screen">
@@ -293,35 +319,28 @@ function SearchResults() {
                   />
                 </PaginationItem>
 
-                {Array.from({ length: totalPages }).map((_, i) => {
-                  const p = i + 1;
-                  // Show pages around current, plus first and last
-                  if (
-                    p === 1 ||
-                    p === totalPages ||
-                    (p >= page - 2 && p <= page + 2)
-                  ) {
+                {paginationItems.map((item) => {
+                  if (!item) return null;
+
+                  if (item.type === "ellipsis") {
                     return (
-                      <PaginationItem key={p}>
-                        <PaginationLink
-                          isActive={page === p}
-                          onClick={() => handlePageChange(p)}
-                          className="cursor-pointer"
-                        >
-                          {p}
-                        </PaginationLink>
-                      </PaginationItem>
-                    );
-                  }
-                  // Show ellipsis
-                  if (p === page - 3 || p === page + 3) {
-                    return (
-                      <PaginationItem key={p}>
+                      <PaginationItem key={`ellipsis-${item.page}`}>
                         <PaginationEllipsis />
                       </PaginationItem>
                     );
                   }
-                  return null;
+
+                  return (
+                    <PaginationItem key={item.page}>
+                      <PaginationLink
+                        isActive={page === item.page}
+                        onClick={() => handlePageChange(item.page)}
+                        className="cursor-pointer"
+                      >
+                        {item.page}
+                      </PaginationLink>
+                    </PaginationItem>
+                  );
                 })}
 
                 <PaginationItem>
