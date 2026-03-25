@@ -115,14 +115,6 @@ export async function GET(request: NextRequest) {
   // ── Batch Fetch Remaining Data (Emcees, Participants, Context) ──
   try {
     if (formattedData.length > 0) {
-      const uniqueEmceeIds = new Set<string>();
-      formattedData.forEach((row) => {
-        row.speaker_ids?.forEach((id) => uniqueEmceeIds.add(id));
-        if (row.emcee?.id && row.emcee.name === "Unknown") {
-          uniqueEmceeIds.add(row.emcee.id);
-        }
-      });
-
       const uniqueBattleIds = Array.from(
         new Set(formattedData.map((row) => row.battle.id)),
       );
@@ -148,56 +140,27 @@ export async function GET(request: NextRequest) {
         round_number: number | null;
       }
 
-      const [emceesResult, participantsResult, contextResult] =
-        await Promise.all([
-          uniqueEmceeIds.size > 0
-            ? supabase
-                .from("emcees")
-                .select("id, name")
-                .in("id", Array.from(uniqueEmceeIds))
-            : Promise.resolve({
-                data: [] as { id: string; name: string }[] | null,
-              }),
+      const [participantsResult, contextResult] = await Promise.all([
+        uniqueBattleIds.length > 0
+          ? supabase
+              .from("battle_participants")
+              .select("battle_id, label, emcee:emcees(id, name)")
+              .in("battle_id", uniqueBattleIds)
+          : Promise.resolve({ data: [] as ParticipantRow[] | null }),
 
-          uniqueBattleIds.length > 0
-            ? supabase
-                .from("battle_participants")
-                .select("battle_id, label, emcee:emcees(id, name)")
-                .in("battle_id", uniqueBattleIds)
-            : Promise.resolve({ data: [] as ParticipantRow[] | null }),
+        contextLineIds.length > 0
+          ? supabase
+              .from("lines")
+              .select("id, content, battle_id, speaker_label, round_number")
+              .in("id", contextLineIds)
+          : Promise.resolve({ data: [] as LineRow[] | null }),
+      ]);
 
-          contextLineIds.length > 0
-            ? supabase
-                .from("lines")
-                .select("id, content, battle_id, speaker_label, round_number")
-                .in("id", contextLineIds)
-            : Promise.resolve({ data: [] as LineRow[] | null }),
-        ]);
-
-      const emceesData = emceesResult.data || [];
       const participantsData =
         (participantsResult.data as unknown as ParticipantRow[]) || [];
       const contextData = (contextResult.data as unknown as LineRow[]) || [];
 
-      if (emceesData.length > 0) {
-        const emceeMap = new Map(emceesData.map((e) => [e.id, e]));
-        formattedData.forEach((row) => {
-          if (row.emcee && row.emcee.name === "Unknown") {
-            const e = emceeMap.get(row.emcee.id);
-            if (e) row.emcee.name = e.name;
-          }
-
-          const resolved: { id: string; name: string }[] = [];
-          row.speaker_ids?.forEach((id) => {
-            const e = emceeMap.get(id);
-            if (e) resolved.push(e);
-          });
-          if (resolved.length === 0 && row.emcee) {
-            resolved.push(row.emcee);
-          }
-          row.emcees = resolved;
-        });
-      }
+      const emceeMap = new Map<string, { id: string; name: string }>();
 
       if (participantsData.length > 0) {
         const participantMap = new Map<
@@ -209,6 +172,9 @@ export async function GET(request: NextRequest) {
             participantMap.set(p.battle_id, []);
 
           const emceeObj = Array.isArray(p.emcee) ? p.emcee[0] : p.emcee;
+          if (emceeObj) {
+            emceeMap.set(emceeObj.id, emceeObj);
+          }
           participantMap.get(p.battle_id)?.push({
             label: p.label,
             emcee: (emceeObj as { id: string; name: string }) || null,
@@ -218,6 +184,29 @@ export async function GET(request: NextRequest) {
           row.battle.participants = participantMap.get(row.battle.id) || [];
         });
       }
+
+      formattedData.forEach((row) => {
+        if (row.emcee) {
+          const known = emceeMap.get(row.emcee.id);
+          if (known && row.emcee.name === "Unknown") {
+            row.emcee.name = known.name;
+          }
+        }
+
+        const resolved: { id: string; name: string }[] = [];
+        row.speaker_ids?.forEach((id) => {
+          const known = emceeMap.get(id);
+          if (known) {
+            resolved.push(known);
+          }
+        });
+
+        if (resolved.length === 0 && row.emcee) {
+          resolved.push(row.emcee);
+        }
+
+        row.emcees = resolved;
+      });
 
       if (contextData.length > 0) {
         const contextMap = new Map(contextData.map((line) => [line.id, line]));

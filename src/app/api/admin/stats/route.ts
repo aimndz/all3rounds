@@ -1,6 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { requirePermission } from "@/lib/auth";
+import { getCached, setCached } from "@/lib/cache";
+
+type AdminStatsResponse = {
+  overview: {
+    total_reviews: number;
+    total_approved: number;
+    total_rejected: number;
+  };
+  moderators: {
+    id: string;
+    display_name: string;
+    role: string;
+    approved: number;
+    rejected: number;
+    total: number;
+    last_review: string | null;
+  }[];
+};
 
 export async function GET(_request: NextRequest) {
   // ── Auth & Permission Check ──
@@ -10,6 +28,12 @@ export async function GET(_request: NextRequest) {
       { error: auth.error.message },
       { status: auth.error.status },
     );
+  }
+
+  const cacheKey = "admin:stats";
+  const cached = await getCached<AdminStatsResponse>(cacheKey);
+  if (cached) {
+    return NextResponse.json(cached);
   }
 
   const adminClient = createAdminClient();
@@ -130,12 +154,15 @@ export async function GET(_request: NextRequest) {
     (a, b) => b.total - a.total,
   );
 
-  return NextResponse.json({
+  const response: AdminStatsResponse = {
     overview: {
       total_reviews: totalApproved + totalRejected,
       total_approved: totalApproved,
       total_rejected: totalRejected,
     },
     moderators: moderatorArray,
-  });
+  };
+
+  await setCached(cacheKey, response, 60);
+  return NextResponse.json(response);
 }
