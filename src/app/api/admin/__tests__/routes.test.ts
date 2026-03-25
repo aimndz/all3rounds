@@ -15,7 +15,10 @@ vi.mock("@/lib/supabase/server", () => {
     single: vi.fn().mockResolvedValue({ data: null, error: null }),
   };
   const mockFrom = vi.fn().mockReturnValue(mockChain);
-  const client = { from: mockFrom };
+  const client = {
+    from: mockFrom,
+    rpc: vi.fn().mockResolvedValue({ data: [], error: null }),
+  };
   return {
     createClient: vi.fn().mockResolvedValue(client),
     createAdminClient: vi.fn().mockReturnValue(client),

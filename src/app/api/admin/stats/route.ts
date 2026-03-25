@@ -3,6 +3,19 @@ import { createAdminClient } from "@/lib/supabase/server";
 import { requirePermission } from "@/lib/auth";
 import { getCached, setCached } from "@/lib/cache";
 
+type AdminStatsRpcRow = {
+  reviewed_by: string | null;
+  display_name: string;
+  role: string;
+  approved: number;
+  rejected: number;
+  total: number;
+  last_review: string | null;
+  total_approved: number;
+  total_rejected: number;
+  total_reviews: number;
+};
+
 type AdminStatsResponse = {
   overview: {
     total_reviews: number;
@@ -38,127 +51,38 @@ export async function GET(_request: NextRequest) {
 
   const adminClient = createAdminClient();
 
-  // Fetch all non-pending suggestions (handling Supabase 1000 row limit)
-  interface SuggestionData {
-    status: string;
-    reviewed_by: string | null;
-    reviewed_at: string | null;
-  }
-  let allSuggestions: SuggestionData[] = [];
-  let from = 0;
-  const step = 1000;
-  let hasMore = true;
+  const { data: rpcRows, error: rpcError } = await adminClient.rpc(
+    "get_admin_review_stats",
+  );
 
-  while (hasMore) {
-    const { data: chunk, error: suggError } = await adminClient
-      .from("suggestions")
-      .select("status, reviewed_by, reviewed_at")
-      .neq("status", "pending")
-      .range(from, from + step - 1);
-
-    if (suggError) {
-      console.error("Stats suggError at range", from, suggError);
-      return NextResponse.json(
-        { error: "Failed to fetch stats." },
-        { status: 500 },
-      );
-    }
-
-    if (chunk && chunk.length > 0) {
-      allSuggestions = allSuggestions.concat(chunk);
-      from += step;
-      if (chunk.length < step) hasMore = false;
-    } else {
-      hasMore = false;
-    }
-  }
-
-  const suggestions = allSuggestions;
-
-  // Fetch all user profiles to map IDs to names
-  const { data: users, error: usersError } = await adminClient
-    .from("user_profiles")
-    .select("id, display_name, role");
-
-  if (usersError) {
-    console.error("Stats usersError:", usersError);
+  if (rpcError) {
+    console.error("Stats rpcError:", rpcError);
     return NextResponse.json(
-      { error: "Failed to fetch users." },
+      { error: "Failed to fetch stats." },
       { status: 500 },
     );
   }
 
-  const userMap =
-    users?.reduce(
-      (
-        acc: Record<string, { id: string; display_name: string; role: string }>,
-        cur: { id: string; display_name: string; role: string },
-      ) => {
-        acc[cur.id] = cur;
-        return acc;
-      },
-      {},
-    ) || {};
+  const rows = (rpcRows || []) as AdminStatsRpcRow[];
+  const firstRow = rows[0];
 
-  // Global overview
-  let totalApproved = 0;
-  let totalRejected = 0;
-
-  // Moderator stats map
-  const modStats: Record<
-    string,
-    {
-      id: string;
-      display_name: string;
-      role: string;
-      approved: number;
-      rejected: number;
-      total: number;
-      last_review: string | null;
-    }
-  > = {};
-
-  for (const sugg of suggestions) {
-    if (!sugg.reviewed_by) continue;
-
-    if (sugg.status === "approved") totalApproved++;
-    if (sugg.status === "rejected") totalRejected++;
-
-    if (!modStats[sugg.reviewed_by]) {
-      const u = userMap[sugg.reviewed_by];
-      modStats[sugg.reviewed_by] = {
-        id: sugg.reviewed_by,
-        display_name: u?.display_name || "Unknown",
-        role: u?.role || "unknown",
-        approved: 0,
-        rejected: 0,
-        total: 0,
-        last_review: null,
-      };
-    }
-
-    const m = modStats[sugg.reviewed_by];
-    if (sugg.status === "approved") m.approved++;
-    if (sugg.status === "rejected") m.rejected++;
-    m.total++;
-
-    if (
-      sugg.reviewed_at &&
-      (!m.last_review || sugg.reviewed_at > m.last_review)
-    ) {
-      m.last_review = sugg.reviewed_at;
-    }
-  }
-
-  const moderatorArray = Object.values(modStats).sort(
-    (a, b) => b.total - a.total,
-  );
+  const moderatorArray = rows
+    .filter((row) => row.reviewed_by)
+    .map((row) => ({
+      id: row.reviewed_by as string,
+      display_name: row.display_name || "Unknown",
+      role: row.role || "unknown",
+      approved: Number(row.approved || 0),
+      rejected: Number(row.rejected || 0),
+      total: Number(row.total || 0),
+      last_review: row.last_review,
+    }));
 
   const response: AdminStatsResponse = {
     overview: {
-      total_reviews: totalApproved + totalRejected,
-      total_approved: totalApproved,
-      total_rejected: totalRejected,
+      total_reviews: Number(firstRow?.total_reviews || 0),
+      total_approved: Number(firstRow?.total_approved || 0),
+      total_rejected: Number(firstRow?.total_rejected || 0),
     },
     moderators: moderatorArray,
   };
