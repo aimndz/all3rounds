@@ -8,6 +8,7 @@ import {
   Suspense,
   useRef,
   useMemo,
+  memo,
 } from "react";
 import { useAuthStore } from "@/stores/auth-store";
 import Header from "@/components/Header";
@@ -28,6 +29,36 @@ import {
   PaginationPrevious,
 } from "@/components/ui/pagination";
 import { Separator } from "@/components/ui/separator";
+
+type SearchResultsListProps = {
+  results: SearchResult[];
+  canEdit: boolean;
+  isUserLoggedIn: boolean;
+  onResultEdited: () => void;
+};
+
+const SearchResultsList = memo(function SearchResultsList({
+  results,
+  canEdit,
+  isUserLoggedIn,
+  onResultEdited,
+}: SearchResultsListProps) {
+  return (
+    <div className="space-y-2">
+      {results.map((result, i) => (
+        <div key={result.id}>
+          {i > 0 && <Separator className="my-2" />}
+          <ResultCard
+            result={result}
+            isLoggedIn={canEdit}
+            isUserLoggedIn={isUserLoggedIn}
+            onEdited={onResultEdited}
+          />
+        </div>
+      ))}
+    </div>
+  );
+});
 
 function SearchResults() {
   const router = useRouter();
@@ -189,6 +220,10 @@ function SearchResults() {
     });
   }, [page, totalPages]);
 
+  const handleResultEdited = useCallback(() => {
+    scheduleRefresh(query, page);
+  }, [scheduleRefresh, query, page]);
+
   return (
     <div className="bg-background min-h-screen">
       <Header />
@@ -216,21 +251,12 @@ function SearchResults() {
         <div id="results" className="scroll-mt-32">
           {/* Results list */}
           {!loading && !error && results.length > 0 && (
-            <div className="space-y-2">
-              {results.map((result, i) => (
-                <div key={result.id}>
-                  {i > 0 && <Separator className="my-2" />}
-                  <ResultCard
-                    result={result}
-                    isLoggedIn={canEdit}
-                    isUserLoggedIn={isUserLoggedIn}
-                    onEdited={() => {
-                      scheduleRefresh(query, page);
-                    }}
-                  />
-                </div>
-              ))}
-            </div>
+            <SearchResultsList
+              results={results}
+              canEdit={canEdit}
+              isUserLoggedIn={isUserLoggedIn}
+              onResultEdited={handleResultEdited}
+            />
           )}
         </div>
         {/* Error state */}
