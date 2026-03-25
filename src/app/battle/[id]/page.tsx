@@ -6,8 +6,9 @@ import {
   useCallback,
   useMemo,
   useTransition,
+  useRef,
 } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
@@ -76,16 +77,27 @@ function formatDate(dateStr: string | null): string {
 export default function BattlePage() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const battleId = params.id as string;
   const { toast } = useToast();
   const [isPending, startTransition] = useTransition();
+  const loadMoreSentinelRef = useRef<HTMLDivElement>(null);
+  const lastDeepLinkHandledRef = useRef<number | null>(null);
 
   // -- Auth --
   const { isUserLoggedIn, canEdit, canDelete } = useAuthStore();
 
   // -- Custom Hooks --
-  const { data, setData, loading, error, fetchBattle } =
-    useBattleData(battleId);
+  const {
+    data,
+    setData,
+    loading,
+    loadingMore,
+    hasMore,
+    error,
+    fetchBattle,
+    fetchMoreLines,
+  } = useBattleData(battleId);
   const { player, activeTime, playerRef, seekTo } = useYouTubePlayer(
     data?.battle.youtube_id,
     "youtube-player",
@@ -146,6 +158,13 @@ export default function BattlePage() {
     lastClickedLineId,
   );
 
+  const deepLinkLineId = useMemo(() => {
+    const raw = searchParams.get("lineId");
+    if (!raw) return null;
+    const parsed = Number.parseInt(raw, 10);
+    return Number.isFinite(parsed) ? parsed : null;
+  }, [searchParams]);
+
   // Wrap startInlineEdit to also track lastClickedLineId
   const startInlineEdit = useCallback(
     (line: BattleLine) => {
@@ -170,6 +189,87 @@ export default function BattlePage() {
       document.body.style.overflow = "unset";
     };
   }, [isTranscriptExpanded]);
+
+  // Auto-load more transcript pages as user reaches the bottom.
+  useEffect(() => {
+    const root = transcriptContainerRef.current;
+    const sentinel = loadMoreSentinelRef.current;
+
+    if (!root || !sentinel || !hasMore) {
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting) && !loadingMore) {
+          void fetchMoreLines();
+        }
+      },
+      {
+        root,
+        rootMargin: "200px 0px",
+        threshold: 0,
+      },
+    );
+
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [
+    hasMore,
+    loadingMore,
+    fetchMoreLines,
+    transcriptContainerRef,
+    data?.lines.length,
+  ]);
+
+  // Ensure deep-linked line is loaded and highlighted even when it is outside
+  // the first pagination chunk.
+  useEffect(() => {
+    if (!deepLinkLineId || !data) {
+      return;
+    }
+
+    if (lastDeepLinkHandledRef.current === deepLinkLineId) {
+      return;
+    }
+
+    const hasTargetLine = data.lines.some((line) => line.id === deepLinkLineId);
+    if (!hasTargetLine) {
+      if (hasMore && !loadingMore) {
+        void fetchMoreLines();
+      }
+      return;
+    }
+
+    setLastClickedLineId(deepLinkLineId);
+    lastDeepLinkHandledRef.current = deepLinkLineId;
+
+    setTimeout(() => {
+      const container = transcriptContainerRef.current;
+      const el = container?.querySelector(
+        `[data-line-id="${deepLinkLineId}"]`,
+      ) as HTMLElement | null;
+
+      if (!container || !el) {
+        return;
+      }
+
+      const containerRect = container.getBoundingClientRect();
+      const targetRect = el.getBoundingClientRect();
+      container.scrollTo({
+        top: container.scrollTop + (targetRect.top - containerRect.top) - 60,
+        behavior: "smooth",
+      });
+    }, 80);
+  }, [
+    deepLinkLineId,
+    data,
+    hasMore,
+    loadingMore,
+    fetchMoreLines,
+    setLastClickedLineId,
+    transcriptContainerRef,
+  ]);
 
   // -- Handlers --
   const handleSeek = useCallback(
@@ -506,7 +606,10 @@ export default function BattlePage() {
           .map((e) => formatSpeakerName(e.name, true))
           .join(" / ");
       } else {
-        speaker = formatSpeakerName(line.emcee?.name || line.speaker_label, true);
+        speaker = formatSpeakerName(
+          line.emcee?.name || line.speaker_label,
+          true,
+        );
       }
 
       if (round !== currentRoundId) {
@@ -706,7 +809,7 @@ export default function BattlePage() {
                     </h1>
                     <div className="text-muted-foreground/60 mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[10px] font-medium sm:gap-x-3 sm:text-xs">
                       {battle.event_name && (
-                        <span className="text-foreground/70 max-w-[120px] truncate sm:max-w-none">
+                        <span className="text-foreground/70 max-w-30 truncate sm:max-w-none">
                           {battle.event_name}
                         </span>
                       )}
@@ -721,7 +824,9 @@ export default function BattlePage() {
                         lines.length > 0 && (
                           <span className="opacity-30">•</span>
                         )}
-                      <span>{lines.length} lines</span>
+                      <span>
+                        {data.lines_pagination?.total ?? lines.length} lines
+                      </span>
                     </div>
                   </div>
 
@@ -939,39 +1044,39 @@ export default function BattlePage() {
                               return (
                                 <div key={ti}>
                                   {/* Speaker header (Sticky below Round header) */}
-                                    {turn.speaker && (
-                                      <div className="bg-background/80 sticky top-8.5 z-10 -ml-1 flex items-center gap-1.5 py-0.5 backdrop-blur-sm">
-                                        <Button
-                                          variant="ghost"
-                                          onClick={() =>
-                                            toggleTurnCollapse(turnKey)
-                                          }
-                                          className={`hover:bg-muted/50 h-auto justify-start gap-1.5 rounded-md px-2 py-1 text-left text-xs transition-colors ${speakerColor.text}`}
-                                        >
-                                          {isTurnCollapsed ? (
-                                            <ChevronRight className="h-3 w-3 shrink-0 opacity-50" />
-                                          ) : (
-                                            <ChevronDown className="h-3 w-3 shrink-0 opacity-50" />
-                                          )}
-                                          <span
-                                            className={`h-1.5 w-1.5 rounded-full ${speakerColor.dot}`}
-                                          />
-                                          <span className="font-bold tracking-tight">
-                                            {turn.speaker}
-                                          </span>
-                                        </Button>
-
-                                        {editMode && (
-                                          <Checkbox
-                                            checked={turnAllSelected}
-                                            className="mt-1 h-3.5 w-3.5 shrink-0 cursor-pointer"
-                                            onCheckedChange={() =>
-                                              toggleSelectTurn(turn.lines)
-                                            }
-                                          />
+                                  {turn.speaker && (
+                                    <div className="bg-background/80 sticky top-8.5 z-10 -ml-1 flex items-center gap-1.5 py-0.5 backdrop-blur-sm">
+                                      <Button
+                                        variant="ghost"
+                                        onClick={() =>
+                                          toggleTurnCollapse(turnKey)
+                                        }
+                                        className={`hover:bg-muted/50 h-auto justify-start gap-1.5 rounded-md px-2 py-1 text-left text-xs transition-colors ${speakerColor.text}`}
+                                      >
+                                        {isTurnCollapsed ? (
+                                          <ChevronRight className="h-3 w-3 shrink-0 opacity-50" />
+                                        ) : (
+                                          <ChevronDown className="h-3 w-3 shrink-0 opacity-50" />
                                         )}
-                                      </div>
-                                    )}
+                                        <span
+                                          className={`h-1.5 w-1.5 rounded-full ${speakerColor.dot}`}
+                                        />
+                                        <span className="font-bold tracking-tight">
+                                          {turn.speaker}
+                                        </span>
+                                      </Button>
+
+                                      {editMode && (
+                                        <Checkbox
+                                          checked={turnAllSelected}
+                                          className="mt-1 h-3.5 w-3.5 shrink-0 cursor-pointer"
+                                          onCheckedChange={() =>
+                                            toggleSelectTurn(turn.lines)
+                                          }
+                                        />
+                                      )}
+                                    </div>
+                                  )}
 
                                   {/* Lines */}
                                   {!isTurnCollapsed && (
@@ -1066,8 +1171,17 @@ export default function BattlePage() {
                 {/* Footer */}
                 <div className="border-border mt-4 space-y-2 border-t pt-4 text-center">
                   <p className="text-muted-foreground/50 text-[9px] tracking-widest uppercase">
-                    {lines.length} lines • Community transcription
+                    {data.lines_pagination?.total ?? lines.length} lines •
+                    Community transcription
                   </p>
+
+                  {loadingMore && (
+                    <p className="text-muted-foreground text-[10px] font-semibold tracking-wider uppercase">
+                      Loading more lines...
+                    </p>
+                  )}
+
+                  {hasMore && <div ref={loadMoreSentinelRef} className="h-4" />}
                 </div>
 
                 {editMode && selectedIds.size > 0 && <div className="h-20" />}

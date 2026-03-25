@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { requirePermission } from "@/lib/auth";
-import { invalidateCache } from "@/lib/cache";
+import { invalidateCache, invalidateCachePattern } from "@/lib/cache";
 import { revalidatePath } from "next/cache";
 import { verifyCsrf } from "@/lib/csrf";
 import { uuidSchema } from "@/lib/schemas";
@@ -25,7 +25,7 @@ export async function PATCH(
   }
 
   const { id } = await params;
-  
+
   // Validate UUID to prevent database errors on bot probes
   const idValidation = uuidSchema.safeParse(id);
   if (!idValidation.success) {
@@ -145,6 +145,7 @@ export async function PATCH(
 
     if (finalStatus === "approved" && updatedBattleId) {
       await invalidateCache(`battle:${updatedBattleId}`);
+      await invalidateCachePattern(`battle:${updatedBattleId}:*`);
     }
 
     await invalidateCache("admin:stats");

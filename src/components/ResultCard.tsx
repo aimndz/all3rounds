@@ -77,13 +77,19 @@ export default function ResultCard({
       .map((l) => groupsMap[l].join(" / "))
       .filter((s) => s.length > 0);
 
-    return teamStrings.length < 2 ? result.battle.title : teamStrings.join(" vs ");
+    return teamStrings.length < 2
+      ? result.battle.title
+      : teamStrings.join(" vs ");
   })();
 
   return (
     <>
       <div
-        onClick={() => router.push(`/battle/${result.battle.id}?t=${Math.floor(result.start_time)}`)}
+        onClick={() =>
+          router.push(
+            `/battle/${result.battle.id}?t=${Math.floor(result.start_time)}&lineId=${result.id}`,
+          )
+        }
         className="group hover:bg-muted/30 active:bg-muted/45 relative block cursor-pointer py-4 transition-all duration-200 sm:-mx-4 sm:rounded-xl sm:px-4"
       >
         {/* Action Controls */}
@@ -113,7 +119,11 @@ export default function ResultCard({
                 else setIsLoginModalOpen(true);
               }}
               className="text-muted-foreground hover:bg-primary/10 hover:text-primary h-8 w-8"
-              title={isUserLoggedIn ? "Suggest a correction" : "Login to suggest correction"}
+              title={
+                isUserLoggedIn
+                  ? "Suggest a correction"
+                  : "Login to suggest correction"
+              }
             >
               <MessageSquarePlus className="h-4 w-4" />
             </Button>
@@ -147,7 +157,9 @@ export default function ResultCard({
               <div className="text-muted-foreground/60 flex flex-col gap-0.5 text-[13px] font-medium transition-colors">
                 <span className="line-clamp-1">{battleMatchup}</span>
                 {result.battle.event_name && (
-                  <span className="line-clamp-1">{result.battle.event_name}</span>
+                  <span className="line-clamp-1">
+                    {result.battle.event_name}
+                  </span>
                 )}
               </div>
             </div>
@@ -156,7 +168,12 @@ export default function ResultCard({
           {/* Desktop Content & Mobile Transcription Row */}
           <div className="relative flex min-w-0 flex-1 flex-col justify-center">
             {/* Desktop-only Metadata Header */}
-            <div className={cn("hidden sm:block pr-10", speakerLabel ? "mb-5" : "mb-2")}>
+            <div
+              className={cn(
+                "hidden pr-10 sm:block",
+                speakerLabel ? "mb-5" : "mb-2",
+              )}
+            >
               {speakerLabel && (
                 <span className="text-primary/80 block truncate text-[15px] font-black uppercase">
                   {speakerLabel}
@@ -181,7 +198,7 @@ export default function ResultCard({
                     {result.prev_line.content}
                   </p>
                 )}
-                <p className="text-foreground line-clamp-3 text-[15px] font-semibold leading-relaxed sm:text-[16px]">
+                <p className="text-foreground line-clamp-3 text-[15px] leading-relaxed font-semibold sm:text-[16px]">
                   {result.content}
                 </p>
                 {result.next_line && (
@@ -213,7 +230,10 @@ export default function ResultCard({
         />
       )}
 
-      <LoginModal isOpen={isLoginModalOpen} onOpenChange={setIsLoginModalOpen} />
+      <LoginModal
+        isOpen={isLoginModalOpen}
+        onOpenChange={setIsLoginModalOpen}
+      />
     </>
   );
 }

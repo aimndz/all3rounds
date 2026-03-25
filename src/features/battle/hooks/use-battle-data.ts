@@ -30,6 +30,13 @@ export type BattleData = {
     emcee: { id: string; name: string } | null;
   }[];
   lines: BattleLine[];
+  lines_pagination?: {
+    limit: number;
+    offset: number;
+    has_more: boolean;
+    loaded: number;
+    total: number;
+  };
 };
 
 export type Turn = {
@@ -43,12 +50,15 @@ export type RoundGroup = {
 };
 
 export function useBattleData(battleId: string) {
+  const PAGE_SIZE = 200;
   const [data, setData] = useState<BattleData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
   const [error, setError] = useState("");
 
   const fetchBattle = useCallback(() => {
-    return fetch(`/api/battles/${battleId}`)
+    return fetch(`/api/battles/${battleId}?limit=${PAGE_SIZE}&offset=0`)
       .then(async (res) => {
         if (!res.ok) {
           const d = await res.json().catch(() => ({}));
@@ -58,6 +68,7 @@ export function useBattleData(battleId: string) {
       })
       .then((d) => {
         setData(d);
+        setHasMore(Boolean(d.lines_pagination?.has_more));
         return d as BattleData;
       })
       .catch((err) => {
@@ -67,5 +78,56 @@ export function useBattleData(battleId: string) {
       .finally(() => setLoading(false));
   }, [battleId]);
 
-  return { data, setData, loading, error, fetchBattle };
+  const fetchMoreLines = useCallback(() => {
+    if (!data || loadingMore || !hasMore) {
+      return Promise.resolve(null);
+    }
+
+    setLoadingMore(true);
+
+    return fetch(
+      `/api/battles/${battleId}?limit=${PAGE_SIZE}&offset=${data.lines.length}`,
+    )
+      .then(async (res) => {
+        if (!res.ok) {
+          const d = await res.json().catch(() => ({}));
+          throw new Error(d.error || d.details || "Failed to load more lines.");
+        }
+        return res.json();
+      })
+      .then((d: BattleData) => {
+        setData((prev) => {
+          if (!prev) {
+            return d;
+          }
+
+          return {
+            ...prev,
+            lines: [...prev.lines, ...d.lines],
+            lines_pagination: d.lines_pagination,
+          };
+        });
+
+        setHasMore(Boolean(d.lines_pagination?.has_more));
+        return d;
+      })
+      .catch((err) => {
+        setError(
+          err instanceof Error ? err.message : "Failed to load more lines.",
+        );
+        return null;
+      })
+      .finally(() => setLoadingMore(false));
+  }, [battleId, data, hasMore, loadingMore]);
+
+  return {
+    data,
+    setData,
+    loading,
+    loadingMore,
+    hasMore,
+    error,
+    fetchBattle,
+    fetchMoreLines,
+  };
 }
