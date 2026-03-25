@@ -68,6 +68,33 @@ const SearchResultsList = memo(function SearchResultsList({
   );
 });
 
+const SearchResultsLoadingSkeleton = memo(function SearchResultsLoadingSkeleton() {
+  return (
+    <div className="space-y-6">
+      {[...Array(4)].map((_, i) => (
+        <div key={i}>
+          {i > 0 && <Separator className="my-6" />}
+          <div className="flex animate-pulse gap-4 sm:gap-6">
+            <div className="bg-muted hidden aspect-video w-40 shrink-0 self-start rounded-md sm:block" />
+            <div className="flex-1 space-y-4 py-1">
+              <div className="bg-muted h-4 w-1/3 max-w-50 rounded" />
+              <div className="border-muted space-y-2 border-l-2 pl-3">
+                <div className="bg-muted/60 h-3 w-5/6 rounded" />
+                <div className="bg-muted h-4 w-full rounded" />
+                <div className="bg-muted/60 h-3 w-4/6 rounded" />
+              </div>
+              <div className="flex gap-2 pt-2">
+                <div className="bg-muted h-8 w-24 rounded" />
+                <div className="bg-muted h-8 w-16 rounded" />
+              </div>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+});
+
 function SearchResults() {
   const router = useRouter();
   const pathname = usePathname();
@@ -320,30 +347,7 @@ function SearchResults() {
         )}
 
         {/* Loading state */}
-        {loading && (
-          <div className="space-y-6">
-            {[...Array(4)].map((_, i) => (
-              <div key={i}>
-                {i > 0 && <Separator className="my-6" />}
-                <div className="flex animate-pulse gap-4 sm:gap-6">
-                  <div className="bg-muted hidden aspect-video w-40 shrink-0 self-start rounded-md sm:block" />
-                  <div className="flex-1 space-y-4 py-1">
-                    <div className="bg-muted h-4 w-1/3 max-w-50 rounded" />
-                    <div className="border-muted space-y-2 border-l-2 pl-3">
-                      <div className="bg-muted/60 h-3 w-5/6 rounded" />
-                      <div className="bg-muted h-4 w-full rounded" />
-                      <div className="bg-muted/60 h-3 w-4/6 rounded" />
-                    </div>
-                    <div className="flex gap-2 pt-2">
-                      <div className="bg-muted h-8 w-24 rounded" />
-                      <div className="bg-muted h-8 w-16 rounded" />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+        {loading && <SearchResultsLoadingSkeleton />}
 
         {/* Empty state */}
         {!loading &&
