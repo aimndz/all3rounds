@@ -15,13 +15,11 @@
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test",
     "build:cf": "opennextjs-cloudflare build",
-    "preview:cf": "pnpm build:cf && wrangler dev --local",
-    "preview:cf:remote": "pnpm build:cf && wrangler dev --remote",
-    "deploy:cf": "pnpm build:cf && wrangler deploy",
-    "preview:cf:dev": "pnpm build:cf && wrangler dev --env development --local",
-    "preview:cf:prod": "pnpm build:cf && wrangler dev --env production --remote",
-    "deploy:cf:dev": "pnpm build:cf && wrangler deploy --env development",
-    "deploy:cf:prod": "pnpm build:cf && wrangler deploy --env production"
+    "build:wp": "next build --webpack && opennextjs-cloudflare build --skipNextBuild",
+    "preview:dev": "pnpm build:wp && wrangler dev --env development --local",
+    "preview:prod": "pnpm build:wp && wrangler dev --env production --remote",
+    "deploy:dev": "pnpm build:wp && wrangler deploy --env development",
+    "deploy:prod": "pnpm build:wp && wrangler deploy --env production"
   },
   "dependencies": {
     "@supabase/ssr": "^0.8.0",
@@ -41,7 +39,7 @@
     "zustand": "^5.0.11"
   },
   "devDependencies": {
-    "@opennextjs/cloudflare": "^1.17.3",
+    "@opennextjs/cloudflare": "^1.18.0",
     "@playwright/test": "^1.52.0",
     "@tailwindcss/postcss": "^4",
     "@testing-library/jest-dom": "^6.6.3",
