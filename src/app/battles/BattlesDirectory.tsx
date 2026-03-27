@@ -57,11 +57,13 @@ import { useSuperadminActions } from "@/features/battles/hooks/use-superadmin-ac
 export default function BattlesDirectory({
   initialBattles,
   initialCount,
+  initialTotalEvents,
   initialYears,
   initialEventNames = [],
 }: {
   initialBattles: Battle[];
   initialCount: number;
+  initialTotalEvents: number;
   initialYears: string[];
   initialEventNames?: string[];
 }) {
@@ -73,6 +75,7 @@ export default function BattlesDirectory({
     loading,
     error,
     totalCount,
+    totalEvents,
     page,
     paginatedEventGroups,
     handlePageChange,
@@ -88,10 +91,14 @@ export default function BattlesDirectory({
     updateSearch,
     handleToggleGroup,
     availableYears,
-    eventGroups,
     clearFilters,
     hasActiveFilters,
-  } = useBattlesData(initialBattles, initialCount, initialYears);
+  } = useBattlesData(
+    initialBattles,
+    initialCount,
+    initialTotalEvents,
+    initialYears,
+  );
 
   const sa = useSuperadminActions(battles, setBattles, initialEventNames);
 
@@ -236,7 +243,7 @@ export default function BattlesDirectory({
                 }}
               >
                 <div className="relative">
-                  <Search className="text-muted-foreground/40 absolute top-1/2 left-3.5 h-4 w-4 -translate-y-1/2 transition-colors group-focus-within:text-primary/60" />
+                  <Search className="text-muted-foreground/40 group-focus-within:text-primary/60 absolute top-1/2 left-3.5 h-4 w-4 -translate-y-1/2 transition-colors" />
                   <input
                     type="text"
                     spellCheck="false"
@@ -323,7 +330,7 @@ export default function BattlesDirectory({
               >
                 <div className="flex w-1/2 items-center gap-4 pb-12">
                   <Skeleton className="h-5 w-5 rounded-md" />
-                  <Skeleton className="h-6 w-full max-w-[300px]" />
+                  <Skeleton className="h-6 w-full max-w-75" />
                 </div>
               </div>
             ))}
@@ -367,7 +374,7 @@ export default function BattlesDirectory({
 
             <DataPagination
               page={page}
-              totalItems={eventGroups.length}
+              totalItems={totalEvents}
               itemsPerPage={5}
               onPageChange={handlePageChange}
             />

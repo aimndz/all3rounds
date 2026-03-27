@@ -78,7 +78,8 @@ export function groupByEvent(
 export function useBattlesData(
   initialBattles: Battle[],
   initialCount: number,
-  initialYears: string[],
+  initialTotalEvents: number,
+  _initialYears: string[],
 ) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -88,8 +89,7 @@ export function useBattlesData(
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [totalCount, setTotalCount] = useState<number | null>(initialCount);
-  const dbYears = initialYears;
-
+  const [totalEvents, setTotalEvents] = useState<number>(initialTotalEvents);
   // -- Filter State from URL --
   const filter = searchParams.get("q") || "";
   const statusFilter = searchParams.get("status") || "all";
@@ -135,12 +135,15 @@ export function useBattlesData(
 
   // Fetch ALL battles matching filters (no per-row pagination)
   const fetchBattles = useCallback(
-    async (currentFilters: {
-      q: string;
-      status: string;
-      year: string;
-      sort: string;
-    }) => {
+    async (
+      currentPage: number,
+      currentFilters: {
+        q: string;
+        status: string;
+        year: string;
+        sort: string;
+      },
+    ) => {
       setLoading(true);
 
       try {
@@ -152,6 +155,8 @@ export function useBattlesData(
           params.set("year", currentFilters.year);
         if (currentFilters.sort && currentFilters.sort !== "latest")
           params.set("sort", currentFilters.sort);
+        params.set("page", String(Math.max(1, currentPage)));
+        params.set("eventLimit", String(EVENTS_PER_PAGE));
 
         const res = await fetch(`/api/battles?${params.toString()}`);
 
@@ -162,10 +167,17 @@ export function useBattlesData(
           throw new Error(msg);
         }
 
-        const { battles: incomingBattles, count } = await res.json();
+        const {
+          battles: incomingBattles,
+          count,
+          totalEvents: incomingTotalEvents,
+        } = await res.json();
 
         setBattles(incomingBattles || []);
         setTotalCount(count);
+        setTotalEvents(
+          typeof incomingTotalEvents === "number" ? incomingTotalEvents : 0,
+        );
       } catch (err) {
         console.error("Fetch error:", err);
         setError(
@@ -178,7 +190,7 @@ export function useBattlesData(
     [],
   );
 
-  // Effect: fetch when filters change (not page — page is client-side)
+  // Effect: fetch when page/filters change
   const isFirstMount = useRef(true);
 
   useEffect(() => {
@@ -189,16 +201,26 @@ export function useBattlesData(
         statusFilter !== "all" ||
         yearFilter !== "all" ||
         sortBy !== "latest";
-      if (!isFiltered) return; // Use initial server data
+      if (!isFiltered && page === 1 && initialBattles.length > 0) {
+        return; // Use initial server data for default first-page load
+      }
     }
 
-    fetchBattles({
+    fetchBattles(page, {
       q: filter,
       status: statusFilter,
       year: yearFilter,
       sort: sortBy,
     });
-  }, [filter, statusFilter, yearFilter, sortBy, fetchBattles]);
+  }, [
+    filter,
+    statusFilter,
+    yearFilter,
+    sortBy,
+    page,
+    fetchBattles,
+    initialBattles.length,
+  ]);
 
   // Update URL helpers
   const updateSearch = useCallback(
@@ -249,19 +271,19 @@ export function useBattlesData(
   }, []);
 
   const availableYears = useMemo(() => {
-    const years = new Set(dbYears);
-    battles.forEach((b) => {
-      if (b.event_date) {
-        years.add(b.event_date.split("-")[0]);
-      }
-    });
+    const currentYear = new Date().getFullYear();
+    const years: string[] = [];
 
-    if (yearFilter !== "all") {
-      years.add(yearFilter);
+    for (let year = currentYear; year >= 2010; year -= 1) {
+      years.push(String(year));
     }
 
-    return Array.from(years).sort((a, b) => b.localeCompare(a));
-  }, [dbYears, battles, yearFilter]);
+    if (yearFilter !== "all" && !years.includes(yearFilter)) {
+      years.unshift(yearFilter);
+    }
+
+    return years;
+  }, [yearFilter]);
 
   // All event groups from all battles
   const eventGroups = useMemo(
@@ -269,17 +291,10 @@ export function useBattlesData(
     [battles, sortBy, filter],
   );
 
-  // Client-side event-based pagination
-  const totalPages = Math.max(1, Math.ceil(eventGroups.length / EVENTS_PER_PAGE));
+  // Server-side event-based pagination
+  const totalPages = Math.max(1, Math.ceil(totalEvents / EVENTS_PER_PAGE));
   const safePage = Math.min(page, totalPages);
-  const paginatedEventGroups = useMemo(
-    () =>
-      eventGroups.slice(
-        (safePage - 1) * EVENTS_PER_PAGE,
-        safePage * EVENTS_PER_PAGE,
-      ),
-    [eventGroups, safePage],
-  );
+  const paginatedEventGroups = eventGroups;
 
   const clearFilters = useCallback(() => {
     setSearchInput("");
@@ -299,6 +314,7 @@ export function useBattlesData(
     loading,
     error,
     totalCount,
+    totalEvents,
     page: safePage,
     totalPages,
     eventGroups,
