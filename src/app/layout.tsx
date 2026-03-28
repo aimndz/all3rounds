@@ -110,9 +110,9 @@ export default async function RootLayout({
         <AuthProvider>
           <div className="flex min-h-screen flex-col">
             <Header />
-            <main className="flex flex-1 flex-col">
+            <div className="flex flex-1 flex-col">
               <ErrorBoundary>{children}</ErrorBoundary>
-            </main>
+            </div>
             <Footer />
           </div>
         </AuthProvider>
