@@ -12,7 +12,6 @@ export default function Footer() {
             <Link
               href="/"
               className="inline-block transition-opacity"
-              prefetch={false}
             >
               <Image
                 src="/logo/a3r-logo-full.svg"
@@ -67,7 +66,6 @@ export default function Footer() {
                   key={link.href}
                   href={link.href}
                   className="text-muted-foreground/50 hover:text-foreground w-fit text-[13px] transition-colors"
-                  prefetch={false}
                 >
                   {link.label}
                 </Link>
@@ -89,7 +87,6 @@ export default function Footer() {
                   key={link.href}
                   href={link.href}
                   className="text-muted-foreground/50 hover:text-foreground w-fit text-[13px] transition-colors"
-                  prefetch={false}
                 >
                   {link.label}
                 </Link>

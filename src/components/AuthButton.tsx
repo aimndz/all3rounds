@@ -80,7 +80,6 @@ export default function AuthButton({
               {["superadmin", "admin", "moderator"].includes(user.role) && (
                 <Link
                   href="/reviews"
-                  prefetch={false}
                   className="text-muted-foreground hover:text-foreground hover:bg-white/5 -mx-3 flex items-center rounded-md px-3 py-3 text-[10px] font-medium tracking-widest uppercase transition-colors"
                 >
                   Reviews
@@ -91,7 +90,6 @@ export default function AuthButton({
               {user.role === "superadmin" && (
                 <Link
                   href="/admin/users"
-                  prefetch={false}
                   className="text-muted-foreground hover:text-foreground hover:bg-white/5 -mx-3 flex items-center rounded-md px-3 py-3 text-[10px] font-medium tracking-widest uppercase transition-colors"
                 >
                   Admin Panel
@@ -142,7 +140,7 @@ export default function AuthButton({
           {["superadmin", "admin", "moderator"].includes(user.role) && (
             <>
               <DropdownMenuSeparator />
-              <Link href="/reviews" passHref prefetch={false}>
+              <Link href="/reviews" passHref>
                 <DropdownMenuItem className="text-muted-foreground hover:text-foreground cursor-pointer text-[10px] font-medium tracking-widest uppercase transition-colors focus:bg-white/5">
                   Reviews
                 </DropdownMenuItem>
@@ -152,7 +150,7 @@ export default function AuthButton({
 
           {/* Role-based link: Superadmins only */}
           {user.role === "superadmin" && (
-            <Link href="/admin/users" passHref prefetch={false}>
+            <Link href="/admin/users" passHref>
               <DropdownMenuItem className="text-muted-foreground hover:text-foreground cursor-pointer text-[10px] font-medium tracking-widest uppercase transition-colors focus:bg-white/5">
                 Admin Panel
               </DropdownMenuItem>
@@ -175,7 +173,7 @@ export default function AuthButton({
   // Render standard Login button if unauthenticated
   return (
     <Button size="sm" asChild>
-      <Link href="/login" prefetch={false}>Login</Link>
+      <Link href="/login">Login</Link>
     </Button>
   );
 }

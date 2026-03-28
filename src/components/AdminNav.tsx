@@ -23,7 +23,6 @@ export default function AdminNav() {
             <Link
               key={href}
               href={href}
-              prefetch={false}
               className={`relative flex items-center px-4 py-2.5 text-[10px] font-bold tracking-widest uppercase transition-all whitespace-nowrap rounded-xl sm:px-6 sm:text-xs ${
                 isActive
                   ? "bg-primary/10 text-primary border border-primary/20"
