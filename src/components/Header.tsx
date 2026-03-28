@@ -52,6 +52,7 @@ export default function Header() {
                 <Link
                   key={link.href}
                   href={link.href}
+                  prefetch={false}
                   className="text-muted-foreground hover:text-foreground text-[10px] font-medium tracking-widest uppercase transition-colors"
                 >
                   {link.label}
@@ -100,6 +101,7 @@ export default function Header() {
                         <Link
                           key={link.href}
                           href={link.href}
+                          prefetch={false}
                           className="text-muted-foreground hover:text-foreground -mx-3 flex items-center rounded-md px-3 py-3 text-[10px] font-medium tracking-widest uppercase transition-colors hover:bg-white/5"
                         >
                           {link.label}

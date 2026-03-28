@@ -5,6 +5,8 @@ import "./globals.css";
 import { getSiteUrl } from "@/lib/utils";
 import { Toaster } from "@/components/ui/toaster";
 import BetaBanner from "@/components/BetaBanner";
+import Header from "@/components/Header";
+import Footer from "@/components/Footer";
 import { AuthProvider } from "@/components/AuthProvider";
 import { ErrorBoundary } from "@/components/shared/ErrorBoundary";
 
@@ -106,7 +108,13 @@ export default async function RootLayout({
       >
         <BetaBanner />
         <AuthProvider>
-          <ErrorBoundary>{children}</ErrorBoundary>
+          <div className="flex min-h-screen flex-col">
+            <Header />
+            <main className="flex-1">
+              <ErrorBoundary>{children}</ErrorBoundary>
+            </main>
+            <Footer />
+          </div>
         </AuthProvider>
         <Toaster />
 

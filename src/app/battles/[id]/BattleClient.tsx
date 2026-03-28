@@ -11,8 +11,6 @@ import {
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
 import { useToast } from "@/hooks/use-toast";
-import Header from "@/components/Header";
-import Footer from "@/components/Footer";
 import Link from "next/link";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
@@ -645,8 +643,7 @@ export default function BattleClient() {
   // ── Loading ──
   if (loading) {
     return (
-      <div className="bg-background min-h-screen">
-        <Header />
+      <>
         <main className="mx-auto flex h-[calc(100vh-4rem)] max-w-7xl flex-col overflow-hidden px-4 sm:px-6">
           <div className="flex h-full min-h-0 flex-col gap-6 pt-4 lg:grid lg:grid-cols-12 lg:gap-8 lg:pt-6">
             {/* Left Column: Video Skeleton */}
@@ -690,15 +687,14 @@ export default function BattleClient() {
             </div>
           </div>
         </main>
-      </div>
+      </>
     );
   }
 
   // ── Error ──
   if (error || !data) {
     return (
-      <div className="bg-background min-h-screen">
-        <Header />
+      <>
         <div className="mx-auto max-w-4xl px-4 py-20 text-center">
           <Mic2 className="text-muted-foreground/40 mx-auto mb-4 h-12 w-12" />
           <h1 className="text-foreground text-xl font-semibold">
@@ -709,7 +705,7 @@ export default function BattleClient() {
             <Link href="/battles">← Back to battles</Link>
           </Button>
         </div>
-      </div>
+      </>
     );
   }
 
@@ -718,8 +714,7 @@ export default function BattleClient() {
   // ────────────────────────────────────────────────────────────────────────────
 
   return (
-    <div className="bg-background min-h-screen">
-      <Header />
+    <>
 
       <main className="mx-auto flex h-[calc(100vh-4rem)] max-w-7xl flex-col overflow-hidden px-4 sm:px-6">
         {/* ── Two-Column Layout ── */}
@@ -1296,7 +1291,6 @@ export default function BattleClient() {
         isOpen={isLoginModalOpen}
         onOpenChange={setIsLoginModalOpen}
       />
-      <Footer />
-    </div>
+    </>
   );
 }

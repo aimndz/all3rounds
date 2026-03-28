@@ -1,7 +1,5 @@
 "use client";
 
-import Header from "@/components/Header";
-import Footer from "@/components/Footer";
 import Image from "next/image";
 import {
   ChevronDown,
@@ -217,9 +215,7 @@ export default function BattlesDirectory({
   );
 
   return (
-    <div className="bg-background text-foreground flex min-h-screen flex-col">
-      <Header />
-
+    <>
       <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-8 sm:px-6 lg:px-8">
         <div className="border-border/10 bg-background/95 sticky top-14 z-30 -mx-4 mb-8 border-b px-4 py-4 backdrop-blur-sm sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -381,7 +377,6 @@ export default function BattlesDirectory({
           </div>
         )}
       </main>
-      <Footer />
 
       {/* ── Superadmin: Floating Selection Bar ── */}
       {isSuperAdmin && (
@@ -689,6 +684,6 @@ export default function BattlesDirectory({
           </Dialog>
         </>
       )}
-    </div>
+    </>
   );
 }

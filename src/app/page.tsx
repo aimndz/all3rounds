@@ -1,15 +1,10 @@
 import SearchBar from "@/components/SearchBar";
-import Header from "@/components/Header";
-import Footer from "@/components/Footer";
 import Image from "next/image";
 
 export const dynamic = "force-static";
 
 export default function Home() {
   return (
-    <div className="bg-background flex min-h-dvh flex-col">
-      <Header />
-
       <main className="mx-auto flex h-[calc(100svh-200px)] w-full max-w-5xl items-center justify-center px-4 sm:px-6">
         <div className="flex w-full flex-col items-center space-y-12 text-center">
           {/* Hero Content */}
@@ -76,8 +71,5 @@ export default function Home() {
           </div>
         </div>
       </main>
-
-      <Footer />
-    </div>
   );
 }

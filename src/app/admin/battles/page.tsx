@@ -379,6 +379,7 @@ export default function BattleAdminPage() {
                     <div>
                       <Link
                         href={`/battles/${b.id}`}
+                        prefetch={false}
                         target="_blank"
                         className="hover:text-primary text-sm leading-tight font-semibold text-white transition-colors"
                       >

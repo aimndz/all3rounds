@@ -11,8 +11,6 @@ import {
   memo,
 } from "react";
 import { useAuthStore } from "@/stores/auth-store";
-import Header from "@/components/Header";
-import Footer from "@/components/Footer";
 import SearchBar from "@/components/SearchBar";
 import ResultCard from "@/components/ResultCard";
 import { SearchResult } from "@/lib/types";
@@ -294,8 +292,7 @@ function SearchResults() {
   }, [scheduleRefresh, query, page]);
 
   return (
-    <div className="bg-background min-h-screen">
-      <Header />
+    <>
 
       {/* Search bar */}
       <div className="bg-background/95 sticky top-14 z-30 border-b border-white/5 backdrop-blur-xl">
@@ -431,9 +428,7 @@ function SearchResults() {
           </div>
         )}
       </main>
-
-      <Footer />
-    </div>
+    </>
   );
 }
 

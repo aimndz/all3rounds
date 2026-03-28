@@ -65,6 +65,7 @@ export default function Footer() {
                 <Link
                   key={link.href}
                   href={link.href}
+                  prefetch={false}
                   className="text-muted-foreground/50 hover:text-foreground w-fit text-[13px] transition-colors"
                 >
                   {link.label}
@@ -86,6 +87,7 @@ export default function Footer() {
                 <Link
                   key={link.href}
                   href={link.href}
+                  prefetch={false}
                   className="text-muted-foreground/50 hover:text-foreground w-fit text-[13px] transition-colors"
                 >
                   {link.label}

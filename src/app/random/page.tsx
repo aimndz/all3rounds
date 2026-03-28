@@ -3,8 +3,6 @@
 import { useState } from "react";
 
 import { useAuthStore } from "@/stores/auth-store";
-import Header from "@/components/Header";
-import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -92,8 +90,7 @@ export default function RandomPage() {
   const speaker = line?.emcee?.name || line?.speaker_label || "Unknown";
 
   return (
-    <div className="flex min-h-screen flex-col">
-      <Header />
+    <>
       <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8">
         <div className="mb-4 flex items-center justify-between sm:mb-6">
           <div>
@@ -372,7 +369,6 @@ export default function RandomPage() {
         isOpen={isLoginModalOpen}
         onOpenChange={setIsLoginModalOpen}
       />
-      <Footer />
-    </div>
+    </>
   );
 }
