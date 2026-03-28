@@ -16,12 +16,18 @@
       "name": "all3rounds-dev",
       "vars": {
         "APP_ENV": "development"
+      },
+      "images": {
+        "binding": "IMAGES"
       }
     },
     "production": {
       "name": "all3rounds",
       "vars": {
         "APP_ENV": "production"
+      },
+      "images": {
+        "binding": "IMAGES"
       }
     }
   }

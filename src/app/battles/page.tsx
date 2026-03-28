@@ -1,3 +1,4 @@
+import { Metadata } from "next";
 import { Suspense } from "react";
 import { createPublicClient } from "@/lib/supabase/server";
 import BattlesDirectory from "./BattlesDirectory";
@@ -6,11 +7,18 @@ import { BattlesSkeleton } from "@/components/PageSkeletons";
 const INITIAL_EVENTS_PER_PAGE = 5;
 const OTHER_BATTLES_KEY = "Other Battles";
 
-// ============================================================================
-// Page Export (Server Component)
-// ============================================================================
-
 export const revalidate = 86400; // 24 hours (1 day)
+
+export const metadata: Metadata = {
+  title: "Battles",
+  description:
+    "Browse the community directory of Filipino battle rap events. Find transcripts, event dates, and battle history from FlipTop and underground leagues.",
+  openGraph: {
+    title: "Battles | Filipino Battle Rap Archive",
+    description:
+      "Explore the community archive for Filipino battle rap transcripts and battle history.",
+  },
+};
 
 export default async function BattlesPage({
   searchParams,
@@ -21,22 +29,19 @@ export default async function BattlesPage({
   const sort = params.sort === "oldest" ? "oldest" : "latest";
   const supabase = createPublicClient();
 
-  const [{ count: initialCount, error: countError }, eventsMetaResponse] =
-    await Promise.all([
-      supabase
-        .from("battles")
-        .select("id", { count: "exact", head: true })
-        .neq("status", "excluded"),
-      supabase
-        .from("battles")
-        .select("event_name, event_date")
-        .neq("status", "excluded")
-        .limit(10000),
-    ]);
+  const [{ count: initialCount }, eventsMetaResponse] = await Promise.all([
+    supabase
+      .from("battles")
+      .select("id", { count: "exact", head: true })
+      .neq("status", "excluded"),
+    supabase
+      .from("battles")
+      .select("event_name, event_date")
+      .neq("status", "excluded")
+      .order("event_date", { ascending: sort === "oldest" })
+      .limit(5000),
+  ]);
 
-  if (countError) {
-    console.error("Error fetching battles count on server:", countError);
-  }
   if (eventsMetaResponse.error) {
     console.error(
       "Error fetching battles event metadata on server:",

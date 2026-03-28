@@ -68,32 +68,34 @@ const SearchResultsList = memo(function SearchResultsList({
   );
 });
 
-const SearchResultsLoadingSkeleton = memo(function SearchResultsLoadingSkeleton() {
-  return (
-    <div className="space-y-6">
-      {[...Array(4)].map((_, i) => (
-        <div key={i}>
-          {i > 0 && <Separator className="my-6" />}
-          <div className="flex animate-pulse gap-4 sm:gap-6">
-            <div className="bg-muted hidden aspect-video w-40 shrink-0 self-start rounded-md sm:block" />
-            <div className="flex-1 space-y-4 py-1">
-              <div className="bg-muted h-4 w-1/3 max-w-50 rounded" />
-              <div className="border-muted space-y-2 border-l-2 pl-3">
-                <div className="bg-muted/60 h-3 w-5/6 rounded" />
-                <div className="bg-muted h-4 w-full rounded" />
-                <div className="bg-muted/60 h-3 w-4/6 rounded" />
-              </div>
-              <div className="flex gap-2 pt-2">
-                <div className="bg-muted h-8 w-24 rounded" />
-                <div className="bg-muted h-8 w-16 rounded" />
+const SearchResultsLoadingSkeleton = memo(
+  function SearchResultsLoadingSkeleton() {
+    return (
+      <div className="space-y-6">
+        {[...Array(4)].map((_, i) => (
+          <div key={i}>
+            {i > 0 && <Separator className="my-6" />}
+            <div className="flex animate-pulse gap-4 sm:gap-6">
+              <div className="bg-muted hidden aspect-video w-40 shrink-0 self-start rounded-md sm:block" />
+              <div className="flex-1 space-y-4 py-1">
+                <div className="bg-muted h-4 w-1/3 max-w-50 rounded" />
+                <div className="border-muted space-y-2 border-l-2 pl-3">
+                  <div className="bg-muted/60 h-3 w-5/6 rounded" />
+                  <div className="bg-muted h-4 w-full rounded" />
+                  <div className="bg-muted/60 h-3 w-4/6 rounded" />
+                </div>
+                <div className="flex gap-2 pt-2">
+                  <div className="bg-muted h-8 w-24 rounded" />
+                  <div className="bg-muted h-8 w-16 rounded" />
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      ))}
-    </div>
-  );
-});
+        ))}
+      </div>
+    );
+  },
+);
 
 function SearchResults() {
   const router = useRouter();
@@ -369,12 +371,13 @@ function SearchResults() {
         {/* Initial state (no query) */}
         {!query && (
           <div className="flex flex-col items-center justify-center px-4 py-28 text-center">
-            <h2 className="text-foreground mb-3 text-2xl font-black tracking-tight">
-              Try searching now
+            <h2 className="text-foreground mb-3 text-2xl font-bold tracking-tight">
+              Start searching
             </h2>
             <p className="text-muted-foreground mx-auto max-w-md text-base leading-relaxed">
-              Find lines, punchlines, or track down matches by entering an
-              emcee&apos;s name or a phrase.
+              Search through transcripts from FlipTop and underground leagues.
+              Find every iconic bar by entering an emcee&apos;s name or a
+              phrase.
             </p>
           </div>
         )}

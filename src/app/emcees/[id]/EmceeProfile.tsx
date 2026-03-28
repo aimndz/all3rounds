@@ -21,13 +21,7 @@ interface EmceeProfileProps {
     id: string;
     name: string;
     aka: string[];
-    stats: {
-      total_battles: number;
-      total_lines: number;
-      unique_events: number;
-    };
     battles: Battle[];
-    events: string[];
   };
 }
 

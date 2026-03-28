@@ -63,13 +63,13 @@ function SearchBar({
         />
         <Input
           ref={inputRef}
-          type="text"
+          type="search"
           defaultValue={initialQuery}
           onChange={handleInputChange}
           placeholder="Search lines, verses, or words..."
           autoFocus={autoFocus}
           className={cn(
-            "focus-visible:border-primary rounded-xl border-2 shadow-none transition-all focus-visible:ring-0",
+            "focus-visible:border-primary rounded-xl border-2 shadow-none transition-all focus-visible:ring-0 [&::-webkit-search-cancel-button]:hidden",
             isLarge
               ? "h-14 pr-24 pl-12 text-base sm:pr-32"
               : "h-12 pr-12 pl-11 text-base sm:pr-24",

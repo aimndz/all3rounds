@@ -19,6 +19,7 @@ export default function Header() {
   const { isUserLoggedIn, isLoading } = useAuthStore();
 
   const navLinks = [
+    { href: "/search", label: "Search" },
     { href: "/random", label: "Discover" },
     { href: "/battles", label: "Battles" },
     { href: "/emcees", label: "Emcees" },
