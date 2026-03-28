@@ -6,9 +6,9 @@ export default function Footer() {
   return (
     <footer className="border-border/40 bg-background/95 w-full border-t px-4 py-12 backdrop-blur-sm md:py-16">
       <div className="mx-auto max-w-5xl">
-        <div className="grid grid-cols-1 gap-12 md:grid-cols-12">
+        <div className="grid grid-cols-2 gap-x-8 gap-y-12 md:grid-cols-12">
           {/* Column 1: Main */}
-          <div className="flex flex-col gap-6 md:col-span-6">
+          <div className="col-span-2 flex flex-col gap-6 md:col-span-6">
             <Link
               href="/"
               className="inline-block transition-opacity"
@@ -52,7 +52,7 @@ export default function Footer() {
           </div>
 
           {/* Column 2: Explore */}
-          <div className="flex flex-col gap-5 md:col-span-3">
+          <div className="col-span-1 flex flex-col gap-5 md:col-span-3">
             <h3 className="text-foreground text-[10px] font-bold tracking-[0.2em] uppercase">
               Explore
             </h3>
@@ -66,7 +66,7 @@ export default function Footer() {
                 <Link
                   key={link.href}
                   href={link.href}
-                  className="text-muted-foreground/50 hover:text-foreground text-[13px] transition-colors"
+                  className="text-muted-foreground/50 hover:text-foreground w-fit text-[13px] transition-colors"
                   prefetch={false}
                 >
                   {link.label}
@@ -76,7 +76,7 @@ export default function Footer() {
           </div>
 
           {/* Column 3: Legal */}
-          <div className="flex flex-col gap-5 md:col-span-3">
+          <div className="col-span-1 flex flex-col gap-5 md:col-span-3">
             <h3 className="text-foreground text-[10px] font-bold tracking-[0.2em] uppercase">
               Legal
             </h3>
@@ -88,7 +88,7 @@ export default function Footer() {
                 <Link
                   key={link.href}
                   href={link.href}
-                  className="text-muted-foreground/50 hover:text-foreground text-[13px] transition-colors"
+                  className="text-muted-foreground/50 hover:text-foreground w-fit text-[13px] transition-colors"
                   prefetch={false}
                 >
                   {link.label}
