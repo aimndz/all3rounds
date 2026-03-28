@@ -1,11 +1,8 @@
 import { Skeleton } from "@/components/ui/skeleton";
-import Header from "@/components/Header";
-import Footer from "@/components/Footer";
 
 export function BattlesSkeleton() {
   return (
-    <div className="bg-background text-foreground flex min-h-screen flex-col">
-      <Header />
+    <>
       <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-8 sm:px-6 lg:px-8">
         <div className="border-border/10 bg-background/95 sticky top-14 z-30 -mx-4 mb-8 border-b px-4 py-4 backdrop-blur-sm sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
           <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
@@ -38,17 +35,17 @@ export function BattlesSkeleton() {
                 {[...Array(4)].map((_, i) => (
                   <div
                     key={i}
-                    className="border-border overflow-hidden rounded-xl border bg-card/50"
+                    className="border-border bg-card/50 overflow-hidden rounded-xl border"
                   >
                     <Skeleton className="aspect-video w-full rounded-none" />
-                    <div className="p-3 sm:p-4 space-y-3 sm:space-y-4">
+                    <div className="space-y-3 p-3 sm:space-y-4 sm:p-4">
                       <div className="space-y-2">
                         <Skeleton className="h-4 w-[90%]" />
                         <Skeleton className="h-4 w-[40%]" />
                       </div>
                       <div className="flex gap-2">
-                        <Skeleton className="h-8 sm:h-9 flex-1 rounded-lg" />
-                        <Skeleton className="h-8 sm:h-9 flex-1 rounded-lg" />
+                        <Skeleton className="h-8 flex-1 rounded-lg sm:h-9" />
+                        <Skeleton className="h-8 flex-1 rounded-lg sm:h-9" />
                       </div>
                     </div>
                   </div>
@@ -58,43 +55,38 @@ export function BattlesSkeleton() {
           ))}
         </div>
       </main>
-      <Footer />
-    </div>
+    </>
   );
 }
 
 export function EmceesSkeleton() {
   return (
-    <div className="selection:bg-primary/20 min-h-screen bg-[#09090b] text-[#fafafa]">
-      <Header />
-      <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-8 sm:px-6 lg:px-8">
-        <div className="border-border/10 bg-background/95 sticky top-14 z-30 -mx-4 mb-8 border-b px-4 py-4 backdrop-blur-sm sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="relative flex-1 sm:max-w-md">
-              <Skeleton className="h-11 w-full rounded-2xl" />
-            </div>
-            <div className="flex items-center gap-3">
-              <Skeleton className="h-10 w-32 rounded-xl" />
-              <Skeleton className="h-10 w-40 rounded-xl" />
-            </div>
+    <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-8 sm:px-6 lg:px-8">
+      <div className="border-border/10 bg-background/95 sticky top-14 z-30 -mx-4 mb-8 border-b px-4 py-4 backdrop-blur-sm sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="relative flex-1 sm:max-w-md">
+            <Skeleton className="h-11 w-full rounded-2xl" />
+          </div>
+          <div className="flex items-center gap-3">
+            <Skeleton className="h-10 w-32 rounded-xl" />
+            <Skeleton className="h-10 w-40 rounded-xl" />
           </div>
         </div>
+      </div>
 
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {[...Array(12)].map((_, i) => (
-            <div
-              key={i}
-              className="relative flex min-h-40 flex-col justify-between rounded-3xl border border-white/5 bg-[#141417] p-6"
-            >
-              <div className="flex items-start justify-between">
-                <Skeleton className="h-7 w-32" />
-                <Skeleton className="h-6 w-20 rounded-full" />
-              </div>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        {[...Array(12)].map((_, i) => (
+          <div
+            key={i}
+            className="relative flex min-h-40 flex-col justify-between rounded-3xl border border-white/5 bg-[#141417] p-6"
+          >
+            <div className="flex items-start justify-between">
+              <Skeleton className="h-7 w-32" />
+              <Skeleton className="h-6 w-20 rounded-full" />
             </div>
-          ))}
-        </div>
-      </main>
-      <Footer />
-    </div>
+          </div>
+        ))}
+      </div>
+    </main>
   );
 }

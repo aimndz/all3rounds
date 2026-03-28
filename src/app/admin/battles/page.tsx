@@ -283,7 +283,7 @@ export default function BattleAdminPage() {
                       </TableCell>
                       <TableCell className="max-w-[300px] px-6 py-4">
                         <Link
-                          href={`/battle/${b.id}`}
+                          href={`/battles/${b.id}`}
                           prefetch={false}
                           className="group/link flex flex-col hover:cursor-pointer"
                           target="_blank"
@@ -378,7 +378,8 @@ export default function BattleAdminPage() {
                     />
                     <div>
                       <Link
-                        href={`/battle/${b.id}`}
+                        href={`/battles/${b.id}`}
+                        prefetch={false}
                         target="_blank"
                         className="hover:text-primary text-sm leading-tight font-semibold text-white transition-colors"
                       >

@@ -1,7 +1,5 @@
 "use client";
 
-import Header from "@/components/Header";
-import Footer from "@/components/Footer";
 import Image from "next/image";
 import {
   ChevronDown,
@@ -57,11 +55,13 @@ import { useSuperadminActions } from "@/features/battles/hooks/use-superadmin-ac
 export default function BattlesDirectory({
   initialBattles,
   initialCount,
+  initialTotalEvents,
   initialYears,
   initialEventNames = [],
 }: {
   initialBattles: Battle[];
   initialCount: number;
+  initialTotalEvents: number;
   initialYears: string[];
   initialEventNames?: string[];
 }) {
@@ -73,6 +73,7 @@ export default function BattlesDirectory({
     loading,
     error,
     totalCount,
+    totalEvents,
     page,
     paginatedEventGroups,
     handlePageChange,
@@ -88,10 +89,14 @@ export default function BattlesDirectory({
     updateSearch,
     handleToggleGroup,
     availableYears,
-    eventGroups,
     clearFilters,
     hasActiveFilters,
-  } = useBattlesData(initialBattles, initialCount, initialYears);
+  } = useBattlesData(
+    initialBattles,
+    initialCount,
+    initialTotalEvents,
+    initialYears,
+  );
 
   const sa = useSuperadminActions(battles, setBattles, initialEventNames);
 
@@ -210,9 +215,7 @@ export default function BattlesDirectory({
   );
 
   return (
-    <div className="bg-background text-foreground flex min-h-screen flex-col">
-      <Header />
-
+    <>
       <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-8 sm:px-6 lg:px-8">
         <div className="border-border/10 bg-background/95 sticky top-14 z-30 -mx-4 mb-8 border-b px-4 py-4 backdrop-blur-sm sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -236,7 +239,7 @@ export default function BattlesDirectory({
                 }}
               >
                 <div className="relative">
-                  <Search className="text-muted-foreground/40 absolute top-1/2 left-3.5 h-4 w-4 -translate-y-1/2 transition-colors group-focus-within:text-primary/60" />
+                  <Search className="text-muted-foreground/40 group-focus-within:text-primary/60 absolute top-1/2 left-3.5 h-4 w-4 -translate-y-1/2 transition-colors" />
                   <input
                     type="text"
                     spellCheck="false"
@@ -323,7 +326,7 @@ export default function BattlesDirectory({
               >
                 <div className="flex w-1/2 items-center gap-4 pb-12">
                   <Skeleton className="h-5 w-5 rounded-md" />
-                  <Skeleton className="h-6 w-full max-w-[300px]" />
+                  <Skeleton className="h-6 w-full max-w-75" />
                 </div>
               </div>
             ))}
@@ -367,14 +370,13 @@ export default function BattlesDirectory({
 
             <DataPagination
               page={page}
-              totalItems={eventGroups.length}
+              totalItems={totalEvents}
               itemsPerPage={5}
               onPageChange={handlePageChange}
             />
           </div>
         )}
       </main>
-      <Footer />
 
       {/* ── Superadmin: Floating Selection Bar ── */}
       {isSuperAdmin && (
@@ -682,6 +684,6 @@ export default function BattlesDirectory({
           </Dialog>
         </>
       )}
-    </div>
+    </>
   );
 }

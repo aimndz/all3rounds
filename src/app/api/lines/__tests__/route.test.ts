@@ -47,6 +47,7 @@ vi.mock("@/lib/rate-limit", () => ({
 
 vi.mock("@/lib/cache", () => ({
   invalidateCache: vi.fn(),
+  invalidateCachePattern: vi.fn(),
 }));
 
 import { POST, PATCH } from "@/app/api/lines/route";

@@ -4,7 +4,6 @@ import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import Image from "next/image";
-import Footer from "@/components/Footer";
 
 export default function LoginPage() {
   const handleLogin = async () => {
@@ -38,8 +37,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="bg-background flex min-h-screen flex-col">
-      <main className="flex flex-1 flex-col items-center justify-center overflow-hidden px-4 py-20">
+    <main className="flex flex-1 flex-col items-center justify-center overflow-hidden px-4 py-20">
         <div className="animate-in fade-in slide-in-from-bottom-8 w-full max-w-sm duration-1000 ease-out">
           <div className="flex flex-col items-center text-center">
             {/* Header Section */}
@@ -125,9 +123,6 @@ export default function LoginPage() {
             </p>
           </div>
         </div>
-      </main>
-
-      <Footer />
-    </div>
+    </main>
   );
 }

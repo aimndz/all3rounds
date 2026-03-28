@@ -3,8 +3,6 @@
 import { useState } from "react";
 
 import { useAuthStore } from "@/stores/auth-store";
-import Header from "@/components/Header";
-import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -92,8 +90,7 @@ export default function RandomPage() {
   const speaker = line?.emcee?.name || line?.speaker_label || "Unknown";
 
   return (
-    <div className="flex min-h-screen flex-col">
-      <Header />
+    <>
       <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8">
         <div className="mb-4 flex items-center justify-between sm:mb-6">
           <div>
@@ -128,7 +125,7 @@ export default function RandomPage() {
                 <div className="flex flex-col gap-4 p-4 sm:p-5">
                   <div className="flex items-center gap-3">
                     <Link
-                      href={`/battle/${line.battle.id}?t=${Math.floor(line.start_time)}`}
+                      href={`/battles/${line.battle.id}?t=${Math.floor(line.start_time)}`}
                       prefetch={false}
                       className="hover:text-primary group/link flex items-center gap-1 text-lg font-bold transition-colors hover:underline"
                       title="Jump to this line in the full transcript"
@@ -372,7 +369,6 @@ export default function RandomPage() {
         isOpen={isLoginModalOpen}
         onOpenChange={setIsLoginModalOpen}
       />
-      <Footer />
-    </div>
+    </>
   );
 }

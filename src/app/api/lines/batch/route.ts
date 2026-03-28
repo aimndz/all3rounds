@@ -3,7 +3,7 @@ import { createAdminClient } from "@/lib/supabase/server";
 import { requirePermission, hasPermission } from "@/lib/auth";
 import { verifyCsrf } from "@/lib/csrf";
 import { checkRateLimit, getRateLimitHeaders } from "@/lib/rate-limit";
-import { invalidateCache } from "@/lib/cache";
+import { invalidateCache, invalidateCachePattern } from "@/lib/cache";
 import { z } from "zod";
 
 const BatchLinesSchema = z.object({
@@ -95,13 +95,17 @@ export async function PATCH(request: NextRequest) {
     const battleIds = new Set<string>();
 
     // Case 1: Updating attributes
-    if (action === "update" || action === "set_round" || action === "set_emcee") {
-      const finalUpdates: { 
-        round_number?: number | null; 
+    if (
+      action === "update" ||
+      action === "set_round" ||
+      action === "set_emcee"
+    ) {
+      const finalUpdates: {
+        round_number?: number | null;
         emcee_id?: string | null;
         speaker_ids?: string[] | null;
       } = {};
-      
+
       // Consolidate updates from legacy or combined actions
       if (action === "set_round") {
         finalUpdates.round_number =
@@ -112,9 +116,11 @@ export async function PATCH(request: NextRequest) {
         finalUpdates.emcee_id =
           value === "none" || value === "" || value === null ? null : value;
       } else if (action === "update" && updates) {
-        if ("round_number" in updates) finalUpdates.round_number = updates.round_number;
+        if ("round_number" in updates)
+          finalUpdates.round_number = updates.round_number;
         if ("emcee_id" in updates) finalUpdates.emcee_id = updates.emcee_id;
-        if ("speaker_ids" in updates) finalUpdates.speaker_ids = updates.speaker_ids;
+        if ("speaker_ids" in updates)
+          finalUpdates.speaker_ids = updates.speaker_ids;
       }
 
       if (Object.keys(finalUpdates).length === 0) {
@@ -161,22 +167,24 @@ export async function PATCH(request: NextRequest) {
           }
           if (line.battle_id) battleIds.add(line.battle_id);
         });
-        
+
         if (historyRows.length > 0) {
           await adminClient.from("edit_history").insert(historyRows);
         }
       }
 
       // ── Apply Round / Legacy Emcee Updates ──
-      const linesTableUpdate: { 
-        round_number?: number | null; 
+      const linesTableUpdate: {
+        round_number?: number | null;
         emcee_id?: string | null;
         speaker_ids?: string[] | null;
       } = {};
-      
-      if ("round_number" in finalUpdates) linesTableUpdate.round_number = finalUpdates.round_number;
-      if ("emcee_id" in finalUpdates) linesTableUpdate.emcee_id = finalUpdates.emcee_id;
-      
+
+      if ("round_number" in finalUpdates)
+        linesTableUpdate.round_number = finalUpdates.round_number;
+      if ("emcee_id" in finalUpdates)
+        linesTableUpdate.emcee_id = finalUpdates.emcee_id;
+
       // ── Apply Multi-Speaker Updates ──
       if (finalUpdates.speaker_ids) {
         if (finalUpdates.speaker_ids.length > 0) {
@@ -195,7 +203,7 @@ export async function PATCH(request: NextRequest) {
           .in("id", lineIds);
         if (updateError) throw updateError;
       }
-    } 
+    }
     // Case 2: Deletion
     else if (action === "delete") {
       const { data: existing, error: selectError } = await adminClient
@@ -230,6 +238,7 @@ export async function PATCH(request: NextRequest) {
     // ── Cache Invalidation ──
     for (const bId of battleIds) {
       await invalidateCache(`battle:${bId}`);
+      await invalidateCachePattern(`battle:${bId}:*`);
     }
 
     return NextResponse.json({ success: true, count: lineIds.length });

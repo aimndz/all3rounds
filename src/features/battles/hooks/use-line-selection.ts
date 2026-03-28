@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import type { BattleLine, Turn } from "@/features/battle/hooks/use-battle-data";
+import type { BattleLine, Turn } from "@/features/battles/hooks/use-battle-data";
 
 export function useLineSelection(lines: BattleLine[] | undefined) {
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());

@@ -19,6 +19,7 @@ export default function Header() {
   const { isUserLoggedIn, isLoading } = useAuthStore();
 
   const navLinks = [
+    { href: "/search", label: "Search" },
     { href: "/random", label: "Discover" },
     { href: "/battles", label: "Battles" },
     { href: "/emcees", label: "Emcees" },
@@ -32,7 +33,6 @@ export default function Header() {
           <div className="flex w-1/4 items-center gap-2">
             <Link
               href="/"
-              prefetch={false}
               className="text-foreground text-xl font-black tracking-tighter uppercase transition-transform hover:scale-105"
             >
               <Image

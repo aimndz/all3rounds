@@ -1,7 +1,5 @@
 "use client";
 
-import Header from "@/components/Header";
-import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { RotateCw, ArrowUpDown } from "lucide-react";
 import { PageHeader } from "@/components/admin/PageHeader";
@@ -39,9 +37,9 @@ export default function ReviewsPage() {
     removeItem,
   } = usePaginatedFetch<SuggestionLog>("/api/suggestions", {
     limit: 10,
-    extraParams: { 
+    extraParams: {
       status: "pending,flagged",
-      order: sortBy 
+      order: sortBy,
     },
   });
 
@@ -76,17 +74,19 @@ export default function ReviewsPage() {
 
   return (
     <div className="selection:bg-primary/20 min-h-screen bg-[#09090b] text-[#fafafa]">
-      <Header />
       <main className="mx-auto max-w-5xl px-4 py-12">
-        <PageHeader title="PENDING FIXES" itemCount={loading ? undefined : total}>
+        <PageHeader
+          title="PENDING FIXES"
+          itemCount={loading ? undefined : total}
+        >
           <div className="flex items-center gap-2">
-            <Select 
-              value={sortBy} 
+            <Select
+              value={sortBy}
               onValueChange={(v: "asc" | "desc") => setSortBy(v)}
             >
-              <SelectTrigger className="border-border/50 bg-white/5 focus:ring-primary/5 h-9 w-32 rounded-xl text-xs sm:w-36">
+              <SelectTrigger className="border-border/50 focus:ring-primary/5 h-9 w-32 rounded-xl bg-white/5 text-xs sm:w-36">
                 <div className="flex items-center gap-2">
-                  <ArrowUpDown className="text-white/40 h-3 w-3" />
+                  <ArrowUpDown className="h-3 w-3 text-white/40" />
                   <SelectValue placeholder="Sort" />
                 </div>
               </SelectTrigger>
@@ -100,7 +100,7 @@ export default function ReviewsPage() {
               variant="outline"
               size="icon"
               onClick={refetch}
-              className="border-border/50 bg-white/5 hover:bg-white/10 h-9 w-9 rounded-xl text-white/40 transition-all active:scale-95 hover:text-white"
+              className="border-border/50 h-9 w-9 rounded-xl bg-white/5 text-white/40 transition-all hover:bg-white/10 hover:text-white active:scale-95"
               disabled={loading}
             >
               <RotateCw className="h-4 w-4" />
@@ -147,7 +147,6 @@ export default function ReviewsPage() {
           </div>
         )}
       </main>
-      <Footer />
     </div>
   );
 }

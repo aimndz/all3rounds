@@ -49,4 +49,13 @@ describe("SearchBar", () => {
     await user.click(screen.getByRole("button", { name: /search/i }));
     expect(mockPush).toHaveBeenCalledWith("/search?q=hello");
   });
+
+  it("clears input when clear button is clicked", async () => {
+    const user = userEvent.setup();
+    render(<SearchBar initialQuery="to-clear" />);
+
+    await user.click(screen.getByRole("button", { name: /clear query/i }));
+
+    expect(screen.getByPlaceholderText(/search lines/i)).toHaveValue("");
+  });
 });
