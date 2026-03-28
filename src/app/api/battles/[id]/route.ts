@@ -8,7 +8,7 @@ import {
   invalidateCache,
   invalidateCachePattern,
 } from "@/lib/cache";
-import { sortParticipantsByTitle } from "@/features/battle/utils/participant-grouping";
+import { sortParticipantsByTitle } from "@/features/battles/utils/participant-grouping";
 import { uuidSchema } from "@/lib/schemas";
 import { z } from "zod";
 
@@ -23,18 +23,48 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
-  
+  const { searchParams } = new URL(request.url);
+
+  const rawLimit = Number.parseInt(searchParams.get("limit") || "200", 10);
+  const rawOffset = Number.parseInt(searchParams.get("offset") || "0", 10);
+  const rawLineId = Number.parseInt(searchParams.get("lineId") || "", 10);
+  const limit = Number.isFinite(rawLimit)
+    ? Math.min(Math.max(rawLimit, 1), 500)
+    : 200;
+  const offset = Number.isFinite(rawOffset) ? Math.max(rawOffset, 0) : 0;
+  const lineId = Number.isFinite(rawLineId) ? rawLineId : null;
+
   // Validate UUID to prevent database errors on bot probes
   const idValidation = uuidSchema.safeParse(id);
   if (!idValidation.success) {
-    return NextResponse.json(
-      { error: "Invalid battle ID" },
-      { status: 400 },
-    );
+    return NextResponse.json({ error: "Invalid battle ID" }, { status: 400 });
   }
 
+  const supabase = await createClient();
 
-  const cacheKey = `battle:${id}`;
+  // If a deep-link line is provided, start from the page that contains it.
+  let effectiveOffset = offset;
+  if (lineId && offset === 0) {
+    const { data: targetLine } = await supabase
+      .from("lines")
+      .select("id, start_time")
+      .eq("battle_id", id)
+      .eq("id", lineId)
+      .maybeSingle();
+
+    if (targetLine) {
+      const { count: linesBeforeTarget } = await supabase
+        .from("lines")
+        .select("id", { count: "exact", head: true })
+        .eq("battle_id", id)
+        .lt("start_time", targetLine.start_time);
+
+      const beforeCount = linesBeforeTarget ?? 0;
+      effectiveOffset = Math.floor(beforeCount / limit) * limit;
+    }
+  }
+
+  const cacheKey = `battle:${id}:v2:${limit}:${effectiveOffset}`;
   const cachedData = await getCached(cacheKey);
   if (cachedData) {
     return NextResponse.json(cachedData, {
@@ -43,8 +73,6 @@ export async function GET(
       },
     });
   }
-
-  const supabase = await createClient();
 
   // Fetch battle details
   const { data: battle, error: battleError } = await supabase
@@ -73,8 +101,12 @@ export async function GET(
 
   const participants = sortParticipantsByTitle(normalized, battle.title ?? "");
 
-  // Fetch all lines for this battle, ordered by timestamp
-  const { data: lines, error: linesError } = await supabase
+  // Fetch a page of lines for this battle (+1 row to determine has_more)
+  const {
+    data: lines,
+    error: linesError,
+    count: totalLines,
+  } = await supabase
     .from("lines")
     .select(
       `
@@ -88,17 +120,46 @@ export async function GET(
       speaker_ids,
       emcee:emcees ( id, name )
     `,
+      { count: "exact" },
     )
     .eq("battle_id", id)
-    .order("start_time", { ascending: true });
+    .order("start_time", { ascending: true })
+    .range(effectiveOffset, effectiveOffset + limit);
 
   if (linesError) {
+    if (
+      linesError.message.includes("Requested range not satisfiable") ||
+      linesError.code === "PGRST103"
+    ) {
+      const emptyResult = {
+        battle,
+        participants: participants || [],
+        lines: [],
+        lines_pagination: {
+          limit,
+          offset: effectiveOffset,
+          has_more: false,
+          loaded: 0,
+          total: totalLines ?? 0,
+        },
+      };
+
+      return NextResponse.json(emptyResult, {
+        headers: {
+          "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=59",
+        },
+      });
+    }
+
     console.error("Lines fetch error:", linesError);
     return NextResponse.json(
       { error: "Failed to fetch lines.", details: linesError.message },
       { status: 500 },
     );
   }
+
+  const hasMore = (lines || []).length > limit;
+  const pagedLines = hasMore ? (lines || []).slice(0, limit) : lines || [];
 
   // Create a map to look up emcee information locally if needed
   const emceeMap = new Map<string, { id: string; name: string }>();
@@ -128,7 +189,7 @@ export async function GET(
   // We transform the flat line data into a structure that the frontend expects.
   // The 'speaker_ids' array tells us which emcees spoke this line.
   // We use the 'emceeMap' (built from battle_participants) to attach full emcee info.
-  const transformedLines = (lines || []).map((line: RawLine) => {
+  const transformedLines = pagedLines.map((line: RawLine) => {
     const mappedEmcees: { id: string; name: string }[] = [];
 
     // 1. Resolve multi-speakers via the 'speaker_ids' array
@@ -160,6 +221,13 @@ export async function GET(
     battle,
     participants: participants || [],
     lines: transformedLines,
+    lines_pagination: {
+      limit,
+      offset: effectiveOffset,
+      has_more: hasMore,
+      loaded: transformedLines.length,
+      total: totalLines ?? transformedLines.length,
+    },
   };
 
   await setCached(cacheKey, result, 3600); // Cache for 1 hour
@@ -229,6 +297,7 @@ export async function PATCH(
     }
 
     await invalidateCache(`battle:${id}`);
+    await invalidateCachePattern(`battle:${id}:*`);
     await invalidateCachePattern("battles:page:*");
 
     return NextResponse.json(updated);
@@ -298,6 +367,7 @@ export async function DELETE(
     }
 
     await invalidateCache(`battle:${id}`);
+    await invalidateCachePattern(`battle:${id}:*`);
     await invalidateCachePattern("battles:page:*");
 
     return NextResponse.json({

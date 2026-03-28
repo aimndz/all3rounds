@@ -1,10 +1,11 @@
 import { MetadataRoute } from "next";
 import { createPublicClient } from "@/lib/supabase/server";
 
+export const dynamic = "force-static";
 export const revalidate = 86400; // 24 hours (1 day)
 
 import { getSiteUrl } from "@/lib/utils";
- 
+
 const siteUrl = getSiteUrl();
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
@@ -64,7 +65,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
     const battleRoutes: MetadataRoute.Sitemap =
       battlesRes.data?.map((battle) => ({
-        url: `${siteUrl}/battle/${battle.id}`,
+        url: `${siteUrl}/battles/${battle.id}`,
         lastModified: now,
         changeFrequency: "monthly",
         priority: 0.6,

@@ -4,6 +4,8 @@
 .env.*.local
 .env.production
 .env.development
+.dev.vars
+.dev.vars.*
 
 # Python
 venv/
@@ -79,3 +81,5 @@ output.json
 *.pem
 
 supabase/.temp/
+
+.agent/*

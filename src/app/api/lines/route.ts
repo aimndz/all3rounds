@@ -3,7 +3,7 @@ import { createAdminClient } from "@/lib/supabase/server";
 import { requirePermission } from "@/lib/auth";
 import { verifyCsrf } from "@/lib/csrf";
 import { checkRateLimit, getRateLimitHeaders } from "@/lib/rate-limit";
-import { invalidateCache } from "@/lib/cache";
+import { invalidateCache, invalidateCachePattern } from "@/lib/cache";
 import { z } from "zod";
 
 const AddLineSchema = z.object({
@@ -74,20 +74,23 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const { 
-    battle_id, 
-    content, 
-    start_time, 
-    end_time, 
-    emcee_id, 
+  const {
+    battle_id,
+    content,
+    start_time,
+    end_time,
+    emcee_id,
     speaker_ids,
-    round_number 
+    round_number,
   } = parsed.data;
 
   // For compatibility, if speaker_ids is provided, use first as emcee_id
-  const finalEmceeId = speaker_ids && speaker_ids.length > 0 
-    ? speaker_ids[0] 
-    : (emcee_id === "none" ? null : emcee_id);
+  const finalEmceeId =
+    speaker_ids && speaker_ids.length > 0
+      ? speaker_ids[0]
+      : emcee_id === "none"
+        ? null
+        : emcee_id;
 
   const { data, error } = await adminClient
     .from("lines")
@@ -111,8 +114,8 @@ export async function POST(request: NextRequest) {
     );
   }
 
-
   await invalidateCache(`battle:${battle_id}`);
+  await invalidateCachePattern(`battle:${battle_id}:*`);
 
   return NextResponse.json({ success: true, line: data });
 }
@@ -223,6 +226,7 @@ export async function PATCH(request: NextRequest) {
 
   if (existing && existing.battle_id) {
     await invalidateCache(`battle:${existing.battle_id}`);
+    await invalidateCachePattern(`battle:${existing.battle_id}:*`);
   }
 
   return NextResponse.json({ success: true });

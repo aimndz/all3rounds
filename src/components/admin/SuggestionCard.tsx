@@ -84,7 +84,7 @@ export function SuggestionCard({
           <div className="flex min-w-0 flex-1 flex-col gap-1.5">
             <div className="flex items-center gap-2">
               <Link
-                href={`/battle/${s.lines.battle.id}?t=${Math.floor(s.lines.start_time)}`}
+                href={`/battles/${s.lines.battle.id}?t=${Math.floor(s.lines.start_time)}`}
                 prefetch={false}
                 target="_blank"
                 title="View Full Battle"

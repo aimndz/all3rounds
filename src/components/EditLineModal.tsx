@@ -13,7 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import EmceeSearchModal from "./EmceeSearchModal";
 import { Search } from "lucide-react";
-import { groupParticipants } from "@/features/battle/utils/participant-grouping";
+import { groupParticipants } from "@/features/battles/utils/participant-grouping";
 
 export default function EditLineModal({
   result,

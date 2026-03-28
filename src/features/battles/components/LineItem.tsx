@@ -6,7 +6,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { Pencil, Play, Plus, MessageSquarePlus } from "lucide-react";
 import { cn, formatTime } from "@/lib/utils";
-import type { BattleLine } from "@/features/battle/hooks/use-battle-data";
+import type { BattleLine } from "@/features/battles/hooks/use-battle-data";
 
 type LineItemProps = {
   line: BattleLine;

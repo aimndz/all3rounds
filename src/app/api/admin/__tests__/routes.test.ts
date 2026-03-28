@@ -15,7 +15,10 @@ vi.mock("@/lib/supabase/server", () => {
     single: vi.fn().mockResolvedValue({ data: null, error: null }),
   };
   const mockFrom = vi.fn().mockReturnValue(mockChain);
-  const client = { from: mockFrom };
+  const client = {
+    from: mockFrom,
+    rpc: vi.fn().mockResolvedValue({ data: [], error: null }),
+  };
   return {
     createClient: vi.fn().mockResolvedValue(client),
     createAdminClient: vi.fn().mockReturnValue(client),
@@ -30,11 +33,15 @@ vi.mock("@/lib/auth", () => ({
 vi.mock("@/lib/cache", () => ({
   invalidateCache: vi.fn(),
   invalidateCachePattern: vi.fn(),
+  getCached: vi.fn().mockResolvedValue(null),
+  setCached: vi.fn().mockResolvedValue(undefined),
 }));
 
 import { requirePermission } from "@/lib/auth";
+import { getCached } from "@/lib/cache";
 
 const mockRequirePermission = vi.mocked(requirePermission);
+const mockGetCached = vi.mocked(getCached);
 
 function authedAdmin() {
   mockRequirePermission.mockResolvedValue({
@@ -206,5 +213,28 @@ describe("GET /api/admin/stats", () => {
     const req = new NextRequest("http://localhost/api/admin/stats");
     const res = await GET(req);
     expect(res.status).toBe(403);
+  });
+
+  it("returns cached payload when available", async () => {
+    mockGetCached.mockResolvedValueOnce({
+      overview: {
+        total_reviews: 3,
+        total_approved: 2,
+        total_rejected: 1,
+      },
+      moderators: [],
+    });
+
+    const { GET } = await import("@/app/api/admin/stats/route");
+    const req = new NextRequest("http://localhost/api/admin/stats");
+    const res = await GET(req);
+
+    expect(res.status).toBe(200);
+    await expect(res.json()).resolves.toMatchObject({
+      overview: {
+        total_reviews: 3,
+      },
+      moderators: [],
+    });
   });
 });

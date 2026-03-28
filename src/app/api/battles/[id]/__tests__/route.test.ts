@@ -63,9 +63,11 @@ describe("GET /api/battles/[id]", () => {
 
   it("returns 404 when battle is not found", async () => {
     const { GET } = await import("@/app/api/battles/[id]/route");
-    const req = new NextRequest("http://localhost/api/battles/some-id");
+    const req = new NextRequest(
+      "http://localhost/api/battles/550e8400-e29b-41d4-a716-446655440099",
+    );
     const res = await GET(req, {
-      params: Promise.resolve({ id: "nonexistent" }),
+      params: Promise.resolve({ id: "550e8400-e29b-41d4-a716-446655440099" }),
     });
     expect(res.status).toBe(404);
   });
@@ -79,8 +81,12 @@ describe("GET /api/battles/[id]", () => {
     vi.mocked(getCached).mockResolvedValueOnce(cached);
 
     const { GET } = await import("@/app/api/battles/[id]/route");
-    const req = new NextRequest("http://localhost/api/battles/b1");
-    const res = await GET(req, { params: Promise.resolve({ id: "b1" }) });
+    const req = new NextRequest(
+      "http://localhost/api/battles/550e8400-e29b-41d4-a716-446655440000",
+    );
+    const res = await GET(req, {
+      params: Promise.resolve({ id: "550e8400-e29b-41d4-a716-446655440000" }),
+    });
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body).toEqual(cached);

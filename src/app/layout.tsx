@@ -5,6 +5,8 @@ import "./globals.css";
 import { getSiteUrl } from "@/lib/utils";
 import { Toaster } from "@/components/ui/toaster";
 import BetaBanner from "@/components/BetaBanner";
+import Header from "@/components/Header";
+import Footer from "@/components/Footer";
 import { AuthProvider } from "@/components/AuthProvider";
 import { ErrorBoundary } from "@/components/shared/ErrorBoundary";
 
@@ -24,9 +26,24 @@ const siteUrl = getSiteUrl();
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
-  title: "All3Rounds — Filipino Battle Rap Archive",
+  title: {
+    default: "All3Rounds — Filipino Battle Rap Archive",
+    template: "%s | All3Rounds",
+  },
   description:
-    "Search any FlipTop battle line. Find out who said it, which battle, and watch it instantly.",
+    "The community-driven archive for Filipino Battle Rap. Search transcripts from FlipTop and underground leagues, find iconic lines, and explore battle history.",
+  keywords: [
+    "battle rap",
+    "FlipTop",
+    "transcripts",
+    "lyrics",
+    "rap battles",
+    "Philippines",
+    "hip hop",
+  ],
+  authors: [{ name: "All3Rounds Team" }],
+  creator: "All3Rounds",
+  publisher: "All3Rounds",
   icons: {
     icon: "/favicon/favicon.ico",
     apple: "/favicon/apple-touch-icon.png",
@@ -34,7 +51,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "All3Rounds — Filipino Battle Rap Archive",
     description:
-      "Search any FlipTop battle line. Find out who said it, which battle, and watch it instantly.",
+      "The community-driven archive for Filipino Battle Rap. Search transcripts from FlipTop and underground leagues, find iconic lines, and explore battle history.",
     url: siteUrl,
     siteName: "All3Rounds",
     type: "website",
@@ -53,10 +70,21 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "All3Rounds — Filipino Battle Rap Archive",
     description:
-      "Search any FlipTop battle line. Find out who said it, which battle, and watch it instantly.",
+      "The community-driven archive for Filipino Battle Rap. Search transcripts from FlipTop and underground leagues, find iconic lines, and explore battle history.",
     images: [`${siteUrl}/og-image.png`],
     creator: "@all3rounds",
     site: "@all3rounds",
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-video-preview": -1,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+    },
   },
 };
 
@@ -80,9 +108,81 @@ export default async function RootLayout({
       >
         <BetaBanner />
         <AuthProvider>
-          <ErrorBoundary>{children}</ErrorBoundary>
+          <div className="flex min-h-screen flex-col">
+            <Header />
+            <main className="flex flex-1 flex-col">
+              <ErrorBoundary>{children}</ErrorBoundary>
+            </main>
+            <Footer />
+          </div>
         </AuthProvider>
         <Toaster />
+
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "WebSite",
+              name: "All3Rounds",
+              url: siteUrl,
+              potentialAction: {
+                "@type": "SearchAction",
+                target: `${siteUrl}/search?q={search_term_string}`,
+                "query-input": "required name=search_term_string",
+              },
+            }),
+          }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "Organization",
+              name: "All3Rounds",
+              url: siteUrl,
+              logo: `${siteUrl}/logo/a3r-logo-full.svg`,
+              sameAs: ["https://twitter.com/all3rounds"],
+            }),
+          }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "ItemList",
+              itemListElement: [
+                {
+                  "@type": "SiteNavigationElement",
+                  position: 1,
+                  name: "Search",
+                  url: `${siteUrl}/search`,
+                },
+                {
+                  "@type": "SiteNavigationElement",
+                  position: 2,
+                  name: "Discover",
+                  url: `${siteUrl}/random`,
+                },
+                {
+                  "@type": "SiteNavigationElement",
+                  position: 3,
+                  name: "Battles",
+                  url: `${siteUrl}/battles`,
+                },
+                {
+                  "@type": "SiteNavigationElement",
+                  position: 4,
+                  name: "Emcees",
+                  url: `${siteUrl}/emcees`,
+                },
+              ],
+            }),
+          }}
+        />
+
         {process.env.NEXT_PUBLIC_GA_ID && (
           <>
             <Script

@@ -1,12 +1,57 @@
-import { Suspense } from "react";
+import { Metadata } from "next";
+import { Suspense, cache } from "react";
 import { notFound } from "next/navigation";
 import { createPublicClient } from "@/lib/supabase/server";
 import { uuidSchema } from "@/lib/schemas";
 import EmceeProfile from "./EmceeProfile";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Battle } from "@/features/battles/hooks/use-battles-data";
+import { getSiteUrl } from "@/lib/utils";
+import JsonLd from "@/components/shared/JsonLd";
 
 export const revalidate = 86400; // 24 hours (1 day)
+
+const siteUrl = getSiteUrl();
+
+const getEmcee = cache(async (id: string) => {
+  if (!uuidSchema.safeParse(id).success) return null;
+  const supabase = createPublicClient();
+  const { data } = await supabase
+    .from("emcees")
+    .select("id, name, aka")
+    .eq("id", id)
+    .single();
+  return data;
+});
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  const { id } = await params;
+  const emcee = await getEmcee(id);
+
+  if (!emcee) {
+    return { title: "Emcee Not Found" };
+  }
+
+  const description = `Explore the profile of ${emcee.name}. View battle history, search transcripts, and find iconic lines for this Filipino emcee on All3Rounds.`;
+
+  return {
+    title: emcee.name,
+    description,
+    openGraph: {
+      title: `${emcee.name} — Profile & Battle History`,
+      description,
+      url: `${siteUrl}/emcees/${id}`,
+    },
+    twitter: {
+      card: "summary",
+      title: `${emcee.name} — Profile & Battle History`,
+      description,
+    },
+  };
+}
 
 export default async function EmceeProfilePage({
   params,
@@ -14,24 +59,14 @@ export default async function EmceeProfilePage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  
-  // Validate UUID to prevent database errors on bot probes (e.g. /emcees/gfdg)
-  if (!uuidSchema.safeParse(id).success) {
-    notFound();
-  }
+  const emcee = await getEmcee(id);
 
+  if (!emcee) notFound();
 
   const supabase = createPublicClient();
 
-  // 1. Fetch emcee basic info
-  const emceePromise = supabase
-    .from("emcees")
-    .select("id, name, aka")
-    .eq("id", id)
-    .single();
-
   // 2. Fetch battles where emcee is a participant
-  const battlesPromise = supabase
+  const { data: rawBattlesResponse, error: battlesError } = await supabase
     .from("battle_participants")
     .select(
       `
@@ -49,101 +84,88 @@ export default async function EmceeProfilePage({
     .eq("emcee_id", id)
     .order("event_date", { foreignTable: "battles", ascending: false });
 
-  // 3. Fetch total lines
-  const linesCountPromise = supabase
-    .from("lines")
-    .select("*", { count: "exact", head: true })
-    .eq("emcee_id", id);
-
-  const [emceeRes, battlesRes, linesRes] = await Promise.all([
-    emceePromise,
-    battlesPromise,
-    linesCountPromise,
-  ]);
-
-  if (emceeRes.error || !emceeRes.data) {
-    if (emceeRes.error?.code === "PGRST116") {
-      notFound();
-    }
-    console.error("Error fetching emcee profile:", emceeRes.error);
-    throw new Error("Failed to load emcee profile");
+  if (battlesError) {
+    console.error("Error fetching emcee battles:", battlesError);
   }
 
-  const emcee = emceeRes.data as {
-    id: string;
-    name: string;
-    aka: string[] | null;
-  };
   const rawBattles =
-    (battlesRes.data as unknown as { battles: Battle | null }[]) || [];
+    (rawBattlesResponse as unknown as { battles: Battle | null }[]) || [];
   const battles = rawBattles
     .map((pb) => pb.battles)
     .filter(
       (b): b is Battle => b !== null && (b.status as string) !== "excluded",
     );
 
-  const totalBattles = battles.length;
-  const totalLines = linesRes.count || 0;
-  const events = Array.from(
-    new Set(
-      battles
-        .map((b) => b.event_name)
-        .filter((name): name is string => Boolean(name)),
-    ),
-  );
-
   const profileData = {
     id: emcee.id,
     name: emcee.name,
     aka: emcee.aka || [],
-    stats: {
-      total_battles: totalBattles,
-      total_lines: totalLines,
-      unique_events: events.length,
-    },
     battles,
-    events,
+  };
+
+  const emceeJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Person",
+    name: emcee.name,
+    description: `Profile of Filipino battle rapper ${emcee.name}.`,
+    url: `${siteUrl}/emcees/${emcee.id}`,
+    knowsAbout: ["Battle Rap", "Hip Hop", "Freestyle Rap"],
+  };
+
+  const breadcrumbJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "Archive", item: siteUrl },
+      {
+        "@type": "ListItem",
+        position: 2,
+        name: "Emcees",
+        item: `${siteUrl}/emcees`,
+      },
+      {
+        "@type": "ListItem",
+        position: 3,
+        name: emcee.name,
+        item: `${siteUrl}/emcees/${emcee.id}`,
+      },
+    ],
   };
 
   return (
-    <Suspense fallback={<EmceeProfileSkeleton />}>
-      <EmceeProfile data={profileData} />
-    </Suspense>
+    <>
+      <JsonLd data={[emceeJsonLd, breadcrumbJsonLd]} />
+      <Suspense fallback={<EmceeProfileSkeleton />}>
+        <EmceeProfile data={profileData} />
+      </Suspense>
+    </>
   );
 }
 
 function EmceeProfileSkeleton() {
   return (
-    <div className="min-h-screen bg-[#09090b]">
-      <div className="bg-[#09090b] h-16 border-b border-white/5 animate-pulse" /> {/* Header spacer */}
+    <div className="bg-background min-h-screen">
+      <div className="border-border/40 bg-background/95 h-16 animate-pulse border-b" />
       <main className="mx-auto max-w-5xl px-4 py-12 md:py-20">
-        {/* Back Link Skeleton */}
         <div className="mb-8 flex items-center gap-2">
-          <Skeleton className="h-4 w-4 rounded-full" />
-          <Skeleton className="h-3 w-32" />
+          <div className="bg-muted h-4 w-4 animate-pulse rounded-full" />
+          <div className="bg-muted h-3 w-32 animate-pulse rounded" />
         </div>
-
-        {/* Heading Skeleton */}
         <div className="mb-12">
-          <Skeleton className="mb-4 h-12 w-2/3 md:h-16 lg:w-1/2" />
+          <div className="bg-muted mb-4 h-12 w-2/3 animate-pulse rounded-lg md:h-16 lg:w-1/2" />
         </div>
-
-        <Skeleton className="mb-12 h-px w-full bg-white/5" />
-
-        {/* Battle History Header */}
+        <div className="bg-border/40 mb-12 h-px w-full" />
         <div className="mb-8 flex items-center justify-between">
-          <Skeleton className="h-8 w-40" />
-          <Skeleton className="h-10 w-32 rounded-xl" />
+          <div className="bg-muted h-8 w-40 animate-pulse rounded-lg" />
+          <div className="bg-muted h-10 w-32 animate-pulse rounded-xl" />
         </div>
-
-        {/* Battles Grid Skeleton */}
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {[1, 2, 3, 4, 5, 6].map((i) => (
+          {[1, 2, 3].map((i) => (
             <div key={i} className="space-y-4">
-              <Skeleton className="aspect-video w-full rounded-2xl" />
+              <div className="bg-muted aspect-video w-full animate-pulse rounded-2xl" />
               <div className="space-y-2">
-                <Skeleton className="h-5 w-full" />
-                <Skeleton className="h-4 w-2/3 opacity-50" />
+                <div className="bg-muted h-5 w-full animate-pulse rounded-md" />
+                <div className="bg-muted h-4 w-2/3 animate-pulse rounded-md opacity-50" />
               </div>
             </div>
           ))}

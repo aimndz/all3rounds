@@ -45,6 +45,7 @@ vi.mock("@/lib/rate-limit", () => ({
 
 vi.mock("@/lib/cache", () => ({
   invalidateCache: vi.fn(),
+  invalidateCachePattern: vi.fn(),
 }));
 
 import { PATCH } from "@/app/api/lines/batch/route";
@@ -129,7 +130,7 @@ describe("PATCH /api/lines/batch", () => {
 
   it("updates round_number only successfully", async () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { __mocks } = await import("@/lib/supabase/server") as any;
+    const { __mocks } = (await import("@/lib/supabase/server")) as any;
     const { mockChain } = __mocks;
     mockChain.in.mockResolvedValueOnce({
       data: [{ id: 1, round_number: 1, emcee_id: "e1", battle_id: "b1" }],
@@ -146,14 +147,17 @@ describe("PATCH /api/lines/batch", () => {
     expect(mockChain.update).toHaveBeenCalledWith({ round_number: 2 });
     expect(mockChain.insert).toHaveBeenCalledWith(
       expect.arrayContaining([
-        expect.objectContaining({ field_changed: "round_number", new_value: "2" }),
+        expect.objectContaining({
+          field_changed: "round_number",
+          new_value: "2",
+        }),
       ]),
     );
   });
 
   it("updates emcee_id only successfully", async () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { __mocks } = await import("@/lib/supabase/server") as any;
+    const { __mocks } = (await import("@/lib/supabase/server")) as any;
     const { mockChain } = __mocks;
     mockChain.in.mockResolvedValueOnce({
       data: [{ id: 1, round_number: 1, emcee_id: "e1", battle_id: "b1" }],
@@ -177,7 +181,7 @@ describe("PATCH /api/lines/batch", () => {
 
   it("updates both round and emcee using 'update' action", async () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { __mocks } = await import("@/lib/supabase/server") as any;
+    const { __mocks } = (await import("@/lib/supabase/server")) as any;
     const { mockChain } = __mocks;
     mockChain.in.mockResolvedValueOnce({
       data: [{ id: 1, round_number: 1, emcee_id: "e1", battle_id: "b1" }],
@@ -202,7 +206,10 @@ describe("PATCH /api/lines/batch", () => {
     // Check history recorded for both
     expect(mockChain.insert).toHaveBeenCalledWith(
       expect.arrayContaining([
-        expect.objectContaining({ field_changed: "round_number", new_value: "3" }),
+        expect.objectContaining({
+          field_changed: "round_number",
+          new_value: "3",
+        }),
         expect.objectContaining({ field_changed: "emcee_id", new_value: "e3" }),
       ]),
     );
@@ -210,7 +217,7 @@ describe("PATCH /api/lines/batch", () => {
 
   it("deletes lines successfully", async () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { __mocks } = await import("@/lib/supabase/server") as any;
+    const { __mocks } = (await import("@/lib/supabase/server")) as any;
     const { mockChain } = __mocks;
     mockChain.in.mockResolvedValueOnce({
       data: [{ id: 1, content: "test", battle_id: "b1" }],

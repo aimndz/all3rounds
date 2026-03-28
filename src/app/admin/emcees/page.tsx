@@ -312,6 +312,7 @@ export default function EmceeAdminPage() {
                 <div className="mb-4 flex items-start justify-between gap-4">
                   <Link
                     href={`/emcees/${e.id}`}
+                    prefetch={false}
                     target="_blank"
                     className="group flex flex-col"
                   >

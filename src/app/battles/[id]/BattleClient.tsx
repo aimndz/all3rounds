@@ -6,11 +6,11 @@ import {
   useCallback,
   useMemo,
   useTransition,
+  useRef,
 } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
+import dynamic from "next/dynamic";
 import { useToast } from "@/hooks/use-toast";
-import Header from "@/components/Header";
-import Footer from "@/components/Footer";
 import Link from "next/link";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
@@ -28,6 +28,7 @@ import {
   Maximize2,
   Minimize2,
   Trash2,
+  ArrowUp,
 } from "lucide-react";
 import { cn, formatDateLong, formatSpeakerName } from "@/lib/utils";
 import { getSpeakerColor } from "@/lib/constants";
@@ -39,26 +40,39 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import BatchActionBar from "@/features/battle/components/BatchActionBar";
-import BattleEditModal from "@/features/battle/components/BattleEditModal";
-import BattleAddLineModal from "@/features/battle/components/BattleAddLineModal";
-import SuggestCorrectionModal from "@/components/SuggestCorrectionModal";
-import { LoginModal } from "@/components/LoginModal";
+import BatchActionBar from "@/features/battles/components/BatchActionBar";
 import { useAuthStore } from "@/stores/auth-store";
 import type { SearchResult } from "@/lib/types";
-import { LineItem } from "@/features/battle/components/LineItem";
-import { useBattleData } from "@/features/battle/hooks/use-battle-data";
+import { LineItem } from "@/features/battles/components/LineItem";
+import { useBattleData } from "@/features/battles/hooks/use-battle-data";
 import type {
   BattleLine,
   BattleStatus,
   BattleData,
   Turn,
   RoundGroup,
-} from "@/features/battle/hooks/use-battle-data";
-import { useYouTubePlayer } from "@/features/battle/hooks/use-youtube-player";
-import { useLineSelection } from "@/features/battle/hooks/use-line-selection";
-import { useInlineEdit } from "@/features/battle/hooks/use-inline-edit";
-import { useAutoScroll } from "@/features/battle/hooks/use-auto-scroll";
+} from "@/features/battles/hooks/use-battle-data";
+import { useYouTubePlayer } from "@/features/battles/hooks/use-youtube-player";
+import { useLineSelection } from "@/features/battles/hooks/use-line-selection";
+import { useInlineEdit } from "@/features/battles/hooks/use-inline-edit";
+import { useAutoScroll } from "@/features/battles/hooks/use-auto-scroll";
+
+const BattleEditModal = dynamic(
+  () => import("@/features/battles/components/BattleEditModal"),
+  { ssr: false },
+);
+const BattleAddLineModal = dynamic(
+  () => import("@/features/battles/components/BattleAddLineModal"),
+  { ssr: false },
+);
+const SuggestCorrectionModal = dynamic(
+  () => import("@/components/SuggestCorrectionModal"),
+  { ssr: false },
+);
+const LoginModal = dynamic(
+  () => import("@/components/LoginModal").then((m) => m.LoginModal),
+  { ssr: false },
+);
 
 // ============================================================================
 // Helpers
@@ -73,19 +87,37 @@ function formatDate(dateStr: string | null): string {
 // Main Component
 // ============================================================================
 
-export default function BattlePage() {
+export default function BattleClient() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const battleId = params.id as string;
   const { toast } = useToast();
   const [isPending, startTransition] = useTransition();
+  const loadMoreSentinelRef = useRef<HTMLDivElement>(null);
+  const lastDeepLinkHandledRef = useRef<number | null>(null);
+
+  const deepLinkLineId = useMemo(() => {
+    const raw = searchParams.get("lineId");
+    if (!raw) return null;
+    const parsed = Number.parseInt(raw, 10);
+    return Number.isFinite(parsed) ? parsed : null;
+  }, [searchParams]);
 
   // -- Auth --
   const { isUserLoggedIn, canEdit, canDelete } = useAuthStore();
 
   // -- Custom Hooks --
-  const { data, setData, loading, error, fetchBattle } =
-    useBattleData(battleId);
+  const {
+    data,
+    setData,
+    loading,
+    loadingMore,
+    hasMore,
+    error,
+    fetchBattle,
+    fetchMoreLines,
+  } = useBattleData(battleId, deepLinkLineId);
   const { player, activeTime, playerRef, seekTo } = useYouTubePlayer(
     data?.battle.youtube_id,
     "youtube-player",
@@ -170,6 +202,87 @@ export default function BattlePage() {
       document.body.style.overflow = "unset";
     };
   }, [isTranscriptExpanded]);
+
+  // Auto-load more transcript pages as user reaches the bottom.
+  useEffect(() => {
+    const root = transcriptContainerRef.current;
+    const sentinel = loadMoreSentinelRef.current;
+
+    if (!root || !sentinel || !hasMore) {
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting) && !loadingMore) {
+          void fetchMoreLines();
+        }
+      },
+      {
+        root,
+        rootMargin: "200px 0px",
+        threshold: 0,
+      },
+    );
+
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [
+    hasMore,
+    loadingMore,
+    fetchMoreLines,
+    transcriptContainerRef,
+    data?.lines.length,
+  ]);
+
+  // Ensure deep-linked line is loaded and highlighted even when it is outside
+  // the first pagination chunk.
+  useEffect(() => {
+    if (!deepLinkLineId || !data) {
+      return;
+    }
+
+    if (lastDeepLinkHandledRef.current === deepLinkLineId) {
+      return;
+    }
+
+    const hasTargetLine = data.lines.some((line) => line.id === deepLinkLineId);
+    if (!hasTargetLine) {
+      if (hasMore && !loadingMore) {
+        void fetchMoreLines();
+      }
+      return;
+    }
+
+    setLastClickedLineId(deepLinkLineId);
+    lastDeepLinkHandledRef.current = deepLinkLineId;
+
+    setTimeout(() => {
+      const container = transcriptContainerRef.current;
+      const el = container?.querySelector(
+        `[data-line-id="${deepLinkLineId}"]`,
+      ) as HTMLElement | null;
+
+      if (!container || !el) {
+        return;
+      }
+
+      const containerRect = container.getBoundingClientRect();
+      const targetRect = el.getBoundingClientRect();
+      container.scrollTo({
+        top: container.scrollTop + (targetRect.top - containerRect.top) - 60,
+        behavior: "smooth",
+      });
+    }, 80);
+  }, [
+    deepLinkLineId,
+    data,
+    hasMore,
+    loadingMore,
+    fetchMoreLines,
+    setLastClickedLineId,
+    transcriptContainerRef,
+  ]);
 
   // -- Handlers --
   const handleSeek = useCallback(
@@ -480,7 +593,7 @@ export default function BattlePage() {
 
     const speakers = (
       [
-        ...new Set(
+         ...new Set(
           lines.map((l) => {
             if (l.emcees && l.emcees.length > 0) {
               return l.emcees
@@ -506,7 +619,10 @@ export default function BattlePage() {
           .map((e) => formatSpeakerName(e.name, true))
           .join(" / ");
       } else {
-        speaker = formatSpeakerName(line.emcee?.name || line.speaker_label, true);
+        speaker = formatSpeakerName(
+          line.emcee?.name || line.speaker_label,
+          true,
+        );
       }
 
       if (round !== currentRoundId) {
@@ -527,8 +643,7 @@ export default function BattlePage() {
   // ── Loading ──
   if (loading) {
     return (
-      <div className="bg-background min-h-screen">
-        <Header />
+      <>
         <main className="mx-auto flex h-[calc(100vh-4rem)] max-w-7xl flex-col overflow-hidden px-4 sm:px-6">
           <div className="flex h-full min-h-0 flex-col gap-6 pt-4 lg:grid lg:grid-cols-12 lg:gap-8 lg:pt-6">
             {/* Left Column: Video Skeleton */}
@@ -572,15 +687,14 @@ export default function BattlePage() {
             </div>
           </div>
         </main>
-      </div>
+      </>
     );
   }
 
   // ── Error ──
   if (error || !data) {
     return (
-      <div className="bg-background min-h-screen">
-        <Header />
+      <>
         <div className="mx-auto max-w-4xl px-4 py-20 text-center">
           <Mic2 className="text-muted-foreground/40 mx-auto mb-4 h-12 w-12" />
           <h1 className="text-foreground text-xl font-semibold">
@@ -591,7 +705,7 @@ export default function BattlePage() {
             <Link href="/battles">← Back to battles</Link>
           </Button>
         </div>
-      </div>
+      </>
     );
   }
 
@@ -600,8 +714,7 @@ export default function BattlePage() {
   // ────────────────────────────────────────────────────────────────────────────
 
   return (
-    <div className="bg-background min-h-screen">
-      <Header />
+    <>
 
       <main className="mx-auto flex h-[calc(100vh-4rem)] max-w-7xl flex-col overflow-hidden px-4 sm:px-6">
         {/* ── Two-Column Layout ── */}
@@ -706,7 +819,7 @@ export default function BattlePage() {
                     </h1>
                     <div className="text-muted-foreground/60 mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[10px] font-medium sm:gap-x-3 sm:text-xs">
                       {battle.event_name && (
-                        <span className="text-foreground/70 max-w-[120px] truncate sm:max-w-none">
+                        <span className="text-foreground/70 max-w-30 truncate sm:max-w-none">
                           {battle.event_name}
                         </span>
                       )}
@@ -721,7 +834,9 @@ export default function BattlePage() {
                         lines.length > 0 && (
                           <span className="opacity-30">•</span>
                         )}
-                      <span>{lines.length} lines</span>
+                      <span>
+                        {data.lines_pagination?.total ?? lines.length} lines
+                      </span>
                     </div>
                   </div>
 
@@ -939,43 +1054,43 @@ export default function BattlePage() {
                               return (
                                 <div key={ti}>
                                   {/* Speaker header (Sticky below Round header) */}
-                                    {turn.speaker && (
-                                      <div className="bg-background/80 sticky top-8.5 z-10 -ml-1 flex items-center gap-1.5 py-0.5 backdrop-blur-sm">
-                                        <Button
-                                          variant="ghost"
-                                          onClick={() =>
-                                            toggleTurnCollapse(turnKey)
-                                          }
-                                          className={`hover:bg-muted/50 h-auto justify-start gap-1.5 rounded-md px-2 py-1 text-left text-xs transition-colors ${speakerColor.text}`}
-                                        >
-                                          {isTurnCollapsed ? (
-                                            <ChevronRight className="h-3 w-3 shrink-0 opacity-50" />
-                                          ) : (
-                                            <ChevronDown className="h-3 w-3 shrink-0 opacity-50" />
-                                          )}
-                                          <span
-                                            className={`h-1.5 w-1.5 rounded-full ${speakerColor.dot}`}
-                                          />
-                                          <span className="font-bold tracking-tight">
-                                            {turn.speaker}
-                                          </span>
-                                        </Button>
-
-                                        {editMode && (
-                                          <Checkbox
-                                            checked={turnAllSelected}
-                                            className="mt-1 h-3.5 w-3.5 shrink-0 cursor-pointer"
-                                            onCheckedChange={() =>
-                                              toggleSelectTurn(turn.lines)
-                                            }
-                                          />
+                                  {turn.speaker && (
+                                    <div className="bg-background/80 sticky top-8.5 z-10 -ml-1 flex items-center gap-1.5 py-0.5 backdrop-blur-sm">
+                                      <Button
+                                        variant="ghost"
+                                        onClick={() =>
+                                          toggleTurnCollapse(turnKey)
+                                        }
+                                        className={`hover:bg-muted/50 h-auto justify-start gap-1.5 rounded-md px-2 py-1 text-left text-xs transition-colors ${speakerColor.text}`}
+                                      >
+                                        {isTurnCollapsed ? (
+                                          <ChevronRight className="h-3 w-3 shrink-0 opacity-50" />
+                                        ) : (
+                                          <ChevronDown className="h-3 w-3 shrink-0 opacity-50" />
                                         )}
-                                      </div>
-                                    )}
+                                        <span
+                                          className={`h-1.5 w-1.5 rounded-full ${speakerColor.dot}`}
+                                        />
+                                        <span className="font-bold tracking-tight">
+                                          {turn.speaker}
+                                        </span>
+                                      </Button>
+
+                                      {editMode && (
+                                        <Checkbox
+                                          checked={turnAllSelected}
+                                          className="mt-1 h-3.5 w-3.5 shrink-0 cursor-pointer"
+                                          onCheckedChange={() =>
+                                            toggleSelectTurn(turn.lines)
+                                          }
+                                        />
+                                      )}
+                                    </div>
+                                  )}
 
                                   {/* Lines */}
                                   {!isTurnCollapsed && (
-                                    <div className="border-border/20 ml-2 border-l py-0 pl-3">
+                                    <div className="border-border/20 ml-2 border-l py-0 pl-3 [contain-intrinsic-size:1px_720px] [content-visibility:auto]">
                                       {turn.lines.map(
                                         (line: BattleLine, li: number) => {
                                           const prevLine =
@@ -1000,6 +1115,7 @@ export default function BattlePage() {
                                           return (
                                             <div
                                               key={line.id}
+                                              className="[contain-intrinsic-size:1px_56px] [content-visibility:auto]"
                                               style={{
                                                 marginTop:
                                                   gapMargin > 0
@@ -1061,13 +1177,45 @@ export default function BattlePage() {
                       </div>
                     );
                   })}
+
+                  {loadingMore && (
+                    <div className="flex w-full items-center justify-center py-8">
+                      <p className="text-muted-foreground animate-pulse text-center text-[10px] font-semibold tracking-wider uppercase">
+                        Loading more lines...
+                      </p>
+                    </div>
+                  )}
                 </div>
 
                 {/* Footer */}
-                <div className="border-border mt-4 space-y-2 border-t pt-4 text-center">
-                  <p className="text-muted-foreground/50 text-[9px] tracking-widest uppercase">
-                    {lines.length} lines • Community transcription
-                  </p>
+                <div className="border-border/10 mt-8 border-t px-1 pt-6">
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="flex flex-col gap-1">
+                      <p className="text-muted-foreground/40 text-[9px] font-bold tracking-[0.2em] uppercase">
+                        Community Transcription
+                      </p>
+                      <p className="text-muted-foreground/20 text-[7px] font-medium tracking-widest uppercase">
+                        Help us improve this transcript
+                      </p>
+                    </div>
+
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() =>
+                        transcriptContainerRef.current?.scrollTo({
+                          top: 0,
+                          behavior: "smooth",
+                        })
+                      }
+                      className="text-muted-foreground/50 hover:bg-muted/50 hover:text-foreground h-8 gap-1.5 rounded-lg px-2 text-[9px] font-bold tracking-widest uppercase transition-all active:scale-95"
+                    >
+                      <ArrowUp className="h-3.5 w-3.5" />
+                      <span>Back to Top</span>
+                    </Button>
+                  </div>
+
+                  {hasMore && <div ref={loadMoreSentinelRef} className="h-8" />}
                 </div>
 
                 {editMode && selectedIds.size > 0 && <div className="h-20" />}
@@ -1143,7 +1291,6 @@ export default function BattlePage() {
         isOpen={isLoginModalOpen}
         onOpenChange={setIsLoginModalOpen}
       />
-      <Footer />
-    </div>
+    </>
   );
 }

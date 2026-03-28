@@ -1,10 +1,16 @@
 "use client";
 
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
-import { useEffect, useState, useCallback, Suspense } from "react";
+import {
+  useEffect,
+  useState,
+  useCallback,
+  Suspense,
+  useRef,
+  useMemo,
+  memo,
+} from "react";
 import { useAuthStore } from "@/stores/auth-store";
-import Header from "@/components/Header";
-import Footer from "@/components/Footer";
 import SearchBar from "@/components/SearchBar";
 import ResultCard from "@/components/ResultCard";
 import { SearchResult } from "@/lib/types";
@@ -22,6 +28,73 @@ import {
 } from "@/components/ui/pagination";
 import { Separator } from "@/components/ui/separator";
 
+type SearchResultsListProps = {
+  results: SearchResult[];
+  canEdit: boolean;
+  isUserLoggedIn: boolean;
+  onResultEdited: () => void;
+};
+
+type SearchApiResponse = {
+  results: SearchResult[];
+  total: number;
+  totalPages: number;
+};
+
+const SEARCH_RESULTS_CACHE_TTL_MS = 30_000;
+
+const SearchResultsList = memo(function SearchResultsList({
+  results,
+  canEdit,
+  isUserLoggedIn,
+  onResultEdited,
+}: SearchResultsListProps) {
+  return (
+    <div className="space-y-2">
+      {results.map((result, i) => (
+        <div key={result.id}>
+          {i > 0 && <Separator className="my-2" />}
+          <ResultCard
+            result={result}
+            isLoggedIn={canEdit}
+            isUserLoggedIn={isUserLoggedIn}
+            onEdited={onResultEdited}
+          />
+        </div>
+      ))}
+    </div>
+  );
+});
+
+const SearchResultsLoadingSkeleton = memo(
+  function SearchResultsLoadingSkeleton() {
+    return (
+      <div className="space-y-6">
+        {[...Array(4)].map((_, i) => (
+          <div key={i}>
+            {i > 0 && <Separator className="my-6" />}
+            <div className="flex animate-pulse gap-4 sm:gap-6">
+              <div className="bg-muted hidden aspect-video w-40 shrink-0 self-start rounded-md sm:block" />
+              <div className="flex-1 space-y-4 py-1">
+                <div className="bg-muted h-4 w-1/3 max-w-50 rounded" />
+                <div className="border-muted space-y-2 border-l-2 pl-3">
+                  <div className="bg-muted/60 h-3 w-5/6 rounded" />
+                  <div className="bg-muted h-4 w-full rounded" />
+                  <div className="bg-muted/60 h-3 w-4/6 rounded" />
+                </div>
+                <div className="flex gap-2 pt-2">
+                  <div className="bg-muted h-8 w-24 rounded" />
+                  <div className="bg-muted h-8 w-16 rounded" />
+                </div>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  },
+);
+
 function SearchResults() {
   const router = useRouter();
   const pathname = usePathname();
@@ -36,22 +109,52 @@ function SearchResults() {
   const [loading, setLoading] = useState(!!query);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [error, setError] = useState("");
-  const [prevQuery, setPrevQuery] = useState(query);
+  const prevQueryRef = useRef(query);
+  const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const responseCacheRef = useRef<
+    Map<string, { data: SearchApiResponse; cachedAt: number }>
+  >(new Map());
   const { canEdit, isUserLoggedIn } = useAuthStore();
 
-  // Reset loading state when query changes via URL
-  if (query !== prevQuery) {
-    setPrevQuery(query);
-    if (!!query) setLoading(true);
-  }
+  useEffect(() => {
+    if (query !== prevQueryRef.current) {
+      prevQueryRef.current = query;
+      if (query) {
+        setLoading(true);
+      }
+    }
+  }, [query]);
 
   const fetchResults = useCallback(
-    async (q: string, p: number, signal?: AbortSignal) => {
+    async (
+      q: string,
+      p: number,
+      signal?: AbortSignal,
+      options?: { forceRefresh?: boolean },
+    ) => {
       if (!q) {
         setLoading(false);
         setResults([]);
         setTotal(0);
         setTotalPages(0);
+        setIsInitialLoad(false);
+        return;
+      }
+
+      const cacheKey = `${q.toLowerCase()}::${p}`;
+      const now = Date.now();
+      const cached = responseCacheRef.current.get(cacheKey);
+      const useCachedData =
+        !options?.forceRefresh &&
+        cached &&
+        now - cached.cachedAt <= SEARCH_RESULTS_CACHE_TTL_MS;
+
+      if (useCachedData) {
+        setError("");
+        setResults(cached.data.results);
+        setTotal(cached.data.total);
+        setTotalPages(cached.data.totalPages);
+        setLoading(false);
         setIsInitialLoad(false);
         return;
       }
@@ -83,7 +186,13 @@ function SearchResults() {
 
           if (!res.ok) throw new Error("Search failed");
 
-          const data = await res.json();
+          const data = (await res.json()) as SearchApiResponse;
+
+          responseCacheRef.current.set(cacheKey, {
+            data,
+            cachedAt: Date.now(),
+          });
+
           if (!signal?.aborted) {
             setResults(data.results);
             setTotal(data.total);
@@ -131,15 +240,59 @@ function SearchResults() {
     return () => controller.abort();
   }, [query, page, fetchResults]);
 
-  const handlePageChange = (newPage: number) => {
-    const params = new URLSearchParams(searchParams.toString());
-    params.set("page", newPage.toString());
-    router.push(`${pathname}?${params.toString()}`, { scroll: true });
-  };
+  useEffect(() => {
+    return () => {
+      if (refreshTimerRef.current) {
+        clearTimeout(refreshTimerRef.current);
+      }
+    };
+  }, []);
+
+  const scheduleRefresh = useCallback(
+    (q: string, p: number) => {
+      if (refreshTimerRef.current) {
+        clearTimeout(refreshTimerRef.current);
+      }
+
+      refreshTimerRef.current = setTimeout(() => {
+        void fetchResults(q, p, undefined, { forceRefresh: true });
+        refreshTimerRef.current = null;
+      }, 250);
+    },
+    [fetchResults],
+  );
+
+  const handlePageChange = useCallback(
+    (newPage: number) => {
+      const params = new URLSearchParams(searchParams.toString());
+      params.set("page", newPage.toString());
+      router.push(`${pathname}?${params.toString()}`, { scroll: true });
+    },
+    [pathname, router, searchParams],
+  );
+
+  const paginationItems = useMemo(() => {
+    return Array.from({ length: totalPages }).map((_, i) => {
+      const p = i + 1;
+
+      if (p === 1 || p === totalPages || (p >= page - 2 && p <= page + 2)) {
+        return { type: "page" as const, page: p };
+      }
+
+      if (p === page - 3 || p === page + 3) {
+        return { type: "ellipsis" as const, page: p };
+      }
+
+      return null;
+    });
+  }, [page, totalPages]);
+
+  const handleResultEdited = useCallback(() => {
+    scheduleRefresh(query, page);
+  }, [scheduleRefresh, query, page]);
 
   return (
-    <div className="bg-background min-h-screen">
-      <Header />
+    <>
 
       {/* Search bar */}
       <div className="bg-background/95 sticky top-14 z-30 border-b border-white/5 backdrop-blur-xl">
@@ -164,21 +317,12 @@ function SearchResults() {
         <div id="results" className="scroll-mt-32">
           {/* Results list */}
           {!loading && !error && results.length > 0 && (
-            <div className="space-y-2">
-              {results.map((result, i) => (
-                <div key={result.id}>
-                  {i > 0 && <Separator className="my-2" />}
-                  <ResultCard
-                    result={result}
-                    isLoggedIn={canEdit}
-                    isUserLoggedIn={isUserLoggedIn}
-                    onEdited={() => {
-                      fetchResults(query, page);
-                    }}
-                  />
-                </div>
-              ))}
-            </div>
+            <SearchResultsList
+              results={results}
+              canEdit={canEdit}
+              isUserLoggedIn={isUserLoggedIn}
+              onResultEdited={handleResultEdited}
+            />
           )}
         </div>
         {/* Error state */}
@@ -191,7 +335,9 @@ function SearchResults() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => fetchResults(query, page)}
+              onClick={() =>
+                fetchResults(query, page, undefined, { forceRefresh: true })
+              }
               className="border-destructive/20 hover:bg-destructive/10 hover:text-destructive h-8 px-3 text-xs font-bold"
             >
               Retry
@@ -200,30 +346,7 @@ function SearchResults() {
         )}
 
         {/* Loading state */}
-        {loading && (
-          <div className="space-y-6">
-            {[...Array(4)].map((_, i) => (
-              <div key={i}>
-                {i > 0 && <Separator className="my-6" />}
-                <div className="flex animate-pulse gap-4 sm:gap-6">
-                  <div className="bg-muted hidden aspect-video w-40 shrink-0 self-start rounded-md sm:block" />
-                  <div className="flex-1 space-y-4 py-1">
-                    <div className="bg-muted h-4 w-1/3 max-w-50 rounded" />
-                    <div className="border-muted space-y-2 border-l-2 pl-3">
-                      <div className="bg-muted/60 h-3 w-5/6 rounded" />
-                      <div className="bg-muted h-4 w-full rounded" />
-                      <div className="bg-muted/60 h-3 w-4/6 rounded" />
-                    </div>
-                    <div className="flex gap-2 pt-2">
-                      <div className="bg-muted h-8 w-24 rounded" />
-                      <div className="bg-muted h-8 w-16 rounded" />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+        {loading && <SearchResultsLoadingSkeleton />}
 
         {/* Empty state */}
         {!loading &&
@@ -245,16 +368,16 @@ function SearchResults() {
         {/* Initial state (no query) */}
         {!query && (
           <div className="flex flex-col items-center justify-center px-4 py-28 text-center">
-            <h2 className="text-foreground mb-3 text-2xl font-black tracking-tight">
-              Try searching now
+            <h2 className="text-foreground mb-3 text-2xl font-bold tracking-tight">
+              Start searching
             </h2>
             <p className="text-muted-foreground mx-auto max-w-md text-base leading-relaxed">
-              Find lines, punchlines, or track down matches by entering an
-              emcee&apos;s name or a phrase.
+              Search through transcripts from FlipTop and underground leagues.
+              Find every iconic bar by entering an emcee&apos;s name or a
+              phrase.
             </p>
           </div>
         )}
-
 
         {/* Pagination */}
         {!loading && totalPages > 1 && (
@@ -268,35 +391,28 @@ function SearchResults() {
                   />
                 </PaginationItem>
 
-                {Array.from({ length: totalPages }).map((_, i) => {
-                  const p = i + 1;
-                  // Show pages around current, plus first and last
-                  if (
-                    p === 1 ||
-                    p === totalPages ||
-                    (p >= page - 2 && p <= page + 2)
-                  ) {
+                {paginationItems.map((item) => {
+                  if (!item) return null;
+
+                  if (item.type === "ellipsis") {
                     return (
-                      <PaginationItem key={p}>
-                        <PaginationLink
-                          isActive={page === p}
-                          onClick={() => handlePageChange(p)}
-                          className="cursor-pointer"
-                        >
-                          {p}
-                        </PaginationLink>
-                      </PaginationItem>
-                    );
-                  }
-                  // Show ellipsis
-                  if (p === page - 3 || p === page + 3) {
-                    return (
-                      <PaginationItem key={p}>
+                      <PaginationItem key={`ellipsis-${item.page}`}>
                         <PaginationEllipsis />
                       </PaginationItem>
                     );
                   }
-                  return null;
+
+                  return (
+                    <PaginationItem key={item.page}>
+                      <PaginationLink
+                        isActive={page === item.page}
+                        onClick={() => handlePageChange(item.page)}
+                        className="cursor-pointer"
+                      >
+                        {item.page}
+                      </PaginationLink>
+                    </PaginationItem>
+                  );
                 })}
 
                 <PaginationItem>
@@ -312,9 +428,7 @@ function SearchResults() {
           </div>
         )}
       </main>
-
-      <Footer />
-    </div>
+    </>
   );
 }
 
