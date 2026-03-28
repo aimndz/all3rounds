@@ -30,6 +30,7 @@ import {
   Maximize2,
   Minimize2,
   Trash2,
+  ArrowUp,
 } from "lucide-react";
 import { cn, formatDateLong, formatSpeakerName } from "@/lib/utils";
 import { getSpeakerColor } from "@/lib/constants";
@@ -1094,7 +1095,7 @@ export default function BattlePage() {
 
                                   {/* Lines */}
                                   {!isTurnCollapsed && (
-                                    <div className="border-border/20 ml-2 border-l py-0 pl-3 [content-visibility:auto] [contain-intrinsic-size:1px_720px]">
+                                    <div className="border-border/20 ml-2 border-l py-0 pl-3 [contain-intrinsic-size:1px_720px] [content-visibility:auto]">
                                       {turn.lines.map(
                                         (line: BattleLine, li: number) => {
                                           const prevLine =
@@ -1119,7 +1120,7 @@ export default function BattlePage() {
                                           return (
                                             <div
                                               key={line.id}
-                                              className="[content-visibility:auto] [contain-intrinsic-size:1px_56px]"
+                                              className="[contain-intrinsic-size:1px_56px] [content-visibility:auto]"
                                               style={{
                                                 marginTop:
                                                   gapMargin > 0
@@ -1181,22 +1182,45 @@ export default function BattlePage() {
                       </div>
                     );
                   })}
+
+                  {loadingMore && (
+                    <div className="flex w-full items-center justify-center py-8">
+                      <p className="text-muted-foreground animate-pulse text-center text-[10px] font-semibold tracking-wider uppercase">
+                        Loading more lines...
+                      </p>
+                    </div>
+                  )}
                 </div>
 
                 {/* Footer */}
-                <div className="border-border mt-4 space-y-2 border-t pt-4 text-center">
-                  <p className="text-muted-foreground/50 text-[9px] tracking-widest uppercase">
-                    {data.lines_pagination?.total ?? lines.length} lines •
-                    Community transcription
-                  </p>
+                <div className="border-border/10 mt-8 border-t px-1 pt-6">
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="flex flex-col gap-1">
+                      <p className="text-muted-foreground/40 text-[9px] font-bold tracking-[0.2em] uppercase">
+                        Community Transcription
+                      </p>
+                      <p className="text-muted-foreground/20 text-[7px] font-medium tracking-widest uppercase">
+                        Help us improve this transcript
+                      </p>
+                    </div>
 
-                  {loadingMore && (
-                    <p className="text-muted-foreground text-[10px] font-semibold tracking-wider uppercase">
-                      Loading more lines...
-                    </p>
-                  )}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() =>
+                        transcriptContainerRef.current?.scrollTo({
+                          top: 0,
+                          behavior: "smooth",
+                        })
+                      }
+                      className="text-muted-foreground/50 hover:bg-muted/50 hover:text-foreground h-8 gap-1.5 rounded-lg px-2 text-[9px] font-bold tracking-widest uppercase transition-all active:scale-95"
+                    >
+                      <ArrowUp className="h-3.5 w-3.5" />
+                      <span>Back to Top</span>
+                    </Button>
+                  </div>
 
-                  {hasMore && <div ref={loadMoreSentinelRef} className="h-4" />}
+                  {hasMore && <div ref={loadMoreSentinelRef} className="h-8" />}
                 </div>
 
                 {editMode && selectedIds.size > 0 && <div className="h-20" />}
