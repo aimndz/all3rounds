@@ -8,7 +8,7 @@ import {
   invalidateCache,
   invalidateCachePattern,
 } from "@/lib/cache";
-import { sortParticipantsByTitle } from "@/features/battle/utils/participant-grouping";
+import { sortParticipantsByTitle } from "@/features/battles/utils/participant-grouping";
 import { uuidSchema } from "@/lib/schemas";
 import { z } from "zod";
 

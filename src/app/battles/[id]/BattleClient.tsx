@@ -42,29 +42,29 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import BatchActionBar from "@/features/battle/components/BatchActionBar";
+import BatchActionBar from "@/features/battles/components/BatchActionBar";
 import { useAuthStore } from "@/stores/auth-store";
 import type { SearchResult } from "@/lib/types";
-import { LineItem } from "@/features/battle/components/LineItem";
-import { useBattleData } from "@/features/battle/hooks/use-battle-data";
+import { LineItem } from "@/features/battles/components/LineItem";
+import { useBattleData } from "@/features/battles/hooks/use-battle-data";
 import type {
   BattleLine,
   BattleStatus,
   BattleData,
   Turn,
   RoundGroup,
-} from "@/features/battle/hooks/use-battle-data";
-import { useYouTubePlayer } from "@/features/battle/hooks/use-youtube-player";
-import { useLineSelection } from "@/features/battle/hooks/use-line-selection";
-import { useInlineEdit } from "@/features/battle/hooks/use-inline-edit";
-import { useAutoScroll } from "@/features/battle/hooks/use-auto-scroll";
+} from "@/features/battles/hooks/use-battle-data";
+import { useYouTubePlayer } from "@/features/battles/hooks/use-youtube-player";
+import { useLineSelection } from "@/features/battles/hooks/use-line-selection";
+import { useInlineEdit } from "@/features/battles/hooks/use-inline-edit";
+import { useAutoScroll } from "@/features/battles/hooks/use-auto-scroll";
 
 const BattleEditModal = dynamic(
-  () => import("@/features/battle/components/BattleEditModal"),
+  () => import("@/features/battles/components/BattleEditModal"),
   { ssr: false },
 );
 const BattleAddLineModal = dynamic(
-  () => import("@/features/battle/components/BattleAddLineModal"),
+  () => import("@/features/battles/components/BattleAddLineModal"),
   { ssr: false },
 );
 const SuggestCorrectionModal = dynamic(

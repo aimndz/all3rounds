@@ -34,16 +34,6 @@ type AdminStatsResponse = {
 };
 
 export async function GET(_request: NextRequest) {
-  const hasAuthCookie = _request.cookies
-    .getAll()
-    .some((cookie) => cookie.name.includes("-auth-token"));
-  if (!hasAuthCookie) {
-    return NextResponse.json(
-      { error: "You must be logged in." },
-      { status: 401 },
-    );
-  }
-
   // ── Auth & Permission Check ──
   const auth = await requirePermission("users:manage");
   if (auth.error) {

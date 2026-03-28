@@ -65,7 +65,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
     const battleRoutes: MetadataRoute.Sitemap =
       battlesRes.data?.map((battle) => ({
-        url: `${siteUrl}/battle/${battle.id}`,
+        url: `${siteUrl}/battles/${battle.id}`,
         lastModified: now,
         changeFrequency: "monthly",
         priority: 0.6,

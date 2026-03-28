@@ -4,7 +4,7 @@ import { useState, useCallback } from "react";
 import type {
   BattleLine,
   BattleData,
-} from "@/features/battle/hooks/use-battle-data";
+} from "@/features/battles/hooks/use-battle-data";
 
 export function useInlineEdit(
   data: BattleData | null,

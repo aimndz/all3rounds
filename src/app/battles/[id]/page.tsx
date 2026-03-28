@@ -14,11 +14,16 @@ const siteUrl = getSiteUrl();
 const getBattle = cache(async (id: string) => {
   if (!uuidSchema.safeParse(id).success) return null;
   const supabase = createPublicClient();
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("battles")
-    .select("title, event_name, event_date, youtube_id, thumbnail_url")
+    .select("title, event_name, event_date, youtube_id")
     .eq("id", id)
     .single();
+
+  if (error) {
+    console.error("[getBattle] Supabase error:", error.message, "for ID:", id);
+    return null;
+  }
   return data;
 });
 
@@ -43,7 +48,7 @@ export async function generateMetadata({
     openGraph: {
       title: `${battle.title} — Transcript & Lyrics`,
       description,
-      url: `${siteUrl}/battle/${id}`,
+      url: `${siteUrl}/battles/${id}`,
       images: [
         {
           url: `https://img.youtube.com/vi/${battle.youtube_id}/maxresdefault.jpg`,
@@ -80,8 +85,7 @@ export default async function BattlePage({
     name: battle.title,
     description: `Full transcript and lyric analysis for ${battle.title}.`,
     thumbnailUrl: [
-      battle.thumbnail_url ||
-        `https://img.youtube.com/vi/${battle.youtube_id}/maxresdefault.jpg`,
+      `https://img.youtube.com/vi/${battle.youtube_id}/maxresdefault.jpg`,
       `https://img.youtube.com/vi/${battle.youtube_id}/sddefault.jpg`,
       `https://img.youtube.com/vi/${battle.youtube_id}/hqdefault.jpg`,
     ],
@@ -90,7 +94,7 @@ export default async function BattlePage({
     contentUrl: `https://www.youtube.com/watch?v=${battle.youtube_id}`,
     potentialAction: {
       "@type": "SeekToAction",
-      target: `${siteUrl}/battle/${id}?t={seek_to_second_number}`,
+      target: `${siteUrl}/battles/${id}?t={seek_to_second_number}`,
       "startOffset-input": "required name=seek_to_second_number",
     },
   };
@@ -121,7 +125,7 @@ export default async function BattlePage({
         "@type": "ListItem",
         position: 3,
         name: battle.title,
-        item: `${siteUrl}/battle/${id}`,
+        item: `${siteUrl}/battles/${id}`,
       },
     ],
   };

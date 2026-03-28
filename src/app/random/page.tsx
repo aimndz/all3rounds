@@ -128,7 +128,7 @@ export default function RandomPage() {
                 <div className="flex flex-col gap-4 p-4 sm:p-5">
                   <div className="flex items-center gap-3">
                     <Link
-                      href={`/battle/${line.battle.id}?t=${Math.floor(line.start_time)}`}
+                      href={`/battles/${line.battle.id}?t=${Math.floor(line.start_time)}`}
                       prefetch={false}
                       className="hover:text-primary group/link flex items-center gap-1 text-lg font-bold transition-colors hover:underline"
                       title="Jump to this line in the full transcript"

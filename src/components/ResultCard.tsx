@@ -101,7 +101,7 @@ function ResultCard({
       <div
         onClick={() =>
           router.push(
-            `/battle/${result.battle.id}?t=${Math.floor(result.start_time)}&lineId=${result.id}`,
+            `/battles/${result.battle.id}?t=${Math.floor(result.start_time)}&lineId=${result.id}`,
           )
         }
         className="group hover:bg-muted/30 active:bg-muted/45 relative block cursor-pointer py-4 transition-all duration-200 sm:-mx-4 sm:rounded-xl sm:px-4"

@@ -129,6 +129,15 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+  async redirects() {
+    return [
+      {
+        source: "/battle/:id",
+        destination: "/battles/:id",
+        permanent: true,
+      },
+    ];
+  },
 };
 
 export default nextConfig;
