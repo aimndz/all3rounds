@@ -4,6 +4,8 @@
 .env.*.local
 .env.production
 .env.development
+.dev.vars
+.dev.vars.*
 
 # Python
 venv/
