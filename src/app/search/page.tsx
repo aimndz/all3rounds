@@ -69,7 +69,7 @@ const SearchResultsList = memo(function SearchResultsList({
 const SearchResultsLoadingSkeleton = memo(
   function SearchResultsLoadingSkeleton() {
     return (
-      <div className="space-y-6">
+      <div className="w-full space-y-6">
         {[...Array(4)].map((_, i) => (
           <div key={i}>
             {i > 0 && <Separator className="my-6" />}
@@ -302,7 +302,7 @@ function SearchResults() {
       </div>
 
       {/* Results */}
-      <main className="mx-auto max-w-4xl px-4 py-6 sm:px-6">
+      <main className="mx-auto w-full max-w-4xl px-4 py-6 sm:px-6">
         {/* Result count */}
         {!loading && !isInitialLoad && !error && query && (
           <div className="mb-5 flex flex-col gap-1 sm:flex-row sm:items-baseline sm:gap-2">
