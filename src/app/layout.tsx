@@ -110,9 +110,9 @@ export default async function RootLayout({
         <AuthProvider>
           <div className="flex min-h-screen flex-col">
             <Header />
-            <main className="flex flex-1 flex-col">
+            <div className="flex flex-1 flex-col">
               <ErrorBoundary>{children}</ErrorBoundary>
-            </main>
+            </div>
             <Footer />
           </div>
         </AuthProvider>
@@ -199,6 +199,12 @@ export default async function RootLayout({
             </Script>
           </>
         )}
+        <Script
+          defer
+          src="https://cloud.umami.is/script.js"
+          data-website-id="e2a7a49d-8927-4176-8965-a8773f7b62e8"
+          strategy="afterInteractive"
+        />
       </body>
     </html>
   );

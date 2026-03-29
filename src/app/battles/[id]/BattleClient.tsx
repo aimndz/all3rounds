@@ -644,7 +644,7 @@ export default function BattleClient() {
   if (loading) {
     return (
       <>
-        <main className="mx-auto flex h-[calc(100vh-4rem)] max-w-7xl flex-col overflow-hidden px-4 sm:px-6">
+        <main className="mx-auto flex h-[calc(100vh-4rem)] w-full max-w-7xl flex-col overflow-hidden px-4 sm:px-6">
           <div className="flex h-full min-h-0 flex-col gap-6 pt-4 lg:grid lg:grid-cols-12 lg:gap-8 lg:pt-6">
             {/* Left Column: Video Skeleton */}
             <div className="lg:col-span-7 xl:col-span-8">
@@ -716,7 +716,7 @@ export default function BattleClient() {
   return (
     <>
 
-      <main className="mx-auto flex h-[calc(100vh-4rem)] max-w-7xl flex-col overflow-hidden px-4 sm:px-6">
+      <main className="mx-auto flex h-[calc(100vh-4rem)] w-full max-w-7xl flex-col overflow-hidden px-4 sm:px-6">
         {/* ── Two-Column Layout ── */}
         <div className="flex h-full min-h-0 flex-col gap-4 pt-2 lg:grid lg:grid-cols-12 lg:gap-8 lg:pt-6">
           {/* Left Column: Video (Sticky/Docked) */}
