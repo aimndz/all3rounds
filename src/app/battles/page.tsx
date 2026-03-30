@@ -1,8 +1,6 @@
 import { Metadata } from "next";
-import { Suspense } from "react";
 import { createPublicClient } from "@/lib/supabase/server";
 import BattlesDirectory from "./BattlesDirectory";
-import { BattlesSkeleton } from "@/components/PageSkeletons";
 
 const INITIAL_EVENTS_PER_PAGE = 5;
 const OTHER_BATTLES_KEY = "Other Battles";
@@ -156,14 +154,12 @@ export default async function BattlesPage({
     .filter((n): n is string => n !== null);
 
   return (
-    <Suspense fallback={<BattlesSkeleton />}>
-      <BattlesDirectory
-        initialBattles={initialBattles}
-        initialCount={initialCount || 0}
-        initialTotalEvents={initialTotalEvents}
-        initialYears={initialYears}
-        initialEventNames={initialEventNames}
-      />
-    </Suspense>
+    <BattlesDirectory
+      initialBattles={initialBattles}
+      initialCount={initialCount || 0}
+      initialTotalEvents={initialTotalEvents}
+      initialYears={initialYears}
+      initialEventNames={initialEventNames}
+    />
   );
 }

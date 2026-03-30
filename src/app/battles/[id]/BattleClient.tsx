@@ -30,7 +30,7 @@ import {
   Trash2,
   ArrowUp,
 } from "lucide-react";
-import { cn, formatDateLong, formatSpeakerName } from "@/lib/utils";
+import { cn, formatDate, formatSpeakerName } from "@/lib/utils";
 import { getSpeakerColor } from "@/lib/constants";
 import { StatusBadge, STATUS_CONFIG } from "@/components/StatusBadge";
 import {
@@ -78,10 +78,7 @@ const LoginModal = dynamic(
 // Helpers
 // ============================================================================
 
-function formatDate(dateStr: string | null): string {
-  if (!dateStr) return "";
-  return formatDateLong(dateStr);
-}
+// local date helper removed in favor of lib/utils version
 
 // ============================================================================
 // Main Component
@@ -276,7 +273,8 @@ export default function BattleClient() {
       const containerMiddle = cRect.top + cRect.height / 2;
 
       let tRect = el.getBoundingClientRect();
-      let idealTarget = container.scrollTop + ((tRect.top + tRect.height / 2) - containerMiddle);
+      let idealTarget =
+        container.scrollTop + (tRect.top + tRect.height / 2 - containerMiddle);
       let framesSinceLastCheck = 0;
 
       const animateScroll = (timestamp: number) => {
@@ -289,7 +287,9 @@ export default function BattleClient() {
         framesSinceLastCheck++;
         if (framesSinceLastCheck > 5 && percentage < 0.95) {
           tRect = el.getBoundingClientRect();
-          idealTarget = container.scrollTop + ((tRect.top + tRect.height / 2) - containerMiddle);
+          idealTarget =
+            container.scrollTop +
+            (tRect.top + tRect.height / 2 - containerMiddle);
           framesSinceLastCheck = 0;
         }
 
@@ -300,7 +300,8 @@ export default function BattleClient() {
           requestAnimationFrame(animateScroll);
         } else {
           const finalT = el.getBoundingClientRect();
-          container.scrollTop += (finalT.top + finalT.height / 2) - containerMiddle;
+          container.scrollTop +=
+            finalT.top + finalT.height / 2 - containerMiddle;
         }
       };
 
@@ -625,7 +626,7 @@ export default function BattleClient() {
 
     const speakers = (
       [
-         ...new Set(
+        ...new Set(
           lines.map((l) => {
             if (l.emcees && l.emcees.length > 0) {
               return l.emcees
@@ -747,7 +748,6 @@ export default function BattleClient() {
 
   return (
     <>
-
       <main className="mx-auto flex h-[calc(100vh-4rem)] w-full max-w-7xl flex-col overflow-hidden px-4 sm:px-6">
         {/* ── Two-Column Layout ── */}
         <div className="flex h-full min-h-0 flex-col gap-4 pt-2 lg:grid lg:grid-cols-12 lg:gap-8 lg:pt-6">
@@ -792,51 +792,7 @@ export default function BattleClient() {
                   </div>
                 )}
 
-                {/* Status Badge Over Video (smaller, less intrusive) */}
-                <div className="absolute top-3 right-3 z-30">
-                  {canEdit ? (
-                    <Select
-                      disabled={updatingStatus}
-                      value={battle.status}
-                      onValueChange={(val) =>
-                        handleStatusChange(val as BattleStatus)
-                      }
-                    >
-                      <SelectTrigger className="h-auto w-auto border-none bg-transparent p-0 shadow-none ring-0 focus:ring-0 [&>svg]:hidden">
-                        <SelectValue>
-                          <StatusBadge
-                            status={battle.status}
-                            noTooltip
-                            className={cn(
-                              "cursor-pointer shadow-lg backdrop-blur-md hover:brightness-110",
-                              updatingStatus && "opacity-50",
-                            )}
-                          />
-                        </SelectValue>
-                      </SelectTrigger>
-                      <SelectContent align="end">
-                        {(Object.keys(STATUS_CONFIG) as BattleStatus[]).map(
-                          (s) => (
-                            <SelectItem key={s} value={s} className="text-xs">
-                              <div className="flex items-center gap-2">
-                                {(() => {
-                                  const Icon = STATUS_CONFIG[s].icon;
-                                  return <Icon className="h-3.5 w-3.5" />;
-                                })()}
-                                <span>{STATUS_CONFIG[s].label}</span>
-                              </div>
-                            </SelectItem>
-                          ),
-                        )}
-                      </SelectContent>
-                    </Select>
-                  ) : (
-                    <StatusBadge
-                      status={battle.status}
-                      className="backdrop-blur-md"
-                    />
-                  )}
-                </div>
+                {/* YouTube player already rendered above */}
               </div>
 
               {/* Meta bar */}
@@ -849,26 +805,78 @@ export default function BattleClient() {
                     >
                       {battle.title}
                     </h1>
-                    <div className="text-muted-foreground/60 mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[10px] font-medium sm:gap-x-3 sm:text-xs">
+                    <div className="text-muted-foreground/60 mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] font-medium sm:gap-x-3 sm:text-xs">
                       {battle.event_name && (
-                        <span className="text-foreground/70 max-w-30 truncate sm:max-w-none">
+                        <span className="text-foreground/70 max-w-40 truncate sm:max-w-none">
                           {battle.event_name}
                         </span>
                       )}
-                      {battle.event_name &&
-                        (battle.event_date || lines.length > 0) && (
-                          <span className="opacity-30">•</span>
-                        )}
+
                       {battle.event_date && (
-                        <span>{formatDate(battle.event_date)}</span>
+                        <>
+                          {battle.event_name && (
+                            <span className="text-border/40">|</span>
+                          )}
+                          <span>{formatDate(battle.event_date)}</span>
+                        </>
                       )}
-                      {(battle.event_date || battle.event_name) &&
-                        lines.length > 0 && (
-                          <span className="opacity-30">•</span>
-                        )}
+
+                      {(battle.event_name || battle.event_date) && (
+                        <span className="text-border/40">|</span>
+                      )}
                       <span>
                         {data.lines_pagination?.total ?? lines.length} lines
                       </span>
+
+                      <span className="text-border/40">|</span>
+
+                      {/* Status Badge */}
+                      {canEdit ? (
+                        <Select
+                          disabled={updatingStatus}
+                          value={battle.status}
+                          onValueChange={(val) =>
+                            handleStatusChange(val as BattleStatus)
+                          }
+                        >
+                          <SelectTrigger className="h-auto w-auto border-none bg-transparent p-0 shadow-none ring-0 focus:ring-0 [&>svg]:hidden">
+                            <SelectValue>
+                              <StatusBadge
+                                status={battle.status}
+                                noTooltip
+                                className={cn(
+                                  "origin-left scale-90 cursor-pointer transition-all hover:brightness-110",
+                                  updatingStatus && "opacity-50",
+                                )}
+                              />
+                            </SelectValue>
+                          </SelectTrigger>
+                          <SelectContent align="start">
+                            {(Object.keys(STATUS_CONFIG) as BattleStatus[]).map(
+                              (s) => (
+                                <SelectItem
+                                  key={s}
+                                  value={s}
+                                  className="text-xs"
+                                >
+                                  <div className="flex items-center gap-2">
+                                    {(() => {
+                                      const Icon = STATUS_CONFIG[s].icon;
+                                      return <Icon className="h-3.5 w-3.5" />;
+                                    })()}
+                                    <span>{STATUS_CONFIG[s].label}</span>
+                                  </div>
+                                </SelectItem>
+                              ),
+                            )}
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <StatusBadge
+                          status={battle.status}
+                          className="origin-left scale-90"
+                        />
+                      )}
                     </div>
                   </div>
 

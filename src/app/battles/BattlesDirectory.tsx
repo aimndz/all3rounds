@@ -13,6 +13,7 @@ import {
   ChevronUp,
   Calendar,
 } from "lucide-react";
+import { BattlesListSkeleton } from "@/components/PageSkeletons";
 import { DataPagination } from "@/components/admin/DataPagination";
 import { Button } from "@/components/ui/button";
 import {
@@ -45,7 +46,6 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { Skeleton } from "@/components/ui/skeleton";
 import { useAuthStore } from "@/stores/auth-store";
 import { EventSection } from "@/features/battles/components/EventSection";
 import { useBattlesData } from "@/features/battles/hooks/use-battles-data";
@@ -318,19 +318,7 @@ export default function BattlesDirectory({
         )}
 
         {loading ? (
-          <div className="space-y-4">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <div
-                key={i}
-                className="border-border/10 bg-card/50 flex items-center justify-between rounded-2xl border p-5"
-              >
-                <div className="flex w-1/2 items-center gap-4 pb-12">
-                  <Skeleton className="h-5 w-5 rounded-md" />
-                  <Skeleton className="h-6 w-full max-w-75" />
-                </div>
-              </div>
-            ))}
-          </div>
+          <BattlesListSkeleton />
         ) : battles.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-32 text-center">
             <h3 className="text-foreground mb-1 text-lg font-semibold">
