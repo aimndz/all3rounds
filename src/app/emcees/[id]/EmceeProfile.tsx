@@ -35,7 +35,7 @@ export default function EmceeProfile({ data }: EmceeProfileProps) {
   }, [data.battles, sortOrder]);
 
   return (
-    <main className="mx-auto max-w-5xl px-4 py-12 md:py-20">
+    <main className="mx-auto w-full max-w-7xl px-4 py-12 sm:px-6 md:py-20 lg:px-8">
       {/* Back Link */}
       <Link
         href="/emcees"
@@ -56,7 +56,7 @@ export default function EmceeProfile({ data }: EmceeProfileProps) {
 
       {/* Battles Section */}
       <div>
-        <div className="mb-8 flex items-center justify-between">
+        <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <h2 className="text-2xl font-bold tracking-tight text-white">
             Battle History
           </h2>
@@ -65,7 +65,7 @@ export default function EmceeProfile({ data }: EmceeProfileProps) {
             value={sortOrder}
             onValueChange={(val: "latest" | "oldest") => setSortOrder(val)}
           >
-            <SelectTrigger className="border-border/50 bg-muted/20 focus:ring-primary/5 h-10 w-[140px] rounded-xl">
+            <SelectTrigger className="border-border/50 bg-muted/20 focus:ring-primary/5 h-10 w-full rounded-xl sm:w-[140px]">
               <div className="flex items-center gap-2">
                 <ArrowUpDown className="text-muted-foreground/60 h-3.5 w-3.5" />
                 <SelectValue placeholder="Sort" />
@@ -78,7 +78,7 @@ export default function EmceeProfile({ data }: EmceeProfileProps) {
           </Select>
         </div>
 
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 pb-12 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {sortedBattles.map((battle) => (
             <BattleCard key={battle.id} battle={battle} />
           ))}

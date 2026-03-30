@@ -146,7 +146,7 @@ function EmceeProfileSkeleton() {
   return (
     <div className="bg-background min-h-screen">
       <div className="border-border/40 bg-background/95 h-16 animate-pulse border-b" />
-      <main className="mx-auto max-w-5xl px-4 py-12 md:py-20">
+      <main className="mx-auto w-full max-w-7xl px-4 py-12 sm:px-6 md:py-20 lg:px-8">
         <div className="mb-8 flex items-center gap-2">
           <div className="bg-muted h-4 w-4 animate-pulse rounded-full" />
           <div className="bg-muted h-3 w-32 animate-pulse rounded" />
@@ -155,12 +155,12 @@ function EmceeProfileSkeleton() {
           <div className="bg-muted mb-4 h-12 w-2/3 animate-pulse rounded-lg md:h-16 lg:w-1/2" />
         </div>
         <div className="bg-border/40 mb-12 h-px w-full" />
-        <div className="mb-8 flex items-center justify-between">
+        <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="bg-muted h-8 w-40 animate-pulse rounded-lg" />
-          <div className="bg-muted h-10 w-32 animate-pulse rounded-xl" />
+          <div className="bg-muted h-10 w-full rounded-xl sm:w-32" />
         </div>
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {[1, 2, 3].map((i) => (
+        <div className="grid grid-cols-1 gap-4 pb-12 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {[1, 2, 3, 4].map((i) => (
             <div key={i} className="space-y-4">
               <div className="bg-muted aspect-video w-full animate-pulse rounded-2xl" />
               <div className="space-y-2">
