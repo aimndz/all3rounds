@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { getCached, setCached } from "@/lib/cache";
 import { parseSearchTokens, scoreBattle } from "@/lib/fuzzy-utils";
 
 const OTHER_BATTLES_KEY = "Other Battles";
@@ -152,18 +151,6 @@ export async function GET(request: NextRequest) {
   // --- Early return for invalid status ---
   if (cleanStatus === "invalid") {
     return NextResponse.json({ battles: [], count: 0, totalEvents: 0 });
-  }
-
-  // --- Cache check ---
-  const cacheKey = `battles:q:${cleanQ || "none"}:status:${cleanStatus}:year:${cleanYear}:sort:${cleanSort}:p:${page}:el:${eventLimit}`;
-
-  const cachedData = await getCached(cacheKey);
-  if (cachedData) {
-    return NextResponse.json(cachedData, {
-      headers: {
-        "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=59",
-      },
-    });
   }
 
   // --- Database Fetch ---
@@ -377,9 +364,6 @@ export async function GET(request: NextRequest) {
       count: count || 0,
       totalEvents,
     };
-
-    // --- Cache Save ---
-    await setCached(cacheKey, payload, 3600);
 
     return NextResponse.json(payload, {
       headers: {

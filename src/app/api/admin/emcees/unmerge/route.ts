@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { requirePermission } from "@/lib/auth";
-import { invalidateCachePattern } from "@/lib/cache";
 import { verifyCsrf } from "@/lib/csrf";
 import { z } from "zod";
 
@@ -90,9 +89,6 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (createError) throw createError;
-
-    // 4. Invalidate caches
-    await invalidateCachePattern("emcees:*");
 
     return NextResponse.json({
       success: true,

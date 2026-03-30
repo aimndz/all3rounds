@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { getCached, setCached } from "@/lib/cache";
 import type { SearchResult, BattleStatus } from "@/lib/types";
 
 interface SearchRpcRow {
@@ -22,6 +21,14 @@ interface SearchRpcRow {
   rank: number;
 }
 
+const SEARCH_CACHE_HEADERS = {
+  "Cache-Control": "public, s-maxage=7200, stale-while-revalidate=59",
+};
+
+const NO_STORE_HEADERS = {
+  "Cache-Control": "no-store, max-age=0, must-revalidate",
+};
+
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const query = searchParams.get("q")?.trim();
@@ -33,7 +40,7 @@ export async function GET(request: NextRequest) {
   if (!query || query.length < 2 || query.length > 200) {
     return NextResponse.json(
       { error: "Search query must be between 2 and 200 characters." },
-      { status: 400 },
+      { status: 400, headers: NO_STORE_HEADERS },
     );
   }
 
@@ -41,21 +48,8 @@ export async function GET(request: NextRequest) {
   if (page > maxPage) {
     return NextResponse.json(
       { error: "Page number too large." },
-      { status: 400 },
+      { status: 400, headers: NO_STORE_HEADERS },
     );
-  }
-
-  // --- Cache check ---
-  const normalizedQuery = query.toLowerCase();
-  const cacheKey = `search:v2:${normalizedQuery}:${page}`;
-  const totalCacheKey = `search:v2:total:${normalizedQuery}`;
-  const cachedData = await getCached(cacheKey);
-  if (cachedData) {
-    return NextResponse.json(cachedData, {
-      headers: {
-        "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=59",
-      },
-    });
   }
 
   const supabase = await createClient();
@@ -65,36 +59,24 @@ export async function GET(request: NextRequest) {
   let data: SearchRpcRow[] = [];
   let countRows = 0;
 
-  const cachedTotal = await getCached<number>(totalCacheKey);
-  const shouldRequestExactCount = page === 1 || cachedTotal === null;
-
   try {
     const {
       data: searchData,
       error: searchError,
       count,
     } = await supabase
-      .rpc(
-        "search_fast",
-        { search_term: query },
-        shouldRequestExactCount ? { count: "exact" } : undefined,
-      )
+      .rpc("search_fast", { search_term: query }, { count: "exact" })
       .range(offset, offset + limit - 1);
 
     if (searchError) throw searchError;
 
     data = (searchData as SearchRpcRow[]) || [];
-    if (typeof count === "number") {
-      countRows = count;
-      await setCached(totalCacheKey, countRows, 3600);
-    } else {
-      countRows = cachedTotal ?? 0;
-    }
+    countRows = typeof count === "number" ? count : 0;
   } catch (err: unknown) {
     console.error(`Search engine error:`, err);
     return NextResponse.json(
       { error: "Search failed. Please try again." },
-      { status: 500 },
+      { status: 500, headers: NO_STORE_HEADERS },
     );
   }
 
@@ -257,10 +239,7 @@ export async function GET(request: NextRequest) {
     totalPages: Math.ceil(countRows / limit),
   };
 
-  await setCached(cacheKey, result, 3600);
   return NextResponse.json(result, {
-    headers: {
-      "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=59",
-    },
+    headers: SEARCH_CACHE_HEADERS,
   });
 }

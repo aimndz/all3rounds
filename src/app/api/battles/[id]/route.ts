@@ -2,12 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { requirePermission } from "@/lib/auth";
 import { verifyCsrf } from "@/lib/csrf";
-import {
-  getCached,
-  setCached,
-  invalidateCache,
-  invalidateCachePattern,
-} from "@/lib/cache";
 import { sortParticipantsByTitle } from "@/features/battles/utils/participant-grouping";
 import { uuidSchema } from "@/lib/schemas";
 import { z } from "zod";
@@ -62,16 +56,6 @@ export async function GET(
       const beforeCount = linesBeforeTarget ?? 0;
       effectiveOffset = Math.floor(beforeCount / limit) * limit;
     }
-  }
-
-  const cacheKey = `battle:${id}:v2:${limit}:${effectiveOffset}`;
-  const cachedData = await getCached(cacheKey);
-  if (cachedData) {
-    return NextResponse.json(cachedData, {
-      headers: {
-        "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=59",
-      },
-    });
   }
 
   // Fetch battle details
@@ -230,8 +214,6 @@ export async function GET(
     },
   };
 
-  await setCached(cacheKey, result, 3600); // Cache for 1 hour
-
   return NextResponse.json(result, {
     headers: {
       "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=59",
@@ -295,10 +277,6 @@ export async function PATCH(
         { status: 500 },
       );
     }
-
-    await invalidateCache(`battle:${id}`);
-    await invalidateCachePattern(`battle:${id}:*`);
-    await invalidateCachePattern("battles:page:*");
 
     return NextResponse.json(updated);
   } catch (err: unknown) {
@@ -365,10 +343,6 @@ export async function DELETE(
         { status: 500 },
       );
     }
-
-    await invalidateCache(`battle:${id}`);
-    await invalidateCachePattern(`battle:${id}:*`);
-    await invalidateCachePattern("battles:page:*");
 
     return NextResponse.json({
       success: true,

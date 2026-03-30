@@ -31,11 +31,6 @@ vi.mock("@/lib/supabase/server", () => {
   };
 });
 
-vi.mock("@/lib/cache", () => ({
-  getCached: vi.fn().mockResolvedValue(null),
-  setCached: vi.fn().mockResolvedValue(undefined),
-}));
-
 // Import the GET handler AFTER mocking
 import { GET } from "@/app/api/search/route";
 
@@ -55,6 +50,7 @@ describe("GET /api/search (Cloudflare Migration)", () => {
   it("returns 400 for empty or very short queries", async () => {
     const res = await GET(makeRequest({ q: " " }));
     expect(res.status).toBe(400);
+    expect(res.headers.get("Cache-Control")).toContain("no-store");
     const body = await res.json();
     expect(body.error).toContain("Search query must be between 2 and 200");
   });
@@ -98,6 +94,7 @@ describe("GET /api/search (Cloudflare Migration)", () => {
 
     const res = await GET(makeRequest({ q: "mock term" }));
     expect(res.status).toBe(200);
+    expect(res.headers.get("Cache-Control")).toContain("s-maxage=7200");
     
     const body = await res.json();
     expect(body.results).toHaveLength(1);

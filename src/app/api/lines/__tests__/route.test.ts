@@ -45,11 +45,6 @@ vi.mock("@/lib/rate-limit", () => ({
   getRateLimitHeaders: vi.fn().mockReturnValue({}),
 }));
 
-vi.mock("@/lib/cache", () => ({
-  invalidateCache: vi.fn(),
-  invalidateCachePattern: vi.fn(),
-}));
-
 import { POST, PATCH } from "@/app/api/lines/route";
 import { requirePermission } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/server";

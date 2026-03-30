@@ -3,7 +3,6 @@ import { createAdminClient } from "@/lib/supabase/server";
 import { requirePermission } from "@/lib/auth";
 import { verifyCsrf } from "@/lib/csrf";
 import { checkRateLimit, getRateLimitHeaders } from "@/lib/rate-limit";
-import { invalidateCache, invalidateCachePattern } from "@/lib/cache";
 import { z } from "zod";
 
 const AddLineSchema = z.object({
@@ -114,9 +113,6 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  await invalidateCache(`battle:${battle_id}`);
-  await invalidateCachePattern(`battle:${battle_id}:*`);
-
   return NextResponse.json({ success: true, line: data });
 }
 
@@ -222,11 +218,6 @@ export async function PATCH(request: NextRequest) {
       { error: "Failed to update line." },
       { status: 500 },
     );
-  }
-
-  if (existing && existing.battle_id) {
-    await invalidateCache(`battle:${existing.battle_id}`);
-    await invalidateCachePattern(`battle:${existing.battle_id}:*`);
   }
 
   return NextResponse.json({ success: true });

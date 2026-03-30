@@ -1,12 +1,15 @@
 import { NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { getCached, setCached } from "@/lib/cache";
 import { apiError, apiSuccess } from "@/lib/api-utils";
 import { uuidSchema } from "@/lib/schemas";
 import { Battle } from "@/features/battles/hooks/use-battles-data";
 
+const EMCEE_CACHE_HEADERS = {
+  "Cache-Control": "public, s-maxage=600, stale-while-revalidate=59",
+};
+
 export async function GET(
-  request: NextRequest,
+  _request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
@@ -15,13 +18,6 @@ export async function GET(
   const idValidation = uuidSchema.safeParse(id);
   if (!idValidation.success) {
     return apiError("Invalid emcee ID", 400);
-  }
-
-  // 3. Cache check
-  const cacheKey = `emcee:${id}`;
-  const cachedData = await getCached(cacheKey);
-  if (cachedData) {
-    return apiSuccess(cachedData);
   }
 
   const supabase = await createClient();
@@ -97,8 +93,5 @@ export async function GET(
     events,
   };
 
-  // 5. Cache result
-  await setCached(cacheKey, result, 600); // 10 minutes (600 seconds)
-
-  return apiSuccess(result);
+  return apiSuccess(result, 200, EMCEE_CACHE_HEADERS);
 }
