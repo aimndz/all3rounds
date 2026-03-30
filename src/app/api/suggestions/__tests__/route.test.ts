@@ -33,11 +33,6 @@ vi.mock("@/lib/auth", () => ({
   getUserWithRole: vi.fn(),
 }));
 
-vi.mock("@/lib/cache", () => ({
-  invalidateCache: vi.fn(),
-  invalidateCachePattern: vi.fn(),
-}));
-
 import { requirePermission } from "@/lib/auth";
 
 const mockRequirePermission = vi.mocked(requirePermission);

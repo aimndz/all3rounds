@@ -26,8 +26,12 @@ export function apiError(message: string, status: number): NextResponse {
 }
 
 /** Standardized JSON success response */
-export function apiSuccess<T>(data: T, status = 200): NextResponse {
-  return NextResponse.json(data, { status });
+export function apiSuccess<T>(
+  data: T,
+  status = 200,
+  headers?: HeadersInit,
+): NextResponse {
+  return NextResponse.json(data, { status, headers });
 }
 
 /**

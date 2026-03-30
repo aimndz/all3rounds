@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { requirePermission } from "@/lib/auth";
-import { invalidateCachePattern } from "@/lib/cache";
 import { verifyCsrf } from "@/lib/csrf";
 
 import { z } from "zod";
@@ -87,10 +86,6 @@ export async function PATCH(
     );
   }
 
-  await invalidateCachePattern("emcees:*");
-  await invalidateCachePattern("battles:*"); // because names appear in battle pages
-  await invalidateCachePattern("battle:*");
-
   return NextResponse.json({ success: true });
 }
 
@@ -128,10 +123,6 @@ export async function DELETE(
       { status: 500 },
     );
   }
-
-  await invalidateCachePattern("emcees:*");
-  await invalidateCachePattern("battles:*");
-  await invalidateCachePattern("battle:*");
 
   return NextResponse.json({ success: true });
 }

@@ -34,13 +34,6 @@ vi.mock("@/lib/auth", () => ({
   requirePermission: vi.fn(),
 }));
 
-vi.mock("@/lib/cache", () => ({
-  getCached: vi.fn().mockResolvedValue(null),
-  setCached: vi.fn(),
-  invalidateCache: vi.fn(),
-  invalidateCachePattern: vi.fn(),
-}));
-
 vi.mock("@/lib/rate-limit", () => ({
   checkRateLimit: vi.fn().mockResolvedValue({
     allowed: true,
@@ -52,7 +45,6 @@ vi.mock("@/lib/rate-limit", () => ({
 }));
 
 import { requirePermission } from "@/lib/auth";
-import { getCached } from "@/lib/cache";
 
 const mockRequirePermission = vi.mocked(requirePermission);
 
@@ -72,13 +64,30 @@ describe("GET /api/battles/[id]", () => {
     expect(res.status).toBe(404);
   });
 
-  it("returns cached battle data if available", async () => {
-    const cached = {
-      battle: { id: "b1", title: "Test" },
-      lines: [],
-      participants: [],
+  it("returns battle data with public cache headers", async () => {
+    const { __mocks } = await import("@/lib/supabase/server") as unknown as {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      __mocks: { mockChain: any };
     };
-    vi.mocked(getCached).mockResolvedValueOnce(cached);
+    __mocks.mockChain.single
+      .mockResolvedValueOnce({
+        data: {
+          id: "550e8400-e29b-41d4-a716-446655440000",
+          title: "Test",
+          youtube_id: "yt1",
+          event_name: "Event",
+          event_date: "2025-01-01",
+          url: "https://example.com",
+          status: "reviewed",
+        },
+        error: null,
+      })
+      .mockResolvedValueOnce({ data: [], error: null });
+    __mocks.mockChain.range.mockResolvedValueOnce({
+      data: [],
+      error: null,
+      count: 0,
+    });
 
     const { GET } = await import("@/app/api/battles/[id]/route");
     const req = new NextRequest(
@@ -88,8 +97,7 @@ describe("GET /api/battles/[id]", () => {
       params: Promise.resolve({ id: "550e8400-e29b-41d4-a716-446655440000" }),
     });
     expect(res.status).toBe(200);
-    const body = await res.json();
-    expect(body).toEqual(cached);
+    expect(res.headers.get("Cache-Control")).toContain("s-maxage=3600");
   });
 });
 

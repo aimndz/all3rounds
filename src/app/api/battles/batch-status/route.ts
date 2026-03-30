@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { requirePermission } from "@/lib/auth";
 import { verifyCsrf } from "@/lib/csrf";
-import { invalidateCachePattern } from "@/lib/cache";
 import { z } from "zod";
 
 const BatchStatusSchema = z.object({
@@ -85,13 +84,6 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json(
         { error: "Failed to update battle statuses." },
         { status: 500 },
-      );
-    }
-
-    await invalidateCachePattern("battles:page:*");
-    if (updated) {
-      await Promise.all(
-        updated.map((b) => invalidateCachePattern(`battle:${b.id}`)),
       );
     }
 

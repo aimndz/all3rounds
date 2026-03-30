@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { getCached, setCached } from "@/lib/cache";
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -10,17 +9,6 @@ export async function GET(request: NextRequest) {
   const page = parseInt(searchParams.get("page") || "1");
   const limit = Math.min(parseInt(searchParams.get("limit") || "48", 10), 50);
   const offset = (page - 1) * limit;
-
-  // --- Cache check ---
-  const cacheKey = `emcees:q:${query || "all"}:s:${sort}:m:${minBattles}:p:${page}:l:${limit}`;
-  const cachedData = await getCached(cacheKey);
-  if (cachedData) {
-    return NextResponse.json(cachedData, {
-      headers: {
-        "Cache-Control": "public, s-maxage=600, stale-while-revalidate=59",
-      },
-    });
-  }
 
   const supabase = await createClient();
 
@@ -70,11 +58,9 @@ export async function GET(request: NextRequest) {
     hasMore: (count || 0) > offset + limit
   };
 
-  await setCached(cacheKey, response, 600); // 10 minutes
-
   return NextResponse.json(response, {
-    headers: {
-      "Cache-Control": "public, s-maxage=600, stale-while-revalidate=59",
+      headers: {
+        "Cache-Control": "public, s-maxage=600, stale-while-revalidate=59",
     },
   });
 }

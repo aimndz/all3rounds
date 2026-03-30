@@ -43,11 +43,6 @@ vi.mock("@/lib/rate-limit", () => ({
   getRateLimitHeaders: vi.fn().mockReturnValue({}),
 }));
 
-vi.mock("@/lib/cache", () => ({
-  invalidateCache: vi.fn(),
-  invalidateCachePattern: vi.fn(),
-}));
-
 import { PATCH } from "@/app/api/lines/batch/route";
 import { requirePermission, hasPermission } from "@/lib/auth";
 

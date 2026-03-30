@@ -113,7 +113,7 @@ export default function PrivacyPage() {
                   security
                 </li>
                 <li>
-                  <strong>Upstash Redis</strong> – caching and rate limiting
+                  <strong>Upstash Redis</strong> – rate limiting
                 </li>
                 <li>
                   <strong>Google OAuth</strong> – authentication

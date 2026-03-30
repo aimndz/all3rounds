@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { requirePermission } from "@/lib/auth";
-import { invalidateCache, invalidateCachePattern } from "@/lib/cache";
 import { revalidatePath } from "next/cache";
 import { verifyCsrf } from "@/lib/csrf";
 import { uuidSchema } from "@/lib/schemas";
@@ -106,19 +105,14 @@ export async function PATCH(
     : review_note || null;
 
   try {
-    let updatedBattleId = null;
-
     if (finalStatus === "approved") {
       // 2a. Update the line content
-      const { data: updatedLine, error: lineUpdateError } = await adminClient
+      const { error: lineUpdateError } = await adminClient
         .from("lines")
         .update({ content: suggestion.suggested_content })
-        .eq("id", suggestion.line_id)
-        .select("battle_id")
-        .single();
+        .eq("id", suggestion.line_id);
 
       if (lineUpdateError) throw lineUpdateError;
-      updatedBattleId = updatedLine?.battle_id;
 
       // 2b. Log to edit history
       await adminClient.from("edit_history").insert({
@@ -142,13 +136,6 @@ export async function PATCH(
       .eq("id", id);
 
     if (updateError) throw updateError;
-
-    if (finalStatus === "approved" && updatedBattleId) {
-      await invalidateCache(`battle:${updatedBattleId}`);
-      await invalidateCachePattern(`battle:${updatedBattleId}:*`);
-    }
-
-    await invalidateCache("admin:stats");
 
     // Clear Next.js Data Cache for the suggestions list and the reviews page
     revalidatePath("/api/suggestions");

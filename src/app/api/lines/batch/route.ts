@@ -3,7 +3,6 @@ import { createAdminClient } from "@/lib/supabase/server";
 import { requirePermission, hasPermission } from "@/lib/auth";
 import { verifyCsrf } from "@/lib/csrf";
 import { checkRateLimit, getRateLimitHeaders } from "@/lib/rate-limit";
-import { invalidateCache, invalidateCachePattern } from "@/lib/cache";
 import { z } from "zod";
 
 const BatchLinesSchema = z.object({
@@ -92,8 +91,6 @@ export async function PATCH(request: NextRequest) {
   }
 
   try {
-    const battleIds = new Set<string>();
-
     // Case 1: Updating attributes
     if (
       action === "update" ||
@@ -165,7 +162,6 @@ export async function PATCH(request: NextRequest) {
               new_value: String(finalUpdates.emcee_id ?? ""),
             });
           }
-          if (line.battle_id) battleIds.add(line.battle_id);
         });
 
         if (historyRows.length > 0) {
@@ -222,9 +218,6 @@ export async function PATCH(request: NextRequest) {
           new_value: "",
         }));
         await adminClient.from("edit_history").insert(historyRows);
-        existing.forEach(
-          (line) => line.battle_id && battleIds.add(line.battle_id),
-        );
       }
 
       const { error: deleteError } = await adminClient
@@ -236,11 +229,6 @@ export async function PATCH(request: NextRequest) {
     }
 
     // ── Cache Invalidation ──
-    for (const bId of battleIds) {
-      await invalidateCache(`battle:${bId}`);
-      await invalidateCachePattern(`battle:${bId}:*`);
-    }
-
     return NextResponse.json({ success: true, count: lineIds.length });
   } catch (err) {
     console.error("Batch operation error:", err);
