@@ -248,9 +248,9 @@ export default function BattleClient() {
 
     const hasTargetLine = data.lines.some((line) => line.id === deepLinkLineId);
     if (!hasTargetLine) {
-      if (hasMore && !loadingMore) {
-        void fetchMoreLines();
-      }
+      // The backend API already jumps to the correct pagination offset containing the line.
+      // If the line is not found in the initial payload, it likely doesn't exist.
+      // We do not poll `fetchMoreLines()` here to prevent fetching the entire transcript.
       return;
     }
 
@@ -267,13 +267,45 @@ export default function BattleClient() {
         return;
       }
 
-      const containerRect = container.getBoundingClientRect();
-      const targetRect = el.getBoundingClientRect();
-      container.scrollTo({
-        top: container.scrollTop + (targetRect.top - containerRect.top) - 60,
-        behavior: "smooth",
-      });
-    }, 80);
+      const duration = 800;
+      let startTime: number | null = null;
+      const startScrollTop = container.scrollTop;
+
+      // Cache container bounds to prevent unneeded DOM reads
+      const cRect = container.getBoundingClientRect();
+      const containerMiddle = cRect.top + cRect.height / 2;
+
+      let tRect = el.getBoundingClientRect();
+      let idealTarget = container.scrollTop + ((tRect.top + tRect.height / 2) - containerMiddle);
+      let framesSinceLastCheck = 0;
+
+      const animateScroll = (timestamp: number) => {
+        if (!startTime) startTime = timestamp;
+        const progress = timestamp - startTime;
+        const percentage = Math.min(progress / duration, 1);
+        const easing = 1 - Math.pow(1 - percentage, 4);
+
+        // Throttle recalibration to every 5 frames to reduce layout thrashing CPU cost
+        framesSinceLastCheck++;
+        if (framesSinceLastCheck > 5 && percentage < 0.95) {
+          tRect = el.getBoundingClientRect();
+          idealTarget = container.scrollTop + ((tRect.top + tRect.height / 2) - containerMiddle);
+          framesSinceLastCheck = 0;
+        }
+
+        const distance = idealTarget - startScrollTop;
+        container.scrollTop = startScrollTop + distance * easing;
+
+        if (progress < duration) {
+          requestAnimationFrame(animateScroll);
+        } else {
+          const finalT = el.getBoundingClientRect();
+          container.scrollTop += (finalT.top + finalT.height / 2) - containerMiddle;
+        }
+      };
+
+      requestAnimationFrame(animateScroll);
+    }, 150);
   }, [
     deepLinkLineId,
     data,
