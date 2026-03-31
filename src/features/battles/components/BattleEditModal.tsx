@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -46,6 +46,10 @@ export default function BattleEditModal({
   );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const participantGroups = useMemo(
+    () => groupParticipants(participants),
+    [participants],
+  );
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
@@ -75,39 +79,37 @@ export default function BattleEditModal({
 
           <div className="space-y-2">
             <Label>Emcee</Label>
-            <div className="flex flex-wrap gap-2">
-                {(() => {
-                  const groups = groupParticipants(participants);
+            {participantGroups.length > 0 ? (
+              <div className="flex flex-wrap gap-2">
+                {participantGroups.map((group) => {
+                  const groupIds = group.emcees.map((emcee) => emcee.id);
+                  const groupName = group.emcees
+                    .map((emcee) => emcee.name)
+                    .join(" / ");
+                  const isActive =
+                    groupIds.length > 0 &&
+                    groupIds.every((id) => activeEmceeIds.includes(id)) &&
+                    groupIds.length === activeEmceeIds.length;
 
-                  return groups.map((group) => {
-                    const groupIds = group.emcees.map(e => e.id);
-                    const groupName = group.emcees.map(e => e.name).join(" / ");
-                    const isActive = groupIds.length > 0 && groupIds.every(id => activeEmceeIds.includes(id)) && groupIds.length === activeEmceeIds.length;
-                    
-                    return (
-                      <Button
-                        key={group.label + groupIds.join('-')}
-                        type="button"
-                        variant={isActive ? "default" : "outline"}
-                        size="sm"
-                        onClick={() => setActiveEmceeIds(groupIds)}
-                        className="h-9 px-3 text-xs font-semibold shadow-sm transition-all"
-                      >
-                        {groupName}
-                      </Button>
-                    );
-                  });
-                })()}
-                <Button
-                  type="button"
-                  variant={activeEmceeIds.length === 0 ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setActiveEmceeIds([])}
-                  className="h-9 px-3 text-xs font-semibold shadow-sm transition-all"
-                >
-                  Unknown
-                </Button>
-            </div>
+                  return (
+                    <Button
+                      key={`${group.label}-${groupIds.join("-")}`}
+                      type="button"
+                      variant={isActive ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setActiveEmceeIds(groupIds)}
+                      className="h-9 px-3 text-xs font-semibold shadow-sm transition-all"
+                    >
+                      {groupName}
+                    </Button>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="text-muted-foreground text-xs">
+                No linked emcees for this battle yet.
+              </p>
+            )}
           </div>
 
           {/* Round */}
@@ -115,7 +117,6 @@ export default function BattleEditModal({
             <Label>Round Number</Label>
             <div className="flex flex-wrap gap-2">
               {[
-                { id: "none", label: "Unk" },
                 { id: "1", label: "R1" },
                 { id: "2", label: "R2" },
                 { id: "3", label: "R3" },

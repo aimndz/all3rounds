@@ -3,7 +3,22 @@ import { createAdminClient } from "@/lib/supabase/server";
 import { requirePermission } from "@/lib/auth";
 import { verifyCsrf } from "@/lib/csrf";
 import { checkRateLimit, getRateLimitHeaders } from "@/lib/rate-limit";
+import { parseTimeInputValue } from "@/lib/time-input";
 import { z } from "zod";
+
+const TimeInputSchema = z.union([z.number(), z.string()]).transform((value, ctx) => {
+  const parsed = parseTimeInputValue(value);
+
+  if (!parsed.ok) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: parsed.error,
+    });
+    return z.NEVER;
+  }
+
+  return parsed.seconds;
+});
 
 const AddLineSchema = z.object({
   battle_id: z.string().uuid("Invalid battle ID"),
@@ -11,11 +26,19 @@ const AddLineSchema = z.object({
     .string()
     .min(1, "Content cannot be empty")
     .max(5000, "Content too long"),
-  start_time: z.coerce.number(),
-  end_time: z.coerce.number(),
+  start_time: TimeInputSchema,
+  end_time: TimeInputSchema,
   emcee_id: z.string().nullable().optional().or(z.literal("none")),
   speaker_ids: z.array(z.string()).optional(), // New: Support multiple emcees
   round_number: z.coerce.number().nullable().optional().or(z.literal("none")),
+}).superRefine((data, ctx) => {
+  if (data.end_time <= data.start_time) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "End time must be later than start time.",
+      path: ["end_time"],
+    });
+  }
 });
 
 const EditLineSchema = z.object({
@@ -96,8 +119,8 @@ export async function POST(request: NextRequest) {
     .insert({
       battle_id,
       content,
-      start_time: start_time,
-      end_time: end_time,
+      start_time,
+      end_time,
       emcee_id: finalEmceeId,
       speaker_ids: speaker_ids && speaker_ids.length > 0 ? speaker_ids : [], // Add support for new array column
       round_number: round_number === "none" ? null : round_number,

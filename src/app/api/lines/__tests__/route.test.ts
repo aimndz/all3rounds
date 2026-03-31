@@ -138,6 +138,46 @@ describe("POST /api/lines", () => {
     const body = await res.json();
     expect(body.success).toBe(true);
   });
+
+  it("stores formatted time input as numeric seconds", async () => {
+    const adminClient = createAdminClient();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const mockChain = (adminClient as unknown as { from: () => any }).from();
+    mockChain.single.mockResolvedValueOnce({
+      data: { id: 2, content: "Formatted line" },
+      error: null,
+    });
+
+    const res = await POST(
+      makeRequest({
+        battle_id: "550e8400-e29b-41d4-a716-446655440000",
+        content: "Formatted line",
+        start_time: "59:59",
+        end_time: "1:00:01.5",
+      }),
+    );
+
+    expect(res.status).toBe(200);
+    expect(mockChain.insert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        start_time: 3599,
+        end_time: 3601.5,
+      }),
+    );
+  });
+
+  it("rejects end times that are not later than start time", async () => {
+    const res = await POST(
+      makeRequest({
+        battle_id: "550e8400-e29b-41d4-a716-446655440000",
+        content: "Bad timing",
+        start_time: "1:00",
+        end_time: "59",
+      }),
+    );
+
+    expect(res.status).toBe(400);
+  });
 });
 
 describe("PATCH /api/lines", () => {
