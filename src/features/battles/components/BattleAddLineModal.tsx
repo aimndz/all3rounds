@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -14,6 +14,24 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Clock, Plus } from "lucide-react";
 import { groupParticipants } from "../utils/participant-grouping";
+import { formatTimeInputValue, parseTimeInputValue } from "@/lib/time-input";
+
+function TimeInputHint({
+  parsed,
+}: {
+  parsed: ReturnType<typeof parseTimeInputValue>;
+}) {
+  if (!parsed.ok) {
+    return <p className="text-destructive text-[11px]">{parsed.error}</p>;
+  }
+
+  return (
+    <p className="text-muted-foreground text-[11px]">
+      {parsed.seconds.toFixed(2).replace(/\.00$/, "")}s
+    </p>
+  );
+}
+
 export default function BattleAddLineModal({
   battleId,
   currentTime,
@@ -37,12 +55,25 @@ export default function BattleAddLineModal({
     emcee_id?: string | null;
   };
 }) {
+  const initialStartSeconds = initialData?.start_time ?? currentTime;
+  const initialEndSeconds =
+    initialData?.end_time ?? initialStartSeconds + 1;
+  const initialDisplayStartSeconds = Math.floor(initialStartSeconds);
+  const initialDisplayEndSeconds = Math.max(
+    Math.floor(initialEndSeconds),
+    initialDisplayStartSeconds + 1,
+  );
+
   const [content, setContent] = useState("");
   const [startTime, setStartTime] = useState(
-    initialData?.start_time?.toFixed(2) || currentTime.toFixed(2),
+    formatTimeInputValue(initialDisplayStartSeconds, {
+      includeDecimals: false,
+    }),
   );
   const [endTime, setEndTime] = useState(
-    initialData?.end_time?.toFixed(2) || (currentTime + 2).toFixed(2),
+    formatTimeInputValue(initialDisplayEndSeconds, {
+      includeDecimals: false,
+    }),
   );
   const [roundNumber, setRoundNumber] = useState(
     initialData?.round_number?.toString() || "1",
@@ -52,6 +83,26 @@ export default function BattleAddLineModal({
   );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const startTimePreview = useMemo(
+    () => parseTimeInputValue(startTime),
+    [startTime],
+  );
+  const endTimePreview = useMemo(() => parseTimeInputValue(endTime), [endTime]);
+
+  const participantGroups = useMemo(
+    () => groupParticipants(participants),
+    [participants],
+  );
+
+  const normalizeTimeField = (
+    value: string,
+    setter: (nextValue: string) => void,
+  ) => {
+    const parsed = parseTimeInputValue(value);
+    if (parsed.ok) {
+      setter(parsed.normalized);
+    }
+  };
 
   const handleSave = async () => {
     if (!content.trim()) {
@@ -59,20 +110,37 @@ export default function BattleAddLineModal({
       return;
     }
 
+    const parsedStart = parseTimeInputValue(startTime);
+    if (!parsedStart.ok) {
+      setError(`Start time: ${parsedStart.error}`);
+      return;
+    }
+
+    const parsedEnd = parseTimeInputValue(endTime);
+    if (!parsedEnd.ok) {
+      setError(`End time: ${parsedEnd.error}`);
+      return;
+    }
+
+    if (parsedEnd.seconds <= parsedStart.seconds) {
+      setError("End time must be later than start time.");
+      return;
+    }
+
     setSaving(true);
     setError("");
 
     try {
-          const res = await fetch("/api/lines", {
+      const res = await fetch("/api/lines", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           battle_id: battleId,
           content: content.trim(),
-          start_time: parseFloat(startTime),
-          end_time: parseFloat(endTime),
+          start_time: parsedStart.seconds,
+          end_time: parsedEnd.seconds,
           speaker_ids: activeEmceeIds,
-          round_number: roundNumber === "none" ? "" : roundNumber,
+          round_number: roundNumber,
         }),
       });
 
@@ -113,7 +181,10 @@ export default function BattleAddLineModal({
               id="add-line-content"
               placeholder="What was said?"
               value={content}
-              onChange={(e) => setContent(e.target.value)}
+              onChange={(e) => {
+                setContent(e.target.value);
+                if (error) setError("");
+              }}
               className="h-24 resize-none"
               autoFocus
             />
@@ -124,28 +195,38 @@ export default function BattleAddLineModal({
             <div className="space-y-2">
               <Label className="flex items-center gap-1.5">
                 <Clock className="h-3 w-3" />
-                Start (s)
+                Start Time
               </Label>
               <Input
-                type="number"
-                step="0.1"
+                type="text"
                 value={startTime}
-                onChange={(e) => setStartTime(e.target.value)}
+                onChange={(e) => {
+                  setStartTime(e.target.value);
+                  if (error) setError("");
+                }}
+                onBlur={() => normalizeTimeField(startTime, setStartTime)}
+                placeholder="75, 2:15, 1:02:15"
               />
+              <TimeInputHint parsed={startTimePreview} />
             </div>
 
             {/* End Time */}
             <div className="space-y-2">
               <Label className="flex items-center gap-1.5">
                 <Clock className="h-3 w-3" />
-                End (s)
+                End Time
               </Label>
               <Input
-                type="number"
-                step="0.1"
+                type="text"
                 value={endTime}
-                onChange={(e) => setEndTime(e.target.value)}
+                onChange={(e) => {
+                  setEndTime(e.target.value);
+                  if (error) setError("");
+                }}
+                onBlur={() => normalizeTimeField(endTime, setEndTime)}
+                placeholder="77, 2:17, 1:02:17"
               />
+              <TimeInputHint parsed={endTimePreview} />
             </div>
           </div>
 
@@ -155,7 +236,6 @@ export default function BattleAddLineModal({
               <Label>Round</Label>
               <div className="flex flex-wrap gap-2">
                 {[
-                  { id: "none", label: "Unk" },
                   { id: "1", label: "R1" },
                   { id: "2", label: "R2" },
                   { id: "3", label: "R3" },
@@ -168,7 +248,10 @@ export default function BattleAddLineModal({
                       type="button"
                       variant={isActive ? "default" : "outline"}
                       size="sm"
-                      onClick={() => setRoundNumber(r.id)}
+                      onClick={() => {
+                        setRoundNumber(r.id);
+                        if (error) setError("");
+                      }}
                       className="h-8 px-2.5 text-xs font-semibold shadow-sm"
                     >
                       {r.label}
@@ -178,39 +261,40 @@ export default function BattleAddLineModal({
               </div>
             </div>
 
-            <Label>Emcee</Label>
-            <div className="flex flex-wrap gap-2">
-              {(() => {
-                const groups = groupParticipants(participants);
+            <div className="space-y-2">
+              <Label>Emcee</Label>
+              {participantGroups.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {participantGroups.map((group) => {
+                    const groupIds = group.emcees.map((emcee) => emcee.id);
+                    const groupName = group.emcees.map((emcee) => emcee.name).join(" / ");
+                    const isActive =
+                      groupIds.length > 0 &&
+                      groupIds.every((id) => activeEmceeIds.includes(id)) &&
+                      groupIds.length === activeEmceeIds.length;
 
-                return groups.map((group) => {
-                  const groupIds = group.emcees.map(e => e.id);
-                  const groupName = group.emcees.map(e => e.name).join(" / ");
-                  const isActive = groupIds.length > 0 && groupIds.every(id => activeEmceeIds.includes(id)) && groupIds.length === activeEmceeIds.length;
-                  
-                  return (
-                    <Button
-                      key={group.label + groupIds.join('-')}
-                      type="button"
-                      variant={isActive ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => setActiveEmceeIds(groupIds)}
-                      className="h-8 px-2.5 text-[11px] font-semibold transition-all shadow-sm"
-                    >
-                      {groupName}
-                    </Button>
-                  );
-                });
-              })()}
-              <Button
-                type="button"
-                variant={activeEmceeIds.length === 0 ? "default" : "outline"}
-                size="sm"
-                onClick={() => setActiveEmceeIds([])}
-                className="h-8 px-2.5 text-[11px] font-semibold transition-all shadow-sm"
-              >
-                Unknown
-              </Button>
+                    return (
+                      <Button
+                        key={`${group.label}-${groupIds.join("-")}`}
+                        type="button"
+                        variant={isActive ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => {
+                          setActiveEmceeIds(groupIds);
+                          if (error) setError("");
+                        }}
+                        className="h-8 px-2.5 text-[11px] font-semibold shadow-sm transition-all"
+                      >
+                        {groupName}
+                      </Button>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="text-muted-foreground text-[11px]">
+                  No linked emcees for this battle yet.
+                </p>
+              )}
             </div>
           </div>
         </div>
