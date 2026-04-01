@@ -19,6 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { PageShell } from "@/components/ui/page-shell";
 
 export default function ReviewsPage() {
   const [processingId, setProcessingId] = useState<string | null>(null);
@@ -74,7 +75,7 @@ export default function ReviewsPage() {
 
   return (
     <div className="selection:bg-primary/20 min-h-screen bg-[#09090b] text-[#fafafa]">
-      <main className="mx-auto max-w-5xl px-4 py-12">
+      <PageShell width="narrow" spacing="roomy">
         <PageHeader
           title="PENDING FIXES"
           itemCount={loading ? undefined : total}
@@ -84,7 +85,7 @@ export default function ReviewsPage() {
               value={sortBy}
               onValueChange={(v: "asc" | "desc") => setSortBy(v)}
             >
-              <SelectTrigger className="border-border/50 focus:ring-primary/5 h-9 w-32 rounded-xl bg-white/5 text-xs sm:w-36">
+              <SelectTrigger size="lg" className="w-32 text-xs sm:w-36">
                 <div className="flex items-center gap-2">
                   <ArrowUpDown className="h-3 w-3 text-white/40" />
                   <SelectValue placeholder="Sort" />
@@ -98,9 +99,9 @@ export default function ReviewsPage() {
 
             <Button
               variant="outline"
-              size="icon"
+              size="icon-lg"
               onClick={refetch}
-              className="border-border/50 h-9 w-9 rounded-xl bg-white/5 text-white/40 transition-all hover:bg-white/10 hover:text-white active:scale-95"
+              className="text-white/40 hover:text-white"
               disabled={loading}
             >
               <RotateCw className="h-4 w-4" />
@@ -109,7 +110,7 @@ export default function ReviewsPage() {
         </PageHeader>
 
         {error && (
-          <div className="border-destructive/20 bg-destructive/5 text-destructive mb-8 flex items-center gap-3 rounded-xl border p-4 text-xs font-bold">
+          <div className="border-destructive/20 bg-destructive/5 text-destructive mb-8 flex items-center gap-3 rounded-2xl border p-4 text-xs font-bold">
             {error}
           </div>
         )}
@@ -117,7 +118,7 @@ export default function ReviewsPage() {
         {loading ? (
           <CardSkeleton count={3} />
         ) : suggestions.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-white/5 py-36 text-center">
+          <div className="empty-state py-28">
             <p className="text-xs font-medium tracking-widest text-[#fafafa]/20 uppercase">
               No pending reviews
             </p>
@@ -146,7 +147,7 @@ export default function ReviewsPage() {
             />
           </div>
         )}
-      </main>
+      </PageShell>
     </div>
   );
 }

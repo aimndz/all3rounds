@@ -9,8 +9,6 @@ import { TableSkeleton } from "@/components/admin/TableSkeleton";
 import { DataPagination } from "@/components/admin/DataPagination";
 import { usePaginatedFetch } from "@/hooks/use-paginated-fetch";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
-import { Search, X } from "lucide-react";
-import { Input } from "@/components/ui/input";
 import {
   Table,
   TableBody,
@@ -21,6 +19,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { FilterSearchInput } from "@/components/ui/filter-search-input";
 
 import { EditEmceeDialog } from "@/components/admin/EditEmceeDialog";
 import { DeleteEmceeDialog } from "@/components/admin/DeleteEmceeDialog";
@@ -151,29 +150,20 @@ export default function EmceeAdminPage() {
   return (
     <AdminPageShell error={error}>
       <PageHeader title="Emcees" itemCount={loading ? undefined : total}>
-        <div className="group relative w-full md:w-[320px]">
-          <Search className="absolute top-1/2 left-4 h-4 w-4 -translate-y-1/2 text-white/20 transition-colors group-focus-within:text-white" />
-          <Input
-            placeholder="Search emcees..."
-            value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              setPage(1); // Reset to first page on search
-            }}
-            className="focus:border-primary/40 focus:ring-primary/5 h-11 rounded-2xl border-white/10 bg-white/5 pr-10 pl-11 transition-all focus:bg-white/10 focus:ring-4"
-          />
-          {search && (
-            <button
-              onClick={() => {
-                setSearch("");
-                setPage(1);
-              }}
-              className="absolute top-1/2 right-3 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full bg-white/5 text-white/40 transition-colors hover:bg-white/10 hover:text-white"
-            >
-              <X className="h-3 w-3" />
-            </button>
-          )}
-        </div>
+        <FilterSearchInput
+          containerClassName="w-full md:w-[320px]"
+          placeholder="Search emcees..."
+          value={search}
+          onChange={(e) => {
+            setSearch(e.target.value);
+            setPage(1);
+          }}
+          onClear={() => {
+            setSearch("");
+            setPage(1);
+          }}
+          inputSize="lg"
+        />
       </PageHeader>
 
       {loading ? (
@@ -181,7 +171,7 @@ export default function EmceeAdminPage() {
       ) : (
         <>
           {/* Desktop Table View */}
-          <div className="hidden overflow-hidden rounded-2xl border border-white/5 bg-[#141417] shadow-xl md:block">
+          <div className="table-shell hidden md:block">
             <Table className="w-full text-left">
               <TableHeader>
                 <TableRow className="border-b border-white/5 bg-white/2 hover:bg-white/2">
@@ -307,7 +297,7 @@ export default function EmceeAdminPage() {
             {emcees.map((e) => (
               <div
                 key={e.id}
-                className="rounded-2xl border border-white/5 bg-[#141417] p-4 shadow-lg transition-transform active:scale-[0.98]"
+                className="surface-card p-4 transition-transform active:scale-[0.99]"
               >
                 <div className="mb-4 flex items-start justify-between gap-4">
                   <Link
@@ -380,7 +370,7 @@ export default function EmceeAdminPage() {
               </div>
             ))}
             {emcees.length === 0 && (
-              <div className="rounded-2xl border border-dashed border-white/10 px-6 py-12 text-center text-[10px] font-semibold tracking-widest text-white/40 uppercase">
+              <div className="empty-state text-[10px] font-semibold tracking-widest text-white/40 uppercase">
                 No emcees found
               </div>
             )}

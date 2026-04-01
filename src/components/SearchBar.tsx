@@ -68,30 +68,31 @@ function SearchBar({
           onChange={handleInputChange}
           placeholder="Search lines, verses, or words..."
           autoFocus={autoFocus}
+          size={isLarge ? "xl" : "lg"}
           className={cn(
-            "focus-visible:border-primary rounded-xl border-2 shadow-none transition-all focus-visible:ring-0 [&::-webkit-search-cancel-button]:hidden",
+            "focus-visible:border-primary border-2 shadow-none focus-visible:ring-0 [&::-webkit-search-cancel-button]:hidden",
             isLarge
-              ? "h-14 pr-24 pl-12 text-base sm:pr-32"
-              : "h-12 pr-12 pl-11 text-base sm:pr-24",
+              ? "pr-28 pl-12 sm:pr-36"
+              : "pr-14 pl-11 sm:pr-28",
           )}
         />
 
-        <div className="absolute top-1/2 right-2 flex -translate-y-1/2 items-center gap-1.5">
+        <div className="absolute top-1/2 right-1.5 flex -translate-y-1/2 items-center gap-1.5">
           {hasQuery && (
             <button
               type="button"
               onClick={clearQuery}
               aria-label="Clear query"
-              className="text-muted-foreground/40 hover:text-foreground mr-1 flex h-6 w-6 items-center justify-center transition-colors"
+              className="text-muted-foreground/50 hover:bg-muted/70 hover:text-foreground mr-1 flex h-7 w-7 items-center justify-center rounded-full transition-[background-color,color,opacity] active:bg-muted/70 active:opacity-90"
             >
               <X className="h-4 w-4" />
             </button>
           )}
           <Button
             type="submit"
-            size={isLarge ? "default" : "sm"}
+            size={isLarge ? "lg" : "sm"}
             className={cn(
-              "bg-primary text-primary-foreground hover:bg-primary/90 hidden rounded-lg font-bold transition-all sm:flex",
+              "hidden font-bold sm:flex",
               isLarge ? "px-6" : "px-4",
             )}
           >
@@ -99,10 +100,9 @@ function SearchBar({
           </Button>
           <Button
             type="submit"
-            size="icon"
+            size={isLarge ? "icon-lg" : "icon-sm"}
             className={cn(
-              "bg-primary text-primary-foreground hover:bg-primary/90 flex rounded-lg transition-all sm:hidden",
-              isLarge ? "h-10 w-10" : "h-8 w-8",
+              "flex sm:hidden",
             )}
           >
             <Search className="h-4 w-4" />

@@ -23,12 +23,12 @@ export function BattleCard({
   return (
     <div
       className={cn(
-        "bg-card group relative flex flex-col overflow-hidden rounded-xl border transition-all duration-300",
+        "surface-card surface-card--interactive group relative flex flex-col overflow-hidden transition-all duration-300",
         selectable && selected
           ? "border-primary ring-primary/30 ring-2"
           : selectable
-            ? "border-border hover:border-primary/50 cursor-pointer"
-            : "border-border hover:border-primary/50",
+            ? "cursor-pointer"
+            : "",
       )}
       onClick={
         selectable
@@ -111,7 +111,7 @@ export function BattleCard({
             asChild
             size="sm"
             variant="secondary"
-            className="bg-muted/50 hover:bg-muted h-8 w-full rounded-lg text-[10px] font-bold transition-colors sm:h-9"
+            className="w-full text-[10px] font-bold"
           >
             <Link href={`/battles/${battle.id}`} prefetch={false}>
               <Info className="mr-1.5 h-3 w-3" />
@@ -123,7 +123,7 @@ export function BattleCard({
             asChild
             size="sm"
             variant="secondary"
-            className="bg-muted/50 hover:bg-muted h-8 w-full rounded-lg text-[10px] font-bold transition-colors sm:h-9"
+            className="w-full text-[10px] font-bold"
           >
             <a
               href={youtubeUrl}

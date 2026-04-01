@@ -68,9 +68,9 @@ export default function AdminActivityPage() {
       {loading ? (
         <div className="space-y-8">
           <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-            <div className="h-[120px] animate-pulse rounded-3xl bg-white/5" />
-            <div className="h-[120px] animate-pulse rounded-3xl bg-white/5" />
-            <div className="h-[120px] animate-pulse rounded-3xl bg-white/5" />
+            <div className="h-[120px] animate-pulse rounded-[var(--radius-panel)] bg-white/5" />
+            <div className="h-[120px] animate-pulse rounded-[var(--radius-panel)] bg-white/5" />
+            <div className="h-[120px] animate-pulse rounded-[var(--radius-panel)] bg-white/5" />
           </div>
           <TableSkeleton rows={4} cols={4} />
         </div>
@@ -78,7 +78,7 @@ export default function AdminActivityPage() {
         <div className="space-y-8">
           {/* Overview Cards */}
           <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-            <div className="group relative overflow-hidden rounded-3xl border border-white/5 bg-[#141417] p-6 transition-all hover:bg-white/8">
+            <div className="group relative overflow-hidden rounded-[var(--radius-panel)] border border-white/5 bg-[#141417] p-6 transition-all hover:bg-white/8">
               <p className="mb-2 text-[10px] font-semibold tracking-[0.2em] text-white/40 uppercase">
                 Total Reviews
               </p>
@@ -87,7 +87,7 @@ export default function AdminActivityPage() {
               </p>
             </div>
 
-            <div className="border-primary/20 group bg-primary/5 hover:bg-primary/10 relative overflow-hidden rounded-3xl border p-6 transition-all">
+            <div className="border-primary/20 group bg-primary/5 hover:bg-primary/10 relative overflow-hidden rounded-[var(--radius-panel)] border p-6 transition-all">
               <p className="text-primary/60 mb-2 text-[10px] font-semibold tracking-[0.2em] uppercase">
                 Approved
               </p>
@@ -108,7 +108,7 @@ export default function AdminActivityPage() {
               </div>
             </div>
 
-            <div className="border-destructive/20 group relative overflow-hidden rounded-3xl border bg-[#141417] p-6">
+            <div className="border-destructive/20 group relative overflow-hidden rounded-[var(--radius-panel)] border bg-[#141417] p-6">
               <p className="text-destructive/60 mb-2 text-[10px] font-semibold tracking-[0.2em] uppercase">
                 Rejected
               </p>
@@ -131,7 +131,7 @@ export default function AdminActivityPage() {
           </div>
 
           {/* Moderator Breakdown */}
-          <div className="hidden overflow-hidden rounded-2xl border border-white/5 bg-[#141417] md:block">
+          <div className="table-shell hidden md:block">
             <div className="border-b border-white/5 px-6 py-4">
               <h2 className="text-[10px] font-semibold tracking-[0.2em] text-white/40 uppercase">
                 Per-Moderator Breakdown
@@ -224,7 +224,7 @@ export default function AdminActivityPage() {
             {stats.moderators.map((mod) => (
               <div
                 key={mod.id}
-                className="rounded-2xl border border-white/5 bg-[#141417] p-4 shadow-lg"
+                className="surface-card p-4"
               >
                 <div className="mb-3 flex items-start justify-between">
                   <div>

@@ -12,12 +12,12 @@ export function PageHeader({
   children,
 }: PageHeaderProps) {
   return (
-    <div className="mb-8 flex flex-col justify-between gap-6 md:flex-row md:items-end">
+    <div className="page-toolbar">
       <div className="flex flex-col gap-1">
-        <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight text-white uppercase sm:text-3xl">
+        <h1 className="page-heading page-heading--admin flex items-center gap-2">
           {title}
           {itemCount !== undefined && (
-            <div className="flex h-7 items-center rounded-lg border border-white/10 bg-white/5 px-2.5 text-[10px] font-bold tracking-widest text-white/40 uppercase sm:h-8 sm:ml-2 sm:text-xs">
+            <div className="ui-chip text-muted-foreground sm:ml-2">
               <span className="mt-px">{itemCount}</span>
             </div>
           )}
@@ -25,7 +25,7 @@ export function PageHeader({
       </div>
 
       {children && (
-        <div className="flex w-full flex-col gap-3 md:w-auto md:flex-row md:items-center">
+        <div className="page-actions">
           {children}
         </div>
       )}

@@ -2,7 +2,7 @@ import { Loader2 } from "lucide-react";
 
 export function TableSkeleton({ rows = 5, cols = 4 }: { rows?: number; cols?: number }) {
   return (
-    <div className="overflow-hidden rounded-3xl border border-white/5 bg-[#141417]">
+    <div className="overflow-hidden rounded-[var(--radius-panel)] border border-white/5 bg-[#141417]">
       <table className="w-full text-left">
         <thead>
           <tr className="border-b border-white/5 bg-white/2">

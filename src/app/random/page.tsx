@@ -27,13 +27,14 @@ import {
 import { useRandomLine } from "@/features/random/hooks/use-random-line";
 import { useVideoLooping } from "@/features/random/hooks/use-video-looping";
 import { LoginModal } from "@/components/LoginModal";
+import { PageShell } from "@/components/ui/page-shell";
 
 function RandomLineSkeleton() {
   return (
     <div className="animate-in fade-in grid items-start gap-8 duration-500 lg:grid-cols-[2fr_1fr]">
       {/* Left Column: Video */}
       <div className="flex flex-col gap-4">
-        <div className="bg-card overflow-hidden rounded-xl border shadow-sm">
+        <div className="bg-card overflow-hidden rounded-[var(--radius-surface)] border shadow-sm">
           <Skeleton className="aspect-video w-full rounded-none" />
           <div className="flex flex-col gap-4 p-4 sm:p-5">
             <Skeleton className="h-7 w-2/3" />
@@ -55,9 +56,9 @@ function RandomLineSkeleton() {
             <Skeleton className="h-3 w-28" />
             <Skeleton className="h-4 w-20 rounded-full" />
           </div>
-          <Skeleton className="h-35 w-full rounded-xl" />
+          <Skeleton className="h-35 w-full rounded-[var(--radius-surface)]" />
         </div>
-        <Skeleton className="h-24 w-full rounded-xl" />
+        <Skeleton className="h-24 w-full rounded-[var(--radius-surface)]" />
       </div>
     </div>
   );
@@ -91,7 +92,7 @@ export default function RandomPage() {
 
   return (
     <>
-      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8">
+      <PageShell className="max-w-6xl">
         <div className="mb-4 flex items-center justify-between sm:mb-6">
           <div>
             <h1 className="mb-1 text-xl font-bold tracking-tight sm:text-2xl">
@@ -114,7 +115,7 @@ export default function RandomPage() {
           <div className="grid items-start gap-8 lg:grid-cols-[2fr_1fr]">
             {/* Left: Large Video */}
             <div className="flex flex-col gap-4">
-              <div className="bg-card overflow-hidden rounded-xl border shadow-sm">
+              <div className="bg-card overflow-hidden rounded-[var(--radius-surface)] border shadow-sm">
                 <div className="relative aspect-video w-full bg-black">
                   <div
                     id="youtube-player-random"
@@ -256,7 +257,7 @@ export default function RandomPage() {
                       disabled={!isUserLoggedIn || saving || saved || loading}
                       spellCheck={false}
                       className={cn(
-                        "bg-card/50 border-border focus:bg-card min-h-35 resize-none rounded-xl p-4 text-base leading-relaxed shadow-inner transition-all",
+                        "bg-card/50 border-border focus:bg-card min-h-35 resize-none rounded-[var(--radius-surface)] p-4 text-base leading-relaxed shadow-inner transition-all",
                         !isUserLoggedIn &&
                           "bg-muted/50 cursor-not-allowed border-transparent opacity-80",
                       )}
@@ -363,7 +364,7 @@ export default function RandomPage() {
             </div>
           </div>
         ) : null}
-      </main>
+      </PageShell>
 
       <LoginModal
         isOpen={isLoginModalOpen}

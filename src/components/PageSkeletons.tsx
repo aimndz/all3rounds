@@ -1,12 +1,13 @@
 import { Skeleton } from "@/components/ui/skeleton";
 import { StickyPageHeader } from "@/components/StickyPageHeader";
+import { PageShell } from "@/components/ui/page-shell";
 
 export function BattlesSkeleton() {
   return (
     <>
-      <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-8 sm:px-6 lg:px-8">
-        <StickyPageHeader className="border-border/10 bg-background/95 -mx-4 mb-8 border-b px-4 py-4 backdrop-blur-sm sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
-          <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+      <PageShell>
+        <StickyPageHeader>
+          <div className="sticky-surface flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
             <div className="space-y-1">
               <Skeleton className="h-10 w-48" />
               <Skeleton className="h-4 w-32" />
@@ -36,7 +37,7 @@ export function BattlesSkeleton() {
                 {[...Array(4)].map((_, i) => (
                   <div
                     key={i}
-                    className="border-border bg-card/50 overflow-hidden rounded-xl border"
+                    className="surface-card surface-card--muted overflow-hidden"
                   >
                     <Skeleton className="aspect-video w-full rounded-none" />
                     <div className="space-y-3 p-3 sm:space-y-4 sm:p-4">
@@ -55,16 +56,16 @@ export function BattlesSkeleton() {
             </div>
           ))}
         </div>
-      </main>
+      </PageShell>
     </>
   );
 }
 
 export function EmceesSkeleton() {
   return (
-    <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-8 sm:px-6 lg:px-8">
-      <StickyPageHeader className="border-border/10 bg-background/95 -mx-4 mb-8 border-b px-4 py-4 backdrop-blur-sm sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+    <PageShell>
+      <StickyPageHeader>
+        <div className="sticky-surface flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="relative flex-1 sm:max-w-md">
             <Skeleton className="h-11 w-full rounded-2xl" />
           </div>
@@ -77,10 +78,7 @@ export function EmceesSkeleton() {
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {[...Array(12)].map((_, i) => (
-          <div
-            key={i}
-            className="relative flex min-h-40 flex-col justify-between rounded-3xl border border-white/5 bg-[#141417] p-6"
-          >
+          <div key={i} className="surface-card relative flex min-h-40 flex-col justify-between p-6">
             <div className="flex items-start justify-between">
               <Skeleton className="h-7 w-32" />
               <Skeleton className="h-6 w-20 rounded-full" />
@@ -88,6 +86,6 @@ export function EmceesSkeleton() {
           </div>
         ))}
       </div>
-    </main>
+    </PageShell>
   );
 }

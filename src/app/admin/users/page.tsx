@@ -7,8 +7,7 @@ import { TableSkeleton } from "@/components/admin/TableSkeleton";
 import { DataPagination } from "@/components/admin/DataPagination";
 import { usePaginatedFetch } from "@/hooks/use-paginated-fetch";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
-import { Loader2, Search, X } from "lucide-react";
-import { Input } from "@/components/ui/input";
+import { Loader2 } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -25,6 +24,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { FilterSearchInput } from "@/components/ui/filter-search-input";
 
 type UserProfile = {
   id: string;
@@ -115,7 +115,7 @@ export default function AdminUsersPage() {
                 setPage(1);
               }}
             >
-              <SelectTrigger className="h-10 w-full border-white/10 bg-white/5 text-[10px] font-semibold tracking-widest text-white/60 uppercase">
+              <SelectTrigger size="lg" className="w-full text-[10px] tracking-[0.18em] text-white/60 uppercase">
                 <SelectValue placeholder="Role" />
               </SelectTrigger>
               <SelectContent className="border-white/10 bg-[#1c1c21] text-white">
@@ -133,29 +133,21 @@ export default function AdminUsersPage() {
           </div>
 
           {/* Search Bar */}
-          <div className="group relative flex-1 md:w-[320px] md:flex-initial">
-            <Search className="absolute top-1/2 left-3 h-3.5 w-3.5 -translate-y-1/2 text-white/20 transition-colors group-focus-within:text-white" />
-            <Input
-              placeholder="Search..."
-              value={search}
-              onChange={(e) => {
-                setSearch(e.target.value);
-                setPage(1);
-              }}
-              className="focus:border-primary/40 focus:ring-primary/5 h-10 rounded-xl border-white/10 bg-white/5 pr-8 pl-9 text-xs transition-all focus:bg-white/10"
-            />
-            {search && (
-              <button
-                onClick={() => {
-                  setSearch("");
-                  setPage(1);
-                }}
-                className="absolute top-1/2 right-2 flex h-5 w-5 -translate-y-1/2 items-center justify-center rounded-full bg-white/5 text-white/40 transition-colors hover:bg-white/10 hover:text-white"
-              >
-                <X className="h-2.5 w-2.5" />
-              </button>
-            )}
-          </div>
+          <FilterSearchInput
+            containerClassName="flex-1 md:w-[320px] md:flex-initial"
+            placeholder="Search..."
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
+            onClear={() => {
+              setSearch("");
+              setPage(1);
+            }}
+            inputSize="lg"
+            className="text-xs"
+          />
         </div>
       </PageHeader>
 
@@ -164,7 +156,7 @@ export default function AdminUsersPage() {
       ) : (
         <>
           {/* Desktop Table View */}
-          <div className="hidden overflow-hidden rounded-2xl border border-white/5 bg-[#141417] md:block">
+          <div className="table-shell hidden md:block">
             <Table className="w-full text-left">
               <TableHeader>
                 <TableRow className="border-b border-white/5 bg-white/2 hover:bg-white/2">
@@ -222,7 +214,7 @@ export default function AdminUsersPage() {
                               handleRoleChange(user.id, val)
                             }
                           >
-                            <SelectTrigger className="h-8 w-32 border-white/10 bg-[#09090b] text-[10px] font-semibold tracking-widest text-white/80 uppercase hover:border-white/20">
+                            <SelectTrigger size="sm" className="w-32 bg-background text-[10px] font-semibold tracking-[0.18em] text-white/80 uppercase">
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent className="border-white/10 bg-[#1c1c21] text-white">
@@ -261,7 +253,7 @@ export default function AdminUsersPage() {
             {users.map((user) => (
               <div
                 key={user.id}
-                className="rounded-2xl border border-white/5 bg-[#141417] p-4 shadow-lg transition-transform active:scale-[0.98]"
+                className="surface-card p-4 transition-transform active:scale-[0.99]"
               >
                 <div className="mb-4 flex items-start justify-between">
                   <div className="flex flex-col gap-1">
@@ -298,7 +290,7 @@ export default function AdminUsersPage() {
                         value={user.role}
                         onValueChange={(val) => handleRoleChange(user.id, val)}
                       >
-                        <SelectTrigger className="h-8 w-28 border-white/10 bg-[#09090b] text-[10px] font-semibold tracking-widest text-white/80 uppercase">
+                        <SelectTrigger size="sm" className="w-28 bg-background text-[10px] font-semibold tracking-[0.18em] text-white/80 uppercase">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent className="border-white/10 bg-[#1c1c21] text-white">
@@ -319,7 +311,7 @@ export default function AdminUsersPage() {
               </div>
             ))}
             {users.length === 0 && (
-              <div className="rounded-2xl border border-dashed border-white/10 px-6 py-12 text-center text-[10px] font-semibold tracking-[0.3em] text-white/40 uppercase">
+              <div className="empty-state text-[10px] font-semibold tracking-[0.3em] text-white/40 uppercase">
                 No users found
               </div>
             )}

@@ -1,11 +1,16 @@
 import SearchBar from "@/components/SearchBar";
 import Image from "next/image";
+import { PageShell } from "@/components/ui/page-shell";
 
 export const dynamic = "force-static";
 
 export default function Home() {
   return (
-    <main className="mx-auto flex h-[calc(100svh-100px)] w-full max-w-5xl items-center justify-center px-4 sm:px-6">
+    <PageShell
+      width="narrow"
+      spacing="centered"
+      className="h-[calc(100svh-100px)]"
+    >
       <div className="flex w-full flex-col items-center space-y-12 text-center">
         {/* Hero Content */}
         <div className="max-w-2xl space-y-4">
@@ -30,7 +35,7 @@ export default function Home() {
 
         {/* Search Section */}
         <div className="w-full max-w-xl space-y-8">
-          <SearchBar autoFocus size="lg" />
+          <SearchBar size="lg" />
 
           {/* Phrase / Stats Wrapper */}
           <div className="space-y-6 pt-4">
@@ -70,6 +75,6 @@ export default function Home() {
           </div>
         </div>
       </div>
-    </main>
+    </PageShell>
   );
 }
