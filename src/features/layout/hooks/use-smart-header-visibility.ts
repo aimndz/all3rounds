@@ -2,17 +2,16 @@
 
 import { useEffect, useState } from "react";
 
-const HEADER_HEIGHT = 56;
-const TOP_LOCK_SCROLL_Y = 24;
-const NAVBAR_HIDE_THRESHOLD = 12;
-const SHOW_THRESHOLD = 12;
+const TOP_LOCK_SCROLL_Y = 40;
+const NAVBAR_HIDE_THRESHOLD = 28;
+const SHOW_THRESHOLD = 20;
 const BOTTOM_TOLERANCE = 2;
 const MOBILE_MEDIA_QUERY = "(max-width: 767px)";
 
 function setHeaderOffset(hidden: boolean) {
   document.documentElement.style.setProperty(
     "--smart-header-offset",
-    hidden ? "0px" : `${HEADER_HEIGHT}px`,
+    hidden ? "0px" : "var(--smart-header-height, 56px)",
   );
 }
 

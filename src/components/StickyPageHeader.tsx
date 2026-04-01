@@ -29,6 +29,10 @@ export function StickyPageHeader({
         "--smart-page-header-margin-bottom",
         styles.marginBottom,
       );
+      element.style.setProperty(
+        "--smart-page-header-total-space-local",
+        `${totalSpace}px`,
+      );
       document.documentElement.style.setProperty(
         "--smart-page-header-total-space",
         `${totalSpace}px`,
@@ -50,6 +54,7 @@ export function StickyPageHeader({
       document.documentElement.style.removeProperty(
         "--smart-page-header-total-space",
       );
+      element.style.removeProperty("--smart-page-header-total-space-local");
     };
   }, []);
 

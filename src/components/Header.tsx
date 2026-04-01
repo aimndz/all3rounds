@@ -14,12 +14,9 @@ import {
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { useAuthStore } from "@/stores/auth-store";
-import { cn } from "@/lib/utils";
-import { useSmartHeaderVisibility } from "@/features/layout/hooks/use-smart-header-visibility";
 
 export default function Header() {
   const { isUserLoggedIn, isLoading } = useAuthStore();
-  const { isHidden } = useSmartHeaderVisibility();
 
   const navLinks = [
     { href: "/search", label: "Search" },
@@ -29,12 +26,7 @@ export default function Header() {
   ];
 
   return (
-    <div
-      className={cn(
-        "bg-card/80 relative border-b border-border/60 backdrop-blur-sm transition-transform duration-300 ease-out will-change-transform",
-        isHidden && "-translate-y-full md:translate-y-0",
-      )}
-    >
+    <div className="bg-card/80 relative border-b border-border/60 backdrop-blur-md">
       <header className="px-4">
         <div className="mx-auto flex h-14 max-w-5xl items-center justify-between">
           {/* Left: Logo */}

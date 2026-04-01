@@ -4,8 +4,7 @@ import { Inter, Montserrat } from "next/font/google";
 import "./globals.css";
 import { getSiteUrl } from "@/lib/utils";
 import { Toaster } from "@/components/ui/toaster";
-import BetaBanner from "@/components/BetaBanner";
-import Header from "@/components/Header";
+import TopChrome from "@/components/TopChrome";
 import Footer from "@/components/Footer";
 import { AuthProvider } from "@/components/AuthProvider";
 import { ErrorBoundary } from "@/components/shared/ErrorBoundary";
@@ -109,8 +108,7 @@ export default async function RootLayout({
         <AuthProvider>
           <div className="flex min-h-screen flex-col">
             <div className="sticky top-0 z-50">
-              <BetaBanner />
-              <Header />
+              <TopChrome />
             </div>
             <div className="flex flex-1 flex-col">
               <ErrorBoundary>{children}</ErrorBoundary>
