@@ -6,6 +6,7 @@ import { EmceeCard } from "@/features/emcees/components/EmceeCard";
 import { EmceesFilters } from "@/features/emcees/components/EmceesFilters";
 import { useEmceesData } from "@/features/emcees/hooks/use-emcees-data";
 import { DataPagination } from "@/components/admin/DataPagination";
+import { StickyPageHeader } from "@/components/StickyPageHeader";
 
 interface EmceesDirectoryProps {
   initialEmcees: Emcee[];
@@ -31,7 +32,7 @@ export default function EmceesDirectory({
   } = useEmceesData(initialEmcees, initialCount);
   return (
     <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-8 sm:px-6 lg:px-8">
-      <div className="border-border/10 bg-background/95 sticky top-14 z-30 -mx-4 mb-8 border-b px-4 py-4 backdrop-blur-sm sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
+      <StickyPageHeader className="border-border/10 bg-background/95 -mx-4 mb-8 border-b px-4 py-4 backdrop-blur-sm sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
         <EmceesFilters
           search={search}
           setSearch={setSearch}
@@ -41,7 +42,7 @@ export default function EmceesDirectory({
           setCountRange={setCountRange}
           resultsCount={totalCount}
         />
-      </div>
+      </StickyPageHeader>
 
       {loading ? (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3 xl:grid-cols-4">

@@ -105,6 +105,29 @@
   }
 }
 
+@layer components {
+  .smart-page-header {
+    transition-property: top, transform, opacity;
+    transition-duration: 300ms;
+    transition-timing-function: ease-out;
+    will-change: top, transform, opacity;
+    transform: translateY(0);
+    opacity: 1;
+  }
+
+  @media (max-width: 767px) {
+    :root[data-smart-page-header-transition="show"] .smart-page-header {
+      transition-duration: 300ms;
+    }
+
+    :root[data-smart-page-header-state="hidden"] .smart-page-header {
+      pointer-events: none;
+      transform: translateY(calc(-100% - 1rem));
+      opacity: 0;
+    }
+  }
+}
+
 @layer utilities {
   .text-hiphop {
     @apply text-primary font-black tracking-tighter uppercase drop-shadow-[2px_2px_0px_var(--color-secondary)];

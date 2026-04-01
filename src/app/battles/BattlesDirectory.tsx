@@ -51,6 +51,7 @@ import { EventSection } from "@/features/battles/components/EventSection";
 import { useBattlesData } from "@/features/battles/hooks/use-battles-data";
 import type { Battle } from "@/features/battles/hooks/use-battles-data";
 import { useSuperadminActions } from "@/features/battles/hooks/use-superadmin-actions";
+import { StickyPageHeader } from "@/components/StickyPageHeader";
 
 export default function BattlesDirectory({
   initialBattles,
@@ -217,7 +218,7 @@ export default function BattlesDirectory({
   return (
     <>
       <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-8 sm:px-6 lg:px-8">
-        <div className="border-border/10 bg-background/95 sticky top-14 z-30 -mx-4 mb-8 border-b px-4 py-4 backdrop-blur-sm sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
+        <StickyPageHeader className="border-border/10 bg-background/95 -mx-4 mb-8 border-b px-4 py-4 backdrop-blur-sm sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div className="space-y-0.5">
               <h1 className="text-foreground text-2xl font-black tracking-tight sm:text-4xl">
@@ -309,7 +310,7 @@ export default function BattlesDirectory({
               </div>
             </div>
           </div>
-        </div>
+        </StickyPageHeader>
 
         {error && (
           <div className="border-destructive/30 bg-destructive/5 text-destructive mb-8 rounded-lg border p-4 text-center text-sm">
