@@ -12,7 +12,6 @@ import {
   ChevronUp,
   Calendar,
 } from "lucide-react";
-import { BattlesListSkeleton } from "@/components/PageSkeletons";
 import { DataPagination } from "@/components/admin/DataPagination";
 import { Button } from "@/components/ui/button";
 import {
