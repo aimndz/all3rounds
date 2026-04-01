@@ -189,7 +189,7 @@ export default function BattleClient() {
 
   // -- Effects --
   useEffect(() => {
-    fetchBattle();
+    void fetchBattle();
   }, [fetchBattle]);
 
   useEffect(() => {
@@ -555,7 +555,7 @@ export default function BattleClient() {
         }
 
         // Refresh data
-        const newBattleData = await fetchBattle();
+        const newBattleData = await fetchBattle({ forceFresh: true });
 
         toast({
           title: "Success",
@@ -1276,13 +1276,13 @@ export default function BattleClient() {
           line={editingLine as BattleLine}
           participants={data?.participants}
           onClose={() => setEditingLine(null)}
-          onSaved={() => {
+          onSaved={async () => {
             setEditingLine(null);
             toast({
               title: "Line Saved",
               description: "The line has been updated successfully.",
             });
-            fetchBattle();
+            await fetchBattle({ forceFresh: true });
           }}
         />
       )}
@@ -1308,14 +1308,14 @@ export default function BattleClient() {
             setAddingLine(false);
             setAddingLineData(null);
           }}
-          onSaved={() => {
+          onSaved={async () => {
             setAddingLine(false);
             setAddingLineData(null);
             toast({
               title: "Line Added",
               description: "New line has been added to the transcript.",
             });
-            fetchBattle();
+            await fetchBattle({ forceFresh: true });
           }}
         />
       )}
