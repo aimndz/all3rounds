@@ -1,5 +1,4 @@
-import { Search, ArrowUpDown, Filter, X, ListFilter } from "lucide-react";
-import { Input } from "@/components/ui/input";
+import { ArrowUpDown, Filter, ListFilter } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -14,6 +13,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
+import { FilterSearchInput } from "@/components/ui/filter-search-input";
 import { cn } from "@/lib/utils";
 import { EmceeSortOption } from "../types";
 
@@ -39,14 +39,14 @@ export function EmceesFilters({
   const renderFilterContent = (mobile = false) => (
     <div
       className={cn(
-        "flex flex-col gap-6",
-        !mobile && "sm:flex-row sm:items-center sm:gap-4",
+        "filter-grid",
+        !mobile && "lg:flex-row lg:flex-wrap lg:justify-end",
       )}
     >
       {/* Sort Select */}
       <div className="flex-1 space-y-2">
         {mobile && (
-          <label className="text-muted-foreground ml-1 text-[10px] font-bold tracking-widest uppercase">
+          <label className="filter-label">
             Sort By
           </label>
         )}
@@ -54,7 +54,7 @@ export function EmceesFilters({
           value={sort}
           onValueChange={(val: EmceeSortOption) => setSort(val)}
         >
-          <SelectTrigger className="border-border/50 bg-muted/20 focus:ring-primary/5 h-10 w-full rounded-xl sm:w-[180px]">
+          <SelectTrigger size="lg" className="sm:w-[180px]">
             <div className="flex items-center gap-2">
               <ArrowUpDown className="text-muted-foreground/60 h-3.5 w-3.5" />
               <SelectValue placeholder="Sort" />
@@ -72,12 +72,12 @@ export function EmceesFilters({
       {/* Count Select */}
       <div className="flex-1 space-y-2">
         {mobile && (
-          <label className="text-muted-foreground ml-1 text-[10px] font-bold tracking-widest uppercase">
+          <label className="filter-label">
             Battle Count
           </label>
         )}
         <Select value={countRange} onValueChange={setCountRange}>
-          <SelectTrigger className="border-border/50 bg-muted/20 focus:ring-primary/5 h-10 w-full rounded-xl sm:w-[160px]">
+          <SelectTrigger size="lg" className="sm:w-[160px]">
             <div className="flex items-center gap-2">
               <Filter className="text-muted-foreground/60 h-3.5 w-3.5" />
               <SelectValue placeholder="Count" />
@@ -96,50 +96,41 @@ export function EmceesFilters({
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+      <div className="page-toolbar">
         <div className="space-y-0.5">
-          <h1 className="text-foreground text-2xl font-black tracking-tight sm:text-4xl">
+          <h1 className="page-heading">
             Emcees
           </h1>
-          <p className="text-muted-foreground text-[10px] font-medium tracking-wider uppercase opacity-60 sm:text-xs">
+          <p className="page-meta">
             {resultsCount} emcees total
           </p>
         </div>
 
-        <div className="flex w-full items-center gap-2 sm:gap-3 lg:w-auto">
+        <div className="page-toolbar__controls">
           {/* Search Input */}
-          <div className="relative flex-1 lg:w-[320px]">
-            <Search className="text-muted-foreground/40 absolute top-1/2 left-3.5 h-4 w-4 -translate-y-1/2" />
-            <Input
-              placeholder="Search by name..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="border-border/50 bg-muted/10 text-foreground placeholder:text-muted-foreground/30 focus:border-primary/40 focus:bg-muted/20 focus:ring-primary/5 h-11 w-full rounded-2xl border pr-12 pl-11 text-sm transition-all outline-none focus:ring-4"
-            />
-            {search && (
-              <button
-                onClick={() => setSearch("")}
-                className="bg-muted-foreground/20 text-muted-foreground hover:bg-muted-foreground/40 absolute top-1/2 right-3.5 flex h-4 w-4 -translate-y-1/2 items-center justify-center rounded-full transition-colors"
-              >
-                <X className="h-3 w-3" />
-              </button>
-            )}
-          </div>
+          <FilterSearchInput
+            containerClassName="min-w-0 flex-1 lg:w-[320px]"
+            placeholder="Search by name..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            onClear={() => setSearch("")}
+            inputSize="lg"
+          />
 
           {/* Mobile Filter Sheet */}
           <Sheet>
             <SheetTrigger asChild>
               <Button
                 variant="outline"
-                size="icon"
-                className="border-border/50 bg-muted/10 hover:bg-muted/20 h-11 w-11 shrink-0 rounded-2xl transition-all lg:hidden"
+                size="icon-lg"
+                className="shrink-0 lg:hidden"
               >
                 <ListFilter className="text-muted-foreground/60 h-5 w-5" />
               </Button>
             </SheetTrigger>
             <SheetContent
               side="bottom"
-              className="border-border/10 bg-background/95 h-auto max-h-[70vh] border-t p-6 pb-10 shadow-2xl backdrop-blur-3xl"
+              className="bg-background/95 h-auto max-h-[70vh] p-6 pb-10 backdrop-blur-3xl"
             >
               <SheetTitle className="sr-only">Filters</SheetTitle>
               <div className="mt-2">{renderFilterContent(true)}</div>
@@ -147,7 +138,7 @@ export function EmceesFilters({
           </Sheet>
 
           {/* Desktop Filters */}
-          <div className="hidden lg:block">{renderFilterContent()}</div>
+          <div className="hidden min-w-0 lg:block">{renderFilterContent()}</div>
         </div>
       </div>
     </div>

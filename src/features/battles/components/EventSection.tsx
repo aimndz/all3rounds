@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { memo, useEffect, useState } from "react";
 import { ChevronDown, Edit2, Calendar, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -17,7 +17,7 @@ import { cn, formatEventDate } from "@/lib/utils";
 import { BattleCard } from "@/features/battles/components/BattleCard";
 import type { EventGroup } from "@/features/battles/hooks/use-battles-data";
 
-export function EventSection({
+export const EventSection = memo(function EventSection({
   group,
   defaultOpen = true,
   onToggle,
@@ -352,4 +352,6 @@ export function EventSection({
       )}
     </section>
   );
-}
+});
+
+EventSection.displayName = "EventSection";

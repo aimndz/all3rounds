@@ -1,9 +1,8 @@
 "use client";
 
+import { useCallback } from "react";
 import Image from "next/image";
 import {
-  ChevronDown,
-  Search,
   ArrowUpDown,
   X,
   ListFilter,
@@ -34,18 +33,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
   Sheet,
   SheetContent,
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
+import { FilterSearchInput } from "@/components/ui/filter-search-input";
+import { PageShell } from "@/components/ui/page-shell";
 import { useAuthStore } from "@/stores/auth-store";
 import { EventSection } from "@/features/battles/components/EventSection";
 import { useBattlesData } from "@/features/battles/hooks/use-battles-data";
@@ -101,25 +96,33 @@ export default function BattlesDirectory({
 
   const sa = useSuperadminActions(battles, setBattles, initialEventNames);
 
+  const handleRenameGroup = useCallback(
+    (oldName: string, newName: string) => {
+      setBattles((prev) =>
+        prev.map((b) =>
+          b.event_name === oldName ||
+          (!b.event_name && oldName === "Other Battles")
+            ? { ...b, event_name: newName }
+            : b,
+        ),
+      );
+    },
+    [setBattles],
+  );
+
+  const showLoadingSkeleton = loading && battles.length === 0;
+  const showEmptyState = !loading && battles.length === 0;
+
   const renderFilterContent = (mobile = false) => (
-    <div
-      className={cn(
-        "flex flex-col gap-6",
-        !mobile && "sm:flex-row sm:items-center sm:gap-4",
-      )}
-    >
+    <div className={cn("filter-grid", !mobile && "lg:flex-row lg:flex-wrap lg:justify-end")}>
       {/* Status Filter */}
       <div className="flex-1 space-y-2">
-        {mobile && (
-          <label className="text-muted-foreground ml-1 text-[10px] font-bold tracking-widest uppercase">
-            Status
-          </label>
-        )}
+        {mobile && <label className="filter-label">Status</label>}
         <Select
           value={statusFilter}
           onValueChange={(v) => updateSearch({ status: v })}
         >
-          <SelectTrigger className="border-border/50 bg-muted/20 focus:ring-primary/5 h-10 w-full rounded-xl sm:w-37.5">
+          <SelectTrigger size="lg" className="sm:w-37.5">
             <SelectValue placeholder="All Status" />
           </SelectTrigger>
           <SelectContent>
@@ -135,61 +138,43 @@ export default function BattlesDirectory({
 
       {/* Year Filter */}
       <div className="flex-1 space-y-2 text-white">
-        {mobile && (
-          <label className="text-muted-foreground ml-1 text-[10px] font-bold tracking-widest uppercase">
-            Year
-          </label>
-        )}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="outline"
-              className="border-border/50 bg-muted/20 text-foreground hover:bg-muted/20 focus:ring-primary/5 h-10 w-full cursor-pointer justify-between rounded-xl px-3 font-normal transition-all hover:scale-[1.02]"
+        {mobile && <label className="filter-label">Year</label>}
+        <Select
+          value={yearFilter}
+          onValueChange={(v) => updateSearch({ year: v })}
+        >
+          <SelectTrigger size="lg" className="sm:w-37.5">
+            <SelectValue placeholder="All Years" />
+          </SelectTrigger>
+          <SelectContent
+            className="w-70 p-0"
+            viewportClassName="grid h-auto min-w-70 grid-cols-4 gap-1.5 p-2"
+          >
+            <SelectItem
+              value="all"
+              indicator={false}
+              className="data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground data-[state=checked]:focus:bg-primary/90 data-[state=checked]:focus:text-primary-foreground col-span-4 justify-center font-medium"
             >
-              {yearFilter === "all" ? "All Years" : yearFilter}
-              <ChevronDown className="h-4 w-4 opacity-50" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="w-70 p-2">
-            <div className="grid grid-cols-4 gap-1.5">
-              <DropdownMenuItem
-                className={cn(
-                  "col-span-4 cursor-pointer justify-center rounded-lg font-medium",
-                  yearFilter === "all"
-                    ? "bg-primary text-primary-foreground focus:bg-primary/90 focus:text-primary-foreground"
-                    : "bg-muted/50 focus:bg-muted",
-                )}
-                onClick={() => updateSearch({ year: "all" })}
+              All Years
+            </SelectItem>
+            {availableYears.map((y) => (
+              <SelectItem
+                key={y}
+                value={y}
+                indicator={false}
+                className="text-muted-foreground data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground data-[state=checked]:focus:bg-primary/90 data-[state=checked]:focus:text-primary-foreground justify-center data-[state=checked]:font-bold"
               >
-                All Years
-              </DropdownMenuItem>
-              {availableYears.map((y) => (
-                <DropdownMenuItem
-                  key={y}
-                  className={cn(
-                    "cursor-pointer justify-center rounded-lg transition-colors",
-                    yearFilter === y
-                      ? "bg-primary text-primary-foreground focus:bg-primary/90 focus:text-primary-foreground font-bold"
-                      : "text-muted-foreground hover:text-foreground focus:bg-muted/50",
-                  )}
-                  onClick={() => updateSearch({ year: y })}
-                >
-                  {y}
-                </DropdownMenuItem>
-              ))}
-            </div>
-          </DropdownMenuContent>
-        </DropdownMenu>
+                {y}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       <div className="flex-1 space-y-2">
-        {mobile && (
-          <label className="text-muted-foreground ml-1 text-[10px] font-bold tracking-widest uppercase">
-            Sort By
-          </label>
-        )}
+        {mobile && <label className="filter-label">Sort By</label>}
         <Select value={sortBy} onValueChange={(v) => updateSearch({ sort: v })}>
-          <SelectTrigger className="border-border/50 bg-muted/20 focus:ring-primary/5 h-10 w-full rounded-xl sm:w-35">
+          <SelectTrigger size="lg" className="sm:w-35">
             <div className="flex items-center gap-2">
               <ArrowUpDown className="text-muted-foreground/60 h-3.5 w-3.5" />
               <SelectValue placeholder="Sort" />
@@ -205,9 +190,9 @@ export default function BattlesDirectory({
       {hasActiveFilters && (
         <Button
           variant="ghost"
-          size="sm"
+          size="lg"
           onClick={clearFilters}
-          className="text-muted-foreground hover:bg-muted/30 hover:text-foreground h-10 cursor-pointer rounded-xl px-4"
+          className="px-4"
         >
           <X className="h-4 w-4" />
         </Button>
@@ -217,95 +202,75 @@ export default function BattlesDirectory({
 
   return (
     <>
-      <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-8 sm:px-6 lg:px-8">
-        <StickyPageHeader className="border-border/10 bg-background/95 -mx-4 mb-8 border-b px-4 py-4 backdrop-blur-sm sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+      <PageShell>
+        <StickyPageHeader>
+          <div className="sticky-surface page-toolbar">
             <div className="space-y-0.5">
-              <h1 className="text-foreground text-2xl font-black tracking-tight sm:text-4xl">
-                Battles
-              </h1>
-              <p className="text-muted-foreground text-[10px] font-medium tracking-wider uppercase opacity-60 sm:text-xs">
+              <h1 className="page-heading">Battles</h1>
+              <p className="page-meta">
                 {totalCount !== null ? totalCount : battles.length} battles •{" "}
                 {new Set(battles.map((b) => b.event_name).filter(Boolean)).size}{" "}
                 events
               </p>
             </div>
 
-            <div className="flex w-full items-center gap-2 sm:gap-3 lg:w-auto">
+            <div className="page-toolbar__controls">
               <form
-                className="group relative flex-1 lg:w-[320px]"
+                className="min-w-0 flex-1 lg:w-[320px]"
                 onSubmit={(e) => {
                   e.preventDefault();
                   updateSearch({ q: searchInput });
                 }}
               >
-                <div className="relative">
-                  <Search className="text-muted-foreground/40 group-focus-within:text-primary/60 absolute top-1/2 left-3.5 h-4 w-4 -translate-y-1/2 transition-colors" />
-                  <input
-                    type="text"
-                    spellCheck="false"
-                    autoComplete="off"
-                    autoCorrect="off"
-                    autoCapitalize="none"
-                    placeholder="Search battles or events..."
-                    className="border-border/50 bg-muted/5 text-foreground placeholder:text-muted-foreground/30 focus:border-primary/40 focus:bg-muted/10 focus:ring-primary/5 h-11 w-full rounded-2xl border pr-24 pl-11 text-sm transition-all outline-none focus:ring-4"
-                    value={searchInput}
-                    onChange={handleSearchChange}
-                    onBlur={() => {
-                      if (debounceTimerRef.current) {
-                        clearTimeout(debounceTimerRef.current);
-                        debounceTimerRef.current = null;
-                      }
-                      updateSearch({ q: searchInput });
-                    }}
-                  />
-                  <div className="absolute top-1/2 right-3.5 flex -translate-y-1/2 items-center gap-2">
-                    {searchInput && !loading && totalCount !== null && (
-                      <span className="text-muted-foreground/60 mr-1 hidden text-[10px] font-medium sm:inline-block">
-                        {totalCount} results
-                      </span>
-                    )}
-                    {loading && searchInput && (
-                      <Loader2 className="text-muted-foreground/60 h-4 w-4 animate-spin" />
-                    )}
-                    {searchInput && !loading && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setSearchInput("");
-                          if (debounceTimerRef.current)
-                            clearTimeout(debounceTimerRef.current);
-                          updateSearch({ q: "" });
-                        }}
-                        className="bg-muted-foreground/20 text-muted-foreground hover:bg-muted-foreground/40 flex h-4 w-4 items-center justify-center rounded-full transition-colors"
-                      >
-                        <X className="h-3 w-3" />
-                      </button>
-                    )}
-                  </div>
-                </div>
+                <FilterSearchInput
+                  placeholder="Search battles or events..."
+                  value={searchInput}
+                  onChange={handleSearchChange}
+                  onBlur={() => {
+                    if (debounceTimerRef.current) {
+                      clearTimeout(debounceTimerRef.current);
+                      debounceTimerRef.current = null;
+                    }
+                    updateSearch({ q: searchInput });
+                  }}
+                  onClear={() => {
+                    setSearchInput("");
+                    if (debounceTimerRef.current) {
+                      clearTimeout(debounceTimerRef.current);
+                      debounceTimerRef.current = null;
+                    }
+                    updateSearch({ q: "" });
+                  }}
+                  loading={loading}
+                  resultsLabel={
+                    searchInput && !loading && totalCount !== null
+                      ? `${totalCount} results`
+                      : undefined
+                  }
+                  inputSize="lg"
+                />
               </form>
 
               <Sheet>
                 <SheetTrigger asChild>
                   <Button
                     variant="outline"
-                    size="icon"
-                    className="border-border/50 bg-muted/10 hover:bg-muted/20 h-11 w-11 shrink-0 rounded-2xl transition-all lg:hidden"
+                    size="icon-lg"
+                    className="shrink-0 lg:hidden"
                   >
                     <ListFilter className="text-muted-foreground/60 h-5 w-5" />
                   </Button>
                 </SheetTrigger>
                 <SheetContent
                   side="bottom"
-                  className="border-border/10 bg-background/95 h-auto max-h-[70vh] border-t p-6 pb-10 shadow-2xl backdrop-blur-3xl"
+                  className="bg-background/95 h-auto max-h-[70vh] p-6 pb-10 backdrop-blur-3xl"
                 >
                   <SheetTitle className="sr-only">Filters</SheetTitle>
                   <div className="mt-2">{renderFilterContent(true)}</div>
                 </SheetContent>
               </Sheet>
 
-              <div className="ml-2 hidden lg:block">
+              <div className="hidden min-w-0 lg:block">
                 {renderFilterContent()}
               </div>
             </div>
@@ -313,17 +278,17 @@ export default function BattlesDirectory({
         </StickyPageHeader>
 
         {error && (
-          <div className="border-destructive/30 bg-destructive/5 text-destructive mb-8 rounded-lg border p-4 text-center text-sm">
+          <div className="border-destructive/30 bg-destructive/5 text-destructive mb-8 rounded-2xl border p-4 text-center text-sm">
             {error}
           </div>
         )}
 
-        {loading ? (
+        {showLoadingSkeleton ? (
           <div className="space-y-4">
             {Array.from({ length: 5 }).map((_, i) => (
               <div
                 key={i}
-                className="border-border/10 bg-card/50 flex items-center justify-between rounded-2xl border p-5"
+                className="surface-card surface-card--muted flex items-center justify-between p-5"
               >
                 <div className="flex w-1/2 items-center gap-4 pb-12">
                   <Skeleton className="h-5 w-5 rounded-md" />
@@ -332,8 +297,8 @@ export default function BattlesDirectory({
               </div>
             ))}
           </div>
-        ) : battles.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-32 text-center">
+        ) : showEmptyState ? (
+          <div className="empty-state flex flex-col items-center justify-center py-24">
             <h3 className="text-foreground mb-1 text-lg font-semibold">
               {filter ? "No results found" : "No battles found"}
             </h3>
@@ -344,7 +309,12 @@ export default function BattlesDirectory({
             )}
           </div>
         ) : (
-          <div className="space-y-10">
+          <div
+            className={cn(
+              "space-y-10 transition-opacity",
+              loading && "opacity-75",
+            )}
+          >
             {paginatedEventGroups.map((group) => (
               <EventSection
                 key={group.name}
@@ -356,16 +326,7 @@ export default function BattlesDirectory({
                 selectionMode={sa.selectionMode}
                 selectedIds={sa.selectedBattleIds}
                 onToggleSelect={sa.toggleBattleSelection}
-                onRenameGroup={(oldName: string, newName: string) => {
-                  setBattles((prev) =>
-                    prev.map((b) =>
-                      b.event_name === oldName ||
-                      (!b.event_name && oldName === "Other Battles")
-                        ? { ...b, event_name: newName }
-                        : b,
-                    ),
-                  );
-                }}
+                onRenameGroup={handleRenameGroup}
               />
             ))}
 
@@ -377,7 +338,7 @@ export default function BattlesDirectory({
             />
           </div>
         )}
-      </main>
+      </PageShell>
 
       {/* ── Superadmin: Floating Selection Bar ── */}
       {isSuperAdmin && (

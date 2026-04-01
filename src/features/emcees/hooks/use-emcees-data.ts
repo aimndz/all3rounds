@@ -1,13 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useState, useRef } from "react";
-import { useRouter, useSearchParams, usePathname } from "next/navigation";
+import { useSearchParams, usePathname } from "next/navigation";
 import { Emcee, EmceeSortOption } from "../types";
 
 const ITEMS_PER_PAGE = 48;
 
 export function useEmceesData(initialEmcees: Emcee[], initialCount: number) {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const pathname = usePathname();
 
@@ -59,6 +58,22 @@ export function useEmceesData(initialEmcees: Emcee[], initialCount: number) {
     []
   );
 
+  const commitSearch = useCallback(
+    (nextParams: URLSearchParams, replace = false) => {
+      if (typeof window === "undefined") return;
+
+      const queryString = nextParams.toString();
+      const nextUrl = queryString ? `${pathname}?${queryString}` : pathname;
+
+      if (replace) {
+        window.history.replaceState(null, "", nextUrl);
+      } else {
+        window.history.pushState(null, "", nextUrl);
+      }
+    },
+    [pathname]
+  );
+
   // Effect: When filters change, always fetch page 1 and reset URL page
   const isFirstFilterRun = useRef(true);
   useEffect(() => {
@@ -81,14 +96,14 @@ export function useEmceesData(initialEmcees: Emcee[], initialCount: number) {
       if (currentUrlPage > 1) {
         const newParams = new URLSearchParams(window.location.search);
         newParams.delete("page");
-        router.replace(`${pathname}?${newParams.toString()}`, { scroll: false });
+        commitSearch(newParams, true);
       }
     }, 300);
 
     return () => {
       if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
     };
-  }, [search, sort, countRange, fetchEmcees, pathname, router]);
+  }, [search, sort, countRange, fetchEmcees, commitSearch]);
 
   // Effect: When page changes via URL (pagination click), fetch that page
   const isFirstPageRun = useRef(true);
@@ -117,9 +132,10 @@ export function useEmceesData(initialEmcees: Emcee[], initialCount: number) {
       } else {
         newParams.set("page", newPage.toString());
       }
-      router.push(`${pathname}?${newParams.toString()}`, { scroll: true });
+      commitSearch(newParams, false);
+      window.scrollTo({ top: 0, behavior: "smooth" });
     },
-    [searchParams, router, pathname]
+    [searchParams, commitSearch]
   );
 
   return {

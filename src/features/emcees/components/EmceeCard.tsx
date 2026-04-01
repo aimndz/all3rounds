@@ -1,3 +1,4 @@
+import { memo } from "react";
 import Link from "next/link";
 import { Emcee } from "../types";
 
@@ -5,12 +6,12 @@ interface EmceeCardProps {
   emcee: Emcee;
 }
 
-export function EmceeCard({ emcee }: EmceeCardProps) {
+export const EmceeCard = memo(function EmceeCard({ emcee }: EmceeCardProps) {
   return (
     <Link
       href={`/emcees/${emcee.id}`}
       prefetch={false}
-      className="group hover:border-primary/20 hover:shadow-primary/5 relative flex min-h-28 flex-col justify-between rounded-2xl border border-white/5 bg-[#141417] p-4 transition-all duration-500 hover:shadow-2xl active:scale-[0.98] sm:min-h-32 sm:p-5"
+      className="surface-card surface-card--interactive group relative flex min-h-28 flex-col justify-between p-4 transition-all duration-500 hover:shadow-2xl active:scale-[0.99] sm:min-h-32 sm:p-5"
     >
       <div className="bg-primary/5 absolute top-0 right-0 h-20 w-20 rounded-full opacity-0 blur-3xl transition-opacity group-hover:opacity-100 sm:h-24 sm:w-24" />
 
@@ -29,4 +30,6 @@ export function EmceeCard({ emcee }: EmceeCardProps) {
       </div>
     </Link>
   );
-}
+});
+
+EmceeCard.displayName = "EmceeCard";

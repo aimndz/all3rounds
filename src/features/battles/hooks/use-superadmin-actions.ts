@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import type { Battle } from "@/features/battles/hooks/use-battles-data";
 
@@ -36,7 +36,7 @@ export function useSuperadminActions(
     [selectedBattles],
   );
 
-  const toggleBattleSelection = (id: string) => {
+  const toggleBattleSelection = useCallback((id: string) => {
     setSelectedBattles((prev) => {
       const next = { ...prev };
       if (next[id]) {
@@ -47,13 +47,13 @@ export function useSuperadminActions(
       }
       return next;
     });
-  };
+  }, [battles]);
 
-  const exitSelectionMode = () => {
+  const exitSelectionMode = useCallback(() => {
     setSelectionMode(false);
     setSelectedBattles({});
     setPreviewOpen(false);
-  };
+  }, []);
 
   const handleMoveSelected = async () => {
     if (!moveTargetName.trim() || selectedBattleIds.size === 0) return;
