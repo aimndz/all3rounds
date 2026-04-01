@@ -29,6 +29,7 @@ import {
 } from "@/components/ui/pagination";
 import { Separator } from "@/components/ui/separator";
 import { StickyPageHeader } from "@/components/StickyPageHeader";
+import { PageShell } from "@/components/ui/page-shell";
 
 type SearchResultsListProps = {
   results: SearchResult[];
@@ -52,10 +53,10 @@ const SearchResultsList = memo(function SearchResultsList({
   onResultEdited,
 }: SearchResultsListProps) {
   return (
-    <div className="space-y-2">
+    <div className="flex flex-col">
       {results.map((result, i) => (
         <div key={result.id}>
-          {i > 0 && <Separator className="my-2" />}
+          {i > 0 && <Separator />}
           <ResultCard
             result={result}
             isLoggedIn={canEdit}
@@ -71,10 +72,10 @@ const SearchResultsList = memo(function SearchResultsList({
 const SearchResultsLoadingSkeleton = memo(
   function SearchResultsLoadingSkeleton() {
     return (
-      <div className="w-full space-y-6">
+      <div className="w-full flex flex-col gap-6">
         {[...Array(4)].map((_, i) => (
           <div key={i}>
-            {i > 0 && <Separator className="my-6" />}
+            {i > 0 && <Separator className="mb-6" />}
             <div className="flex animate-pulse gap-4 sm:gap-6">
               <div className="bg-muted hidden aspect-video w-40 shrink-0 self-start rounded-md sm:block" />
               <div className="flex-1 space-y-4 py-1">
@@ -297,87 +298,138 @@ function SearchResults() {
     <>
       {/* Top Search bar (Sticky) - Only show when there is a search query */}
       {query && (
-        <StickyPageHeader className="bg-background/95 border-b border-white/5 backdrop-blur-xl">
-          <div className="mx-auto max-w-4xl px-4 py-3 sm:px-6">
-            <SearchBar initialQuery={query} size="sm" />
+        <StickyPageHeader>
+          <div className="bg-background/95 border-border/40 mx-auto mb-0 w-full max-w-4xl border-b px-4 py-4 backdrop-blur-xl sm:px-6 lg:px-8">
+            <SearchBar initialQuery={query} size="lg" />
           </div>
         </StickyPageHeader>
       )}
 
       {/* Results or Middle Search */}
-      <main
+      <PageShell
         className={cn(
-          "mx-auto w-full max-w-4xl px-4 pb-12 sm:px-6",
+          "max-w-4xl pb-12",
           !query &&
             "flex min-h-[70vh] flex-col items-center justify-center py-0",
         )}
       >
-        {/* Result count */}
-        {!loading && !isInitialLoad && !error && query && (
-          <div className="mb-5 flex flex-col gap-1 sm:flex-row sm:items-baseline sm:gap-2">
-            <h1 className="text-foreground text-lg font-semibold whitespace-nowrap">
-              {total === 0 ? "No results" : `${total} results`}
-            </h1>
-            <p className="text-muted-foreground min-w-0 truncate text-sm">
-              for &ldquo;{query}&rdquo;
-            </p>
+        <div className="w-full">
+          {/* Result count */}
+          {!loading && !isInitialLoad && !error && query && (
+            <div className="mb-5 flex flex-col gap-1 sm:flex-row sm:items-baseline sm:gap-2">
+              <h1 className="text-foreground text-lg font-semibold whitespace-nowrap">
+                {total === 0 ? "No results" : `${total} results`}
+              </h1>
+              <p className="text-muted-foreground min-w-0 truncate text-sm">
+                for &ldquo;{query}&rdquo;
+              </p>
+            </div>
+          )}
+          <div id="results" className="w-full scroll-mt-32">
+            {/* Results list */}
+            {!loading && !error && results.length > 0 && (
+              <SearchResultsList
+                results={results}
+                canEdit={canEdit}
+                isUserLoggedIn={isUserLoggedIn}
+                onResultEdited={handleResultEdited}
+              />
+            )}
           </div>
-        )}
-        <div id="results" className="w-full scroll-mt-32">
-          {/* Results list */}
-          {!loading && !error && results.length > 0 && (
-            <SearchResultsList
-              results={results}
-              canEdit={canEdit}
-              isUserLoggedIn={isUserLoggedIn}
-              onResultEdited={handleResultEdited}
-            />
+
+          {/* Error state */}
+          {error && (
+            <div className="border-destructive/30 bg-destructive/5 text-destructive mb-6 flex items-center justify-between rounded-2xl border px-4 py-3 text-sm">
+              <div className="flex items-center gap-3">
+                <AlertCircle className="h-4 w-4 shrink-0" />
+                {error}
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                  fetchResults(query, page, undefined, { forceRefresh: true })
+                }
+                className="border-destructive/20 hover:bg-destructive/10 hover:text-destructive text-xs font-bold"
+              >
+                Retry
+              </Button>
+            </div>
+          )}
+
+          {/* Loading state */}
+          {loading && <SearchResultsLoadingSkeleton />}
+
+          {/* Empty state */}
+          {!loading &&
+            !isInitialLoad &&
+            !error &&
+            query &&
+            results.length === 0 && (
+              <div className="flex flex-col items-center justify-center py-20">
+                <Search className="text-muted-foreground/30 mb-4 h-12 w-12" />
+                <p className="text-muted-foreground text-sm">
+                  No lines matched &ldquo;{query}&rdquo;
+                </p>
+                <p className="text-muted-foreground/60 mt-1 text-xs">
+                  Try searching for an emcee name, a phrase, or a league.
+                </p>
+              </div>
+            )}
+
+          {/* Pagination */}
+          {!loading && totalPages > 1 && (
+            <div className="mt-12">
+              <Pagination>
+                <PaginationContent>
+                  <PaginationItem>
+                    <PaginationPrevious
+                      onClick={() => page > 1 && handlePageChange(page - 1)}
+                      className={`cursor-pointer ${page === 1 ? "pointer-events-none opacity-50" : ""}`}
+                    />
+                  </PaginationItem>
+
+                  {paginationItems.map((item) => {
+                    if (!item) return null;
+
+                    if (item.type === "ellipsis") {
+                      return (
+                        <PaginationItem key={`ellipsis-${item.page}`}>
+                          <PaginationEllipsis />
+                        </PaginationItem>
+                      );
+                    }
+
+                    return (
+                      <PaginationItem key={item.page}>
+                        <PaginationLink
+                          isActive={page === item.page}
+                          onClick={() => handlePageChange(item.page)}
+                          className="cursor-pointer"
+                        >
+                          {item.page}
+                        </PaginationLink>
+                      </PaginationItem>
+                    );
+                  })}
+
+                  <PaginationItem>
+                    <PaginationNext
+                      onClick={() =>
+                        page < totalPages && handlePageChange(page + 1)
+                      }
+                      className={`cursor-pointer ${page === totalPages ? "pointer-events-none opacity-50" : ""}`}
+                    />
+                  </PaginationItem>
+                </PaginationContent>
+              </Pagination>
+            </div>
           )}
         </div>
 
-        {/* Error state */}
-        {error && (
-          <div className="border-destructive/30 bg-destructive/5 text-destructive mb-6 flex items-center justify-between rounded-lg border px-4 py-3 text-sm">
-            <div className="flex items-center gap-3">
-              <AlertCircle className="h-4 w-4 shrink-0" />
-              {error}
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() =>
-                fetchResults(query, page, undefined, { forceRefresh: true })
-              }
-              className="border-destructive/20 hover:bg-destructive/10 hover:text-destructive h-8 px-3 text-xs font-bold"
-            >
-              Retry
-            </Button>
-          </div>
-        )}
-
-        {/* Loading state */}
-        {loading && <SearchResultsLoadingSkeleton />}
-
-        {/* Empty state */}
-        {!loading &&
-          !isInitialLoad &&
-          !error &&
-          query &&
-          results.length === 0 && (
-            <div className="flex flex-col items-center justify-center py-20">
-              <Search className="text-muted-foreground/30 mb-4 h-12 w-12" />
-              <p className="text-muted-foreground text-sm">
-                No lines matched &ldquo;{query}&rdquo;
-              </p>
-              <p className="text-muted-foreground/60 mt-1 text-xs">
-                Try searching for an emcee name, a phrase, or a league.
-              </p>
-            </div>
-          )}
-
         {/* Initial state (no query) - Middle Search Bar */}
         {!query && (
-          <div className="animate-in fade-in slide-in-from-bottom-4 w-full max-w-2xl space-y-8 text-center duration-700">
+          <div className="animate-in fade-in slide-in-from-bottom-4 w-full max-w-2xl space-y-8 px-4 text-center duration-700 sm:px-6">
             <div className="space-y-3">
               <h1 className="text-foreground text-3xl font-bold tracking-tight sm:text-4xl">
                 Explore Battle Rap <span className="block">Through Search</span>
@@ -388,56 +440,7 @@ function SearchResults() {
             </div>
           </div>
         )}
-
-        {/* Pagination */}
-        {!loading && totalPages > 1 && (
-          <div className="mt-12">
-            <Pagination>
-              <PaginationContent>
-                <PaginationItem>
-                  <PaginationPrevious
-                    onClick={() => page > 1 && handlePageChange(page - 1)}
-                    className={`cursor-pointer ${page === 1 ? "pointer-events-none opacity-50" : ""}`}
-                  />
-                </PaginationItem>
-
-                {paginationItems.map((item) => {
-                  if (!item) return null;
-
-                  if (item.type === "ellipsis") {
-                    return (
-                      <PaginationItem key={`ellipsis-${item.page}`}>
-                        <PaginationEllipsis />
-                      </PaginationItem>
-                    );
-                  }
-
-                  return (
-                    <PaginationItem key={item.page}>
-                      <PaginationLink
-                        isActive={page === item.page}
-                        onClick={() => handlePageChange(item.page)}
-                        className="cursor-pointer"
-                      >
-                        {item.page}
-                      </PaginationLink>
-                    </PaginationItem>
-                  );
-                })}
-
-                <PaginationItem>
-                  <PaginationNext
-                    onClick={() =>
-                      page < totalPages && handlePageChange(page + 1)
-                    }
-                    className={`cursor-pointer ${page === totalPages ? "pointer-events-none opacity-50" : ""}`}
-                  />
-                </PaginationItem>
-              </PaginationContent>
-            </Pagination>
-          </div>
-        )}
-      </main>
+      </PageShell>
     </>
   );
 }
