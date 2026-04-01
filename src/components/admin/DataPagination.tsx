@@ -32,8 +32,10 @@ export function DataPagination({
           <PaginationItem>
             <PaginationPrevious
               onClick={() => onPageChange(Math.max(1, page - 1))}
-              className={`cursor-pointer ${
-                page === 1 ? "pointer-events-none opacity-50" : "hover:bg-white/5 hover:text-white text-white/60"
+              className={`${
+                page === 1
+                  ? "pointer-events-none opacity-50"
+                  : "text-muted-foreground hover:text-foreground"
               }`}
             />
           </PaginationItem>
@@ -47,7 +49,11 @@ export function DataPagination({
                   <PaginationLink
                     isActive={page === p}
                     onClick={() => onPageChange(p)}
-                    className={`cursor-pointer ${page === p ? 'bg-white/10 text-white' : 'hover:bg-white/5 text-white/60 hover:text-white'}`}
+                    className={`${
+                      page === p
+                        ? "bg-muted text-foreground border-border/60"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
                   >
                     {p}
                   </PaginationLink>
@@ -67,8 +73,10 @@ export function DataPagination({
           <PaginationItem>
             <PaginationNext
               onClick={() => onPageChange(Math.min(totalPages, page + 1))}
-              className={`cursor-pointer ${
-                page === totalPages ? "pointer-events-none opacity-50" : "hover:bg-white/5 hover:text-white text-white/60"
+              className={`${
+                page === totalPages
+                  ? "pointer-events-none opacity-50"
+                  : "text-muted-foreground hover:text-foreground"
               }`}
             />
           </PaginationItem>

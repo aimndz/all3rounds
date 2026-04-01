@@ -60,13 +60,16 @@ export function useBattleData(
   const [hasMore, setHasMore] = useState(false);
   const [error, setError] = useState("");
 
-  const fetchBattle = useCallback(() => {
+  const fetchBattle = useCallback((options?: { forceFresh?: boolean }) => {
     const params = new URLSearchParams({
       limit: String(PAGE_SIZE),
       offset: "0",
     });
     if (initialLineId) {
       params.set("lineId", String(initialLineId));
+    }
+    if (options?.forceFresh) {
+      params.set("_", String(Date.now()));
     }
 
     return fetch(`/api/battles/${battleId}?${params.toString()}`)

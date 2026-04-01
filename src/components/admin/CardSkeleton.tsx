@@ -6,7 +6,7 @@ export function CardSkeleton({ count = 3 }: { count?: number }) {
       {Array.from({ length: count }).map((_, i) => (
         <div
           key={i}
-          className="flex flex-col gap-0 overflow-hidden rounded-3xl border border-white/5 bg-[#141417] md:flex-row"
+          className="flex flex-col gap-0 overflow-hidden rounded-[var(--radius-panel)] border border-white/5 bg-[#141417] md:flex-row"
         >
           <div className="relative aspect-video w-full shrink-0 bg-black/20 md:w-85 lg:w-[320px]">
             <Skeleton className="absolute inset-0 h-full w-full rounded-none" />
@@ -33,8 +33,8 @@ export function CardSkeleton({ count = 3 }: { count?: number }) {
               </div>
             </div>
             <div className="flex justify-end gap-3 border-t border-white/5 pt-4">
-              <Skeleton className="h-8 w-24 rounded-xl" />
-              <Skeleton className="h-8 w-28 rounded-xl" />
+              <Skeleton className="h-8 w-24 rounded-[var(--radius-control)]" />
+              <Skeleton className="h-8 w-28 rounded-[var(--radius-control)]" />
             </div>
           </div>
         </div>

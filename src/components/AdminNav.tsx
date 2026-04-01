@@ -16,7 +16,7 @@ export default function AdminNav() {
 
   return (
     <div className="mb-10 flex items-center justify-center sm:justify-start">
-      <nav className="flex items-center gap-1 overflow-x-auto rounded-2xl border border-white/10 bg-white/5 p-1 no-scrollbar sm:gap-2">
+      <nav className="surface-card surface-card--muted flex items-center gap-1 overflow-x-auto rounded-[var(--radius-panel)] p-1 no-scrollbar sm:gap-2">
         {links.map(({ href, label }) => {
           const isActive = pathname === href;
           return (
@@ -24,10 +24,8 @@ export default function AdminNav() {
               key={href}
               href={href}
               prefetch={false}
-              className={`relative flex items-center px-4 py-2.5 text-[10px] font-bold tracking-widest uppercase transition-all whitespace-nowrap rounded-xl sm:px-6 sm:text-xs ${
-                isActive
-                  ? "bg-primary/10 text-primary border border-primary/20"
-                  : "text-white/40 hover:text-white"
+              className={`nav-pill whitespace-nowrap ${
+                isActive ? "nav-pill--active" : "nav-pill--inactive"
               }`}
             >
               {label}

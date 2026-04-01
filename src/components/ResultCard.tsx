@@ -104,7 +104,7 @@ function ResultCard({
             `/battles/${result.battle.id}?t=${Math.floor(result.start_time)}&lineId=${result.id}`,
           )
         }
-        className="group hover:bg-muted/30 active:bg-muted/45 relative block cursor-pointer py-4 transition-all duration-200 sm:-mx-4 sm:rounded-xl sm:px-4"
+        className="group relative block cursor-pointer py-4 transition-[background-color,opacity] duration-200 hover:bg-muted/40 active:bg-muted/40 active:opacity-90 sm:rounded-(--radius-surface)"
       >
         {/* Action Controls */}
         <div className="absolute top-3 right-0 z-10 flex items-center sm:top-4 sm:right-4">

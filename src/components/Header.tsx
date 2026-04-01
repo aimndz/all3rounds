@@ -26,8 +26,8 @@ export default function Header() {
   ];
 
   return (
-    <>
-      <header className="bg-card/80 sticky top-0 z-50 px-4 backdrop-blur-sm">
+    <div className="bg-card/80 relative border-b border-border/60 backdrop-blur-md">
+      <header className="px-4">
         <div className="mx-auto flex h-14 max-w-5xl items-center justify-between">
           {/* Left: Logo */}
           <div className="flex w-1/4 items-center gap-2">
@@ -123,7 +123,6 @@ export default function Header() {
           </div>
         </div>
       </header>
-      <Separator />
-    </>
+    </div>
   );
 }

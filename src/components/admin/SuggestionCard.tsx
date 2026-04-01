@@ -65,7 +65,7 @@ export function SuggestionCard({
 
   return (
     <div
-      className={`group relative flex flex-col gap-0 overflow-hidden rounded-3xl border bg-[#141417] transition-all duration-500 md:flex-row ${borderColor}`}
+      className={`group relative flex flex-col gap-0 overflow-hidden rounded-[var(--radius-panel)] border bg-[#141417] transition-all duration-500 md:flex-row ${borderColor}`}
     >
       <div className="relative aspect-video w-full shrink-0 overflow-hidden bg-black md:w-[320px]">
         <YouTubeLoopPlayer
@@ -184,7 +184,7 @@ export function SuggestionCard({
           </div>
 
           {variant === "audit" && s.review_note && (
-            <div className="mt-1 rounded-lg border border-white/5 bg-white/5 p-3 text-[11px] whitespace-pre-wrap text-white/50">
+            <div className="mt-1 rounded-[var(--radius-control)] border border-white/5 bg-white/5 p-3 text-[11px] whitespace-pre-wrap text-white/50">
               <span className="mr-2 text-[9px] font-normal text-white/30 uppercase">
                 Note:
               </span>
@@ -203,7 +203,7 @@ export function SuggestionCard({
                   size="sm"
                   onClick={() => onAction(s.id, "reject")}
                   disabled={isProcessing}
-                  className="hover:bg-destructive/10 hover:text-destructive h-8 rounded-xl px-4 text-[10px] font-semibold tracking-widest text-white/40 uppercase transition-all"
+                  className="hover:bg-destructive/10 hover:text-destructive h-8 rounded-[var(--radius-control)] px-4 text-[10px] font-semibold tracking-widest text-white/40 uppercase transition-all"
                 >
                   <X className="mr-1.5 h-4 w-4" />
                   Discard
@@ -212,7 +212,7 @@ export function SuggestionCard({
                   size="sm"
                   onClick={() => onAction(s.id, "approve")}
                   disabled={isProcessing}
-                  className="shadow-primary/10 bg-primary hover:bg-primary/90 h-8 rounded-xl px-6 text-[10px] font-semibold text-black uppercase shadow-lg transition-all active:scale-95"
+                  className="shadow-primary/10 bg-primary hover:bg-primary/90 h-8 rounded-[var(--radius-control)] px-6 text-[10px] font-semibold text-black uppercase shadow-lg transition-all active:scale-95"
                 >
                   {isProcessing ? (
                     <Loader2 className="h-3 w-3 animate-spin" />
@@ -228,7 +228,7 @@ export function SuggestionCard({
                 variant="outline"
                 onClick={() => onAction(s.id, "approve", s.status)} // 'approve' means 'override' functionally here, we pass current status
                 disabled={isProcessing}
-                className="h-8 rounded-xl border-white/10 bg-transparent px-4 text-[10px] font-semibold tracking-widest text-white uppercase transition-all hover:bg-white/10 hover:text-white"
+                className="h-8 rounded-[var(--radius-control)] border-white/10 bg-transparent px-4 text-[10px] font-semibold tracking-widest text-white uppercase transition-all hover:bg-white/10 hover:text-white"
               >
                 {isProcessing ? (
                   <Loader2 className="h-4 w-4 animate-spin text-white/40" />

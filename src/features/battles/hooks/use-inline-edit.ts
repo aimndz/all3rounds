@@ -10,7 +10,7 @@ export function useInlineEdit(
   data: BattleData | null,
   setData: React.Dispatch<React.SetStateAction<BattleData | null>>,
   canEdit: boolean,
-  fetchBattle: () => Promise<BattleData | null>,
+  fetchBattle: (options?: { forceFresh?: boolean }) => Promise<BattleData | null>,
 ) {
   const [inlineEditingId, setInlineEditingId] = useState<number | null>(null);
   const [inlineContent, setInlineContent] = useState("");
@@ -64,7 +64,7 @@ export function useInlineEdit(
         }
         if (moveToNext) focusNextLine(id);
       } catch {
-        fetchBattle();
+        void fetchBattle({ forceFresh: true });
       } finally {
         setInlineEditingId(null);
       }

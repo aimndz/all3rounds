@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useRouter, useSearchParams, usePathname } from "next/navigation";
+import { useSearchParams, usePathname } from "next/navigation";
 
 // ============================================================================
 // Types
@@ -81,7 +81,6 @@ export function useBattlesData(
   initialTotalEvents: number,
   _initialYears: string[],
 ) {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const pathname = usePathname();
 
@@ -102,23 +101,6 @@ export function useBattlesData(
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
 
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
-
-  const handleSearchChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const newVal = e.target.value;
-      setSearchInput(newVal);
-
-      if (debounceTimerRef.current) {
-        clearTimeout(debounceTimerRef.current);
-      }
-
-      debounceTimerRef.current = setTimeout(() => {
-        updateSearch({ q: newVal });
-      }, 300);
-    },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [],
-  );
 
   useEffect(() => {
     if (filter !== searchInput && debounceTimerRef.current === null) {
@@ -145,6 +127,7 @@ export function useBattlesData(
       },
     ) => {
       setLoading(true);
+      setError("");
 
       try {
         const params = new URLSearchParams();
@@ -223,8 +206,29 @@ export function useBattlesData(
   ]);
 
   // Update URL helpers
+  const commitSearch = useCallback(
+    (nextParams: URLSearchParams, replace = false) => {
+      const queryString = nextParams.toString();
+      const nextUrl = queryString ? `${pathname}?${queryString}` : pathname;
+
+      if (typeof window === "undefined") {
+        return;
+      }
+
+      if (replace) {
+        window.history.replaceState(null, "", nextUrl);
+      } else {
+        window.history.pushState(null, "", nextUrl);
+      }
+    },
+    [pathname],
+  );
+
   const updateSearch = useCallback(
-    (params: Record<string, string | null>) => {
+    (
+      params: Record<string, string | null>,
+      options?: { replace?: boolean },
+    ) => {
       const newParams = new URLSearchParams(searchParams.toString());
 
       // Reset page when filters change (not when page itself is being set)
@@ -244,14 +248,30 @@ export function useBattlesData(
           newParams.set(key, value);
         }
       });
-      router.push(`${pathname}?${newParams.toString()}`, { scroll: false });
+      commitSearch(newParams, options?.replace ?? !("page" in params));
     },
-    [searchParams, router, pathname],
+    [searchParams, commitSearch],
+  );
+
+  const handleSearchChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const newVal = e.target.value;
+      setSearchInput(newVal);
+
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+
+      debounceTimerRef.current = setTimeout(() => {
+        updateSearch({ q: newVal }, { replace: true });
+      }, 300);
+    },
+    [updateSearch],
   );
 
   const handlePageChange = useCallback(
     (newPage: number) => {
-      updateSearch({ page: newPage > 1 ? newPage.toString() : null });
+      updateSearch({ page: newPage > 1 ? newPage.toString() : null }, { replace: false });
       window.scrollTo({ top: 0, behavior: "smooth" });
     },
     [updateSearch],
@@ -299,8 +319,8 @@ export function useBattlesData(
   const clearFilters = useCallback(() => {
     setSearchInput("");
     if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
-    router.replace(pathname, { scroll: false });
-  }, [router, pathname]);
+    commitSearch(new URLSearchParams(), true);
+  }, [commitSearch]);
 
   const hasActiveFilters =
     filter ||

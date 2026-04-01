@@ -81,7 +81,7 @@ export default function AuthButton({
                 <Link
                   href="/reviews"
                   prefetch={false}
-                  className="text-muted-foreground hover:text-foreground hover:bg-white/5 -mx-3 flex items-center rounded-md px-3 py-3 text-[10px] font-medium tracking-widest uppercase transition-colors"
+                  className="nav-pill nav-pill--inactive -mx-1 justify-start px-3 py-3 tracking-[0.18em]"
                 >
                   Reviews
                 </Link>
@@ -92,7 +92,7 @@ export default function AuthButton({
                 <Link
                   href="/admin/users"
                   prefetch={false}
-                  className="text-muted-foreground hover:text-foreground hover:bg-white/5 -mx-3 flex items-center rounded-md px-3 py-3 text-[10px] font-medium tracking-widest uppercase transition-colors"
+                  className="nav-pill nav-pill--inactive -mx-1 justify-start px-3 py-3 tracking-[0.18em]"
                 >
                   Admin Panel
                 </Link>
@@ -100,7 +100,7 @@ export default function AuthButton({
 
               <button
                 onClick={handleLogout}
-                className="text-muted-foreground hover:text-foreground hover:bg-white/5 -mx-3 flex items-center rounded-md px-3 py-3 text-[10px] font-medium tracking-widest uppercase transition-colors text-left"
+                className="nav-pill nav-pill--inactive -mx-1 justify-start px-3 py-3 text-left tracking-[0.18em]"
               >
                 Log out
               </button>
@@ -143,7 +143,7 @@ export default function AuthButton({
             <>
               <DropdownMenuSeparator />
               <Link href="/reviews" passHref prefetch={false}>
-                <DropdownMenuItem className="text-muted-foreground hover:text-foreground cursor-pointer text-[10px] font-medium tracking-widest uppercase transition-colors focus:bg-white/5">
+                <DropdownMenuItem className="text-[10px] font-medium tracking-[0.18em] uppercase">
                   Reviews
                 </DropdownMenuItem>
               </Link>
@@ -153,7 +153,7 @@ export default function AuthButton({
           {/* Role-based link: Superadmins only */}
           {user.role === "superadmin" && (
             <Link href="/admin/users" passHref prefetch={false}>
-              <DropdownMenuItem className="text-muted-foreground hover:text-foreground cursor-pointer text-[10px] font-medium tracking-widest uppercase transition-colors focus:bg-white/5">
+              <DropdownMenuItem className="text-[10px] font-medium tracking-[0.18em] uppercase">
                 Admin Panel
               </DropdownMenuItem>
             </Link>
@@ -163,7 +163,7 @@ export default function AuthButton({
           <DropdownMenuSeparator />
           <DropdownMenuItem
             onClick={handleLogout}
-            className="text-muted-foreground hover:text-foreground cursor-pointer text-[10px] font-medium tracking-widest uppercase transition-colors focus:bg-white/5"
+            className="text-[10px] font-medium tracking-[0.18em] uppercase"
           >
             Log out
           </DropdownMenuItem>
