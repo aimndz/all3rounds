@@ -15,6 +15,7 @@ import SearchBar from "@/components/SearchBar";
 import ResultCard from "@/components/ResultCard";
 import { SearchResult } from "@/lib/types";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 import { Search, AlertCircle } from "lucide-react";
 import {
@@ -27,6 +28,7 @@ import {
   PaginationPrevious,
 } from "@/components/ui/pagination";
 import { Separator } from "@/components/ui/separator";
+import { StickyPageHeader } from "@/components/StickyPageHeader";
 
 type SearchResultsListProps = {
   results: SearchResult[];
@@ -293,16 +295,23 @@ function SearchResults() {
 
   return (
     <>
+      {/* Top Search bar (Sticky) - Only show when there is a search query */}
+      {query && (
+        <StickyPageHeader className="bg-background/95 border-b border-white/5 backdrop-blur-xl">
+          <div className="mx-auto max-w-4xl px-4 py-3 sm:px-6">
+            <SearchBar initialQuery={query} size="sm" />
+          </div>
+        </StickyPageHeader>
+      )}
 
-      {/* Search bar */}
-      <div className="bg-background/95 sticky top-14 z-30 border-b border-white/5 backdrop-blur-xl">
-        <div className="mx-auto max-w-4xl px-4 py-3 sm:px-6">
-          <SearchBar initialQuery={query} size="sm" />
-        </div>
-      </div>
-
-      {/* Results */}
-      <main className="mx-auto w-full max-w-4xl px-4 py-6 sm:px-6">
+      {/* Results or Middle Search */}
+      <main
+        className={cn(
+          "mx-auto w-full max-w-4xl px-4 pb-12 sm:px-6",
+          !query &&
+            "flex min-h-[70vh] flex-col items-center justify-center py-0",
+        )}
+      >
         {/* Result count */}
         {!loading && !isInitialLoad && !error && query && (
           <div className="mb-5 flex flex-col gap-1 sm:flex-row sm:items-baseline sm:gap-2">
@@ -314,7 +323,7 @@ function SearchResults() {
             </p>
           </div>
         )}
-        <div id="results" className="scroll-mt-32">
+        <div id="results" className="w-full scroll-mt-32">
           {/* Results list */}
           {!loading && !error && results.length > 0 && (
             <SearchResultsList
@@ -325,6 +334,7 @@ function SearchResults() {
             />
           )}
         </div>
+
         {/* Error state */}
         {error && (
           <div className="border-destructive/30 bg-destructive/5 text-destructive mb-6 flex items-center justify-between rounded-lg border px-4 py-3 text-sm">
@@ -360,22 +370,22 @@ function SearchResults() {
                 No lines matched &ldquo;{query}&rdquo;
               </p>
               <p className="text-muted-foreground/60 mt-1 text-xs">
-                Try searching for an emcee name, a punchline, or a phrase.
+                Try searching for an emcee name, a phrase, or a league.
               </p>
             </div>
           )}
 
-        {/* Initial state (no query) */}
+        {/* Initial state (no query) - Middle Search Bar */}
         {!query && (
-          <div className="flex flex-col items-center justify-center px-4 py-28 text-center">
-            <h2 className="text-foreground mb-3 text-2xl font-bold tracking-tight">
-              Start searching
-            </h2>
-            <p className="text-muted-foreground mx-auto max-w-md text-base leading-relaxed">
-              Search through transcripts from FlipTop and underground leagues.
-              Find every iconic bar by entering an emcee&apos;s name or a
-              phrase.
-            </p>
+          <div className="animate-in fade-in slide-in-from-bottom-4 w-full max-w-2xl space-y-8 text-center duration-700">
+            <div className="space-y-3">
+              <h1 className="text-foreground text-3xl font-bold tracking-tight sm:text-4xl">
+                Explore Battle Rap <span className="block">Through Search</span>
+              </h1>
+            </div>
+            <div className="mx-auto max-w-xl">
+              <SearchBar initialQuery="" size="lg" />
+            </div>
           </div>
         )}
 
