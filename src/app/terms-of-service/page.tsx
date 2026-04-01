@@ -1,3 +1,5 @@
+import PageBackButton from "@/components/PageBackButton";
+
 export const metadata = {
   title: "Terms of Service — All3Rounds",
   description:
@@ -8,7 +10,8 @@ export default function TermsPage() {
   return (
     <main className="mx-auto w-full max-w-4xl flex-1 px-6 py-12 md:py-20">
       <div className="space-y-12">
-        <div className="space-y-2">
+        <div className="space-y-4">
+          <PageBackButton fallbackHref="/" label="Back" />
           <h1 className="text-foreground text-3xl font-bold tracking-tight sm:text-4xl">
             Terms of Service
           </h1>
