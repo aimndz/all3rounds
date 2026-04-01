@@ -106,10 +106,12 @@ export default async function RootLayout({
       <body
         className={`${inter.className} bg-background text-foreground antialiased`}
       >
-        <BetaBanner />
         <AuthProvider>
           <div className="flex min-h-screen flex-col">
-            <Header />
+            <div className="sticky top-0 z-50">
+              <BetaBanner />
+              <Header />
+            </div>
             <div className="flex flex-1 flex-col">
               <ErrorBoundary>{children}</ErrorBoundary>
             </div>
