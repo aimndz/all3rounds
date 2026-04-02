@@ -13,7 +13,15 @@ import {
 import { useAuthStore } from "@/stores/auth-store";
 import SearchBar from "@/components/SearchBar";
 import ResultCard from "@/components/ResultCard";
-import { SearchResult } from "@/lib/types";
+import {
+  buildSearchQuery,
+  getAppliedSearchFilters,
+  parseSearchQuery,
+} from "@/lib/search-query";
+import type {
+  SearchResult,
+  SearchQueryMeta,
+} from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -42,9 +50,11 @@ type SearchApiResponse = {
   results: SearchResult[];
   total: number;
   totalPages: number;
+  query: SearchQueryMeta;
 };
 
 const SEARCH_RESULTS_CACHE_TTL_MS = 30_000;
+const SEARCH_PLACEHOLDER = "Search lines or add a filter";
 
 const SearchResultsList = memo(function SearchResultsList({
   results,
@@ -105,10 +115,15 @@ function SearchResults() {
 
   const query = searchParams.get("q") || "";
   const page = parseInt(searchParams.get("page") || "1", 10);
+  const parsedQuery = useMemo(() => parseSearchQuery(query), [query]);
 
   const [results, setResults] = useState<SearchResult[]>([]);
   const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
+  const [queryMeta, setQueryMeta] = useState<SearchQueryMeta>(() => ({
+    text: parsedQuery.text,
+    appliedFilters: parsedQuery.appliedFilters,
+  }));
   const [loading, setLoading] = useState(!!query);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [error, setError] = useState("");
@@ -118,6 +133,29 @@ function SearchResults() {
     Map<string, { data: SearchApiResponse; cachedAt: number }>
   >(new Map());
   const { canEdit, isUserLoggedIn } = useAuthStore();
+  const activeFilters = useMemo(
+    () => getAppliedSearchFilters(queryMeta.appliedFilters),
+    [queryMeta],
+  );
+  const hasExactEmceeFilter = Boolean(queryMeta.appliedFilters.emcee);
+  const textMentionFallbackQuery = useMemo(() => {
+    const emceeFilter = queryMeta.appliedFilters.emcee;
+    if (!emceeFilter) return "";
+
+    const nextFilters = { ...queryMeta.appliedFilters };
+    delete nextFilters.emcee;
+
+    const nextText = [queryMeta.text, emceeFilter].filter(Boolean).join(" ");
+    return buildSearchQuery(nextText, nextFilters);
+  }, [queryMeta]);
+  const noEmceeFilterQuery = useMemo(() => {
+    const emceeFilter = queryMeta.appliedFilters.emcee;
+    if (!emceeFilter) return "";
+
+    const nextFilters = { ...queryMeta.appliedFilters };
+    delete nextFilters.emcee;
+    return buildSearchQuery(queryMeta.text, nextFilters);
+  }, [queryMeta]);
 
   useEffect(() => {
     if (query !== prevQueryRef.current) {
@@ -127,6 +165,13 @@ function SearchResults() {
       }
     }
   }, [query]);
+
+  useEffect(() => {
+    setQueryMeta({
+      text: parsedQuery.text,
+      appliedFilters: parsedQuery.appliedFilters,
+    });
+  }, [parsedQuery]);
 
   const fetchResults = useCallback(
     async (
@@ -140,6 +185,7 @@ function SearchResults() {
         setResults([]);
         setTotal(0);
         setTotalPages(0);
+        setQueryMeta({ text: "", appliedFilters: {} });
         setIsInitialLoad(false);
         return;
       }
@@ -157,6 +203,7 @@ function SearchResults() {
         setResults(cached.data.results);
         setTotal(cached.data.total);
         setTotalPages(cached.data.totalPages);
+        setQueryMeta(cached.data.query);
         setLoading(false);
         setIsInitialLoad(false);
         return;
@@ -200,6 +247,7 @@ function SearchResults() {
             setResults(data.results);
             setTotal(data.total);
             setTotalPages(data.totalPages);
+            setQueryMeta(data.query);
           }
         } catch (err: unknown) {
           if (err instanceof Error && err.name === "AbortError") {
@@ -293,6 +341,35 @@ function SearchResults() {
   const handleResultEdited = useCallback(() => {
     scheduleRefresh(query, page);
   }, [scheduleRefresh, query, page]);
+  const handleFallbackSearch = useCallback(
+    (nextQuery: string) => {
+      if (!nextQuery) return;
+
+      const params = new URLSearchParams(searchParams.toString());
+      params.set("q", nextQuery);
+      params.delete("page");
+      router.push(`${pathname}?${params.toString()}`, { scroll: true });
+    },
+    [pathname, router, searchParams],
+  );
+
+  const resultsSummary = useMemo(() => {
+    const summaryParts: string[] = [];
+    if (queryMeta.text) {
+      summaryParts.push(`for "${queryMeta.text}"`);
+    }
+    if (activeFilters.length > 0) {
+      summaryParts.push(
+        `in ${activeFilters.map((filter) => `${filter.label}: ${filter.value}`).join(", ")}`,
+      );
+    }
+    return summaryParts.join(" ");
+  }, [activeFilters, queryMeta.text]);
+  const resultsLabel = total === 0
+    ? "No results"
+    : total >= 500
+      ? "500+ results"
+      : `${total} results`;
 
   return (
     <>
@@ -300,7 +377,12 @@ function SearchResults() {
       {query && (
         <StickyPageHeader>
           <div className="bg-background/95 border-border/40 mx-auto mb-0 w-full max-w-4xl border-b px-4 py-4 backdrop-blur-xl sm:px-6 lg:px-8">
-            <SearchBar initialQuery={query} size="lg" />
+            <SearchBar
+              key={query}
+              initialQuery={query}
+              size="lg"
+              placeholder={SEARCH_PLACEHOLDER}
+            />
           </div>
         </StickyPageHeader>
       )}
@@ -318,10 +400,10 @@ function SearchResults() {
           {!loading && !isInitialLoad && !error && query && (
             <div className="mb-5 flex flex-col gap-1 sm:flex-row sm:items-baseline sm:gap-2">
               <h1 className="text-foreground text-lg font-semibold whitespace-nowrap">
-                {total === 0 ? "No results" : `${total} results`}
+                {resultsLabel}
               </h1>
               <p className="text-muted-foreground min-w-0 truncate text-sm">
-                for &ldquo;{query}&rdquo;
+                {resultsSummary || `for "${query}"`}
               </p>
             </div>
           )}
@@ -367,13 +449,46 @@ function SearchResults() {
             query &&
             results.length === 0 && (
               <div className="flex flex-col items-center justify-center py-20">
-                <Search className="text-muted-foreground/30 mb-4 h-12 w-12" />
+                <Search className="text-muted-foreground mb-4 h-12 w-12" />
                 <p className="text-muted-foreground text-sm">
-                  No lines matched &ldquo;{query}&rdquo;
+                  No lines matched {resultsSummary || `"${query}"`}
                 </p>
-                <p className="text-muted-foreground/60 mt-1 text-xs">
-                  Try searching for an emcee name, a phrase, or a league.
-                </p>
+                {hasExactEmceeFilter ? (
+                  <>
+                    <p className="text-muted-foreground/60 mt-1 max-w-md text-center text-xs">
+                      This emcee filter only shows tagged speaker lines. Some
+                      lines may not be assigned yet.
+                    </p>
+                    <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+                      {textMentionFallbackQuery && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() =>
+                            handleFallbackSearch(textMentionFallbackQuery)
+                          }
+                          className="text-xs font-bold"
+                        >
+                          Search mentions instead
+                        </Button>
+                      )}
+                      {noEmceeFilterQuery && noEmceeFilterQuery !== textMentionFallbackQuery && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleFallbackSearch(noEmceeFilterQuery)}
+                          className="text-xs font-bold"
+                        >
+                          Remove emcee filter
+                        </Button>
+                      )}
+                    </div>
+                  </>
+                ) : (
+                  <p className="text-muted-foreground/60 mt-1 text-xs">
+                    Try searching for a phrase, or narrow by emcee, battle, or event.
+                  </p>
+                )}
               </div>
             )}
 
@@ -434,9 +549,17 @@ function SearchResults() {
               <h1 className="text-foreground text-3xl font-bold tracking-tight sm:text-4xl">
                 Explore Battle Rap <span className="block">Through Search</span>
               </h1>
+              <p className="text-muted-foreground text-sm sm:text-base">
+                Search lines, then narrow by emcee or battle.
+              </p>
             </div>
             <div className="mx-auto max-w-xl">
-              <SearchBar initialQuery="" size="lg" />
+              <SearchBar
+                key="search-empty"
+                initialQuery=""
+                size="lg"
+                placeholder={SEARCH_PLACEHOLDER}
+              />
             </div>
           </div>
         )}
@@ -458,3 +581,5 @@ export default function SearchPage() {
     </Suspense>
   );
 }
+
+
