@@ -32,22 +32,15 @@ import {
 } from "lucide-react";
 import { cn, formatDate, formatSpeakerName } from "@/lib/utils";
 import { getSpeakerColor } from "@/lib/constants";
-import { StatusBadge, STATUS_CONFIG } from "@/components/StatusBadge";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { StatusBadge } from "@/components/StatusBadge";
 import BatchActionBar from "@/features/battles/components/BatchActionBar";
 import { useAuthStore } from "@/stores/auth-store";
 import type { SearchResult } from "@/lib/types";
 import { LineItem } from "@/features/battles/components/LineItem";
+import { InlineBattleStatusSelect } from "@/features/battles/components/InlineBattleStatusSelect";
 import { useBattleData } from "@/features/battles/hooks/use-battle-data";
 import type {
   BattleLine,
-  BattleStatus,
   BattleData,
   Turn,
   RoundGroup,
@@ -150,7 +143,8 @@ export default function BattleClient() {
   }, [searchParams]);
 
   // -- Auth --
-  const { isUserLoggedIn, canEdit, canDelete } = useAuthStore();
+  const { isUserLoggedIn, canEdit, canEditBattleStatus, canDelete } =
+    useAuthStore();
 
   // -- Custom Hooks --
   const {
@@ -197,7 +191,6 @@ export default function BattleClient() {
     emcee_id?: string | null;
   } | null>(null);
   const [batchSaving, setBatchSaving] = useState(false);
-  const [updatingStatus, setUpdatingStatus] = useState(false);
   const [deletingBattle, setDeletingBattle] = useState(false);
   const [suggestingLine, setSuggestingLine] = useState<BattleLine | null>(null);
   const [collapsedRounds, setCollapsedRounds] = useState<Set<number>>(
@@ -377,42 +370,6 @@ export default function BattleClient() {
     },
     [player, data?.battle.youtube_id, seekTo],
   );
-
-  const handleStatusChange = async (newStatus: BattleStatus) => {
-    if (!canEdit) return;
-    setUpdatingStatus(true);
-    try {
-      const res = await fetch(`/api/battles/${battleId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: newStatus }),
-      });
-      const resData = await res.json();
-      if (!res.ok) throw new Error(resData.error || "Failed to update status");
-
-      setData((prev) =>
-        prev
-          ? {
-              ...prev,
-              battle: { ...prev.battle, status: resData.status || newStatus },
-            }
-          : null,
-      );
-    } catch (err: unknown) {
-      console.error(err);
-      const message = err instanceof Error ? err.message : "";
-      const isRateLimit = message.includes("429");
-      toast({
-        variant: isRateLimit ? "default" : "destructive",
-        title: isRateLimit ? "Rate Limit" : "Error",
-        description: isRateLimit
-          ? "Too many requests. Please try again later."
-          : message || "Failed to update status",
-      });
-    } finally {
-      setUpdatingStatus(false);
-    }
-  };
 
   const handleDeleteBattle = async () => {
     if (!canDelete) return;
@@ -896,46 +853,23 @@ export default function BattleClient() {
                       <span className="text-border/40">|</span>
 
                       {/* Status Badge */}
-                      {canEdit ? (
-                        <Select
-                          disabled={updatingStatus}
-                          value={battle.status}
-                          onValueChange={(val) =>
-                            handleStatusChange(val as BattleStatus)
+                      {canEditBattleStatus ? (
+                        <InlineBattleStatusSelect
+                          battleId={battleId}
+                          status={battle.status}
+                          canEditStatus={canEditBattleStatus}
+                          badgeClassName="origin-left scale-90"
+                          onStatusUpdated={(status) =>
+                            setData((prev) =>
+                              prev
+                                ? {
+                                    ...prev,
+                                    battle: { ...prev.battle, status },
+                                  }
+                                : null,
+                            )
                           }
-                        >
-                          <SelectTrigger className="h-auto w-auto border-none bg-transparent p-0 shadow-none ring-0 focus:ring-0 [&>svg]:hidden">
-                            <SelectValue>
-                              <StatusBadge
-                                status={battle.status}
-                                noTooltip
-                                className={cn(
-                                  "origin-left scale-90 cursor-pointer transition-all hover:brightness-110",
-                                  updatingStatus && "opacity-50",
-                                )}
-                              />
-                            </SelectValue>
-                          </SelectTrigger>
-                          <SelectContent align="start">
-                            {(Object.keys(STATUS_CONFIG) as BattleStatus[]).map(
-                              (s) => (
-                                <SelectItem
-                                  key={s}
-                                  value={s}
-                                  className="text-xs"
-                                >
-                                  <div className="flex items-center gap-2">
-                                    {(() => {
-                                      const Icon = STATUS_CONFIG[s].icon;
-                                      return <Icon className="h-3.5 w-3.5" />;
-                                    })()}
-                                    <span>{STATUS_CONFIG[s].label}</span>
-                                  </div>
-                                </SelectItem>
-                              ),
-                            )}
-                          </SelectContent>
-                        </Select>
+                        />
                       ) : (
                         <StatusBadge
                           status={battle.status}

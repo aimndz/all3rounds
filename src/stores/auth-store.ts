@@ -7,6 +7,7 @@ type AuthState = {
   isUserLoggedIn: boolean;
   isLoading: boolean;
   canEdit: boolean;
+  canEditBattleStatus: boolean;
   canBatchEdit: boolean;
   canDelete: boolean;
   isSuperAdmin: boolean;
@@ -20,6 +21,7 @@ const EDIT_ROLES: UserRole[] = [
   "verified_emcee",
 ];
 const BATCH_EDIT_ROLES: UserRole[] = ["superadmin", "admin"];
+const STATUS_EDIT_ROLES: UserRole[] = ["superadmin", "admin"];
 
 export const useAuthStore = create<AuthState>((set) => ({
   user: null,
@@ -27,6 +29,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   isUserLoggedIn: false,
   isLoading: true,
   canEdit: false,
+  canEditBattleStatus: false,
   canBatchEdit: false,
   canDelete: false,
   isSuperAdmin: false,
@@ -41,6 +44,7 @@ export const useAuthStore = create<AuthState>((set) => ({
         isUserLoggedIn: !!data.user,
         isLoading: false,
         canEdit: EDIT_ROLES.includes(role),
+        canEditBattleStatus: STATUS_EDIT_ROLES.includes(role),
         canBatchEdit: BATCH_EDIT_ROLES.includes(role),
         canDelete: role === "superadmin",
         isSuperAdmin: role === "superadmin",

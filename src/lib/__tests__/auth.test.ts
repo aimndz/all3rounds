@@ -83,7 +83,7 @@ describe("hasPermission", () => {
     ["moderator", "lines:edit", true],
     ["moderator", "lines:batch_edit", false],
     ["moderator", "lines:delete", false],
-    ["moderator", "battles:edit_status", true],
+    ["moderator", "battles:edit_status", false],
     ["moderator", "suggestions:review", true],
     ["moderator", "users:manage", false],
 

@@ -2,20 +2,24 @@ import Link from "next/link";
 import Image from "next/image";
 import { Check, Youtube, Info } from "lucide-react";
 import { cn, formatDate } from "@/lib/utils";
-import { StatusBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
+import { InlineBattleStatusSelect } from "@/features/battles/components/InlineBattleStatusSelect";
 import type { Battle } from "@/features/battles/hooks/use-battles-data";
 
 export function BattleCard({
   battle,
+  canEditStatus = false,
   selectable = false,
   selected = false,
   onToggleSelect,
+  onStatusUpdated,
 }: {
   battle: Battle;
+  canEditStatus?: boolean;
   selectable?: boolean;
   selected?: boolean;
   onToggleSelect?: (id: string) => void;
+  onStatusUpdated?: (battleId: string, status: Battle["status"]) => void;
 }) {
   const youtubeUrl =
     battle.url || `https://www.youtube.com/watch?v=${battle.youtube_id}`;
@@ -57,15 +61,6 @@ export function BattleCard({
         />
         <div className="absolute inset-0 bg-linear-to-t from-black/60 via-transparent to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
 
-        {/* Status Badge */}
-        <div className="absolute top-2 right-2">
-          <StatusBadge
-            status={battle.status}
-            noTooltip
-            className="backdrop-blur-xl"
-          />
-        </div>
-
         {/* Selection checkbox */}
         {selectable && (
           <div className="absolute top-2 left-2 z-10">
@@ -82,6 +77,16 @@ export function BattleCard({
           </div>
         )}
       </Link>
+
+      <div className="absolute top-2 right-2 z-10">
+        <InlineBattleStatusSelect
+          battleId={battle.id}
+          status={battle.status}
+          canEditStatus={canEditStatus}
+          badgeClassName="backdrop-blur-xl"
+          onStatusUpdated={(status) => onStatusUpdated?.(battle.id, status)}
+        />
+      </div>
 
       {/* Info */}
       <div className="flex flex-1 flex-col p-3 sm:p-4">

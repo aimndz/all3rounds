@@ -61,7 +61,7 @@ export default function BattlesDirectory({
   initialYears: string[];
   initialEventNames?: string[];
 }) {
-  const { isSuperAdmin } = useAuthStore();
+  const { canEditBattleStatus, isSuperAdmin } = useAuthStore();
 
   const {
     battles,
@@ -104,6 +104,17 @@ export default function BattlesDirectory({
           (!b.event_name && oldName === "Other Battles")
             ? { ...b, event_name: newName }
             : b,
+        ),
+      );
+    },
+    [setBattles],
+  );
+
+  const handleBattleStatusUpdated = useCallback(
+    (battleId: string, status: Battle["status"]) => {
+      setBattles((prev) =>
+        prev.map((battle) =>
+          battle.id === battleId ? { ...battle, status } : battle,
         ),
       );
     },
@@ -321,12 +332,14 @@ export default function BattlesDirectory({
                 group={group}
                 defaultOpen={filter ? true : expandedGroups.has(group.name)}
                 onToggle={handleToggleGroup}
+                canEditStatus={canEditBattleStatus}
                 isSuperadmin={isSuperAdmin}
                 allEventNames={initialEventNames}
                 selectionMode={sa.selectionMode}
                 selectedIds={sa.selectedBattleIds}
                 onToggleSelect={sa.toggleBattleSelection}
                 onRenameGroup={handleRenameGroup}
+                onBattleStatusUpdated={handleBattleStatusUpdated}
               />
             ))}
 

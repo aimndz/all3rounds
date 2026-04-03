@@ -21,9 +21,11 @@ export const EventSection = memo(function EventSection({
   group,
   defaultOpen = true,
   onToggle,
+  canEditStatus = false,
   isSuperadmin = false,
   onRenameGroup,
   onUpdateGroupDate,
+  onBattleStatusUpdated,
   allEventNames = [],
   selectionMode = false,
   selectedIds,
@@ -32,9 +34,11 @@ export const EventSection = memo(function EventSection({
   group: EventGroup;
   defaultOpen?: boolean;
   onToggle?: (name: string, isOpen: boolean) => void;
+  canEditStatus?: boolean;
   isSuperadmin?: boolean;
   onRenameGroup?: (oldName: string, newName: string) => void;
   onUpdateGroupDate?: (eventName: string, newDate: string) => void;
+  onBattleStatusUpdated?: (battleId: string, status: EventGroup["battles"][number]["status"]) => void;
   allEventNames?: string[];
   selectionMode?: boolean;
   selectedIds?: Set<string>;
@@ -238,9 +242,11 @@ export const EventSection = memo(function EventSection({
               <BattleCard
                 key={battle.id}
                 battle={battle}
+                canEditStatus={canEditStatus}
                 selectable={selectionMode}
                 selected={selectedIds?.has(battle.id) ?? false}
                 onToggleSelect={onToggleSelect}
+                onStatusUpdated={onBattleStatusUpdated}
               />
             ))}
           </div>

@@ -107,11 +107,11 @@ describe("PATCH /api/battles/[id]", () => {
     mockRequirePermission.mockResolvedValue({
       user: {
         id: "u1",
-        email: "mod@test.com",
-        role: "moderator",
-        displayName: "Mod",
+        email: "admin@test.com",
+        role: "admin",
+        displayName: "Admin",
       },
-      role: "moderator",
+      role: "admin",
       error: null,
     });
   });
