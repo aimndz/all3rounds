@@ -1,3 +1,4 @@
+import HomeStats from "@/components/HomeStats";
 import SearchBar from "@/components/SearchBar";
 import Image from "next/image";
 import { PageShell } from "@/components/ui/page-shell";
@@ -39,39 +40,12 @@ export default function Home() {
 
           {/* Phrase / Stats Wrapper */}
           <div className="space-y-6 pt-4">
-            <p className="text-muted-foreground/60 animate-in fade-in slide-in-from-bottom-2 text-xs font-medium tracking-widest uppercase delay-150 duration-1000">
+            <p className="text-muted-foreground/60 text-xs font-medium tracking-widest uppercase">
               Explore the archive
             </p>
 
             {/* Stats Section */}
-            <div className="animate-in fade-in slide-in-from-bottom-4 flex flex-wrap items-center justify-center gap-x-8 gap-y-6 delay-300 duration-1000 sm:gap-x-12">
-              <div className="flex flex-col items-center gap-1">
-                <span className="text-foreground text-2xl font-bold tracking-tight sm:text-3xl">
-                  400+
-                </span>
-                <span className="text-muted-foreground/60 text-[10px] font-bold tracking-[0.2em] uppercase">
-                  Emcees
-                </span>
-              </div>
-              <div className="bg-border hidden h-8 w-px sm:block" />
-              <div className="flex flex-col items-center gap-1">
-                <span className="text-foreground text-2xl font-bold tracking-tight sm:text-3xl">
-                  1,300+
-                </span>
-                <span className="text-muted-foreground/60 text-[10px] font-bold tracking-[0.2em] uppercase">
-                  Battles
-                </span>
-              </div>
-              <div className="bg-border hidden h-8 w-px sm:block" />
-              <div className="flex flex-col items-center gap-1">
-                <span className="text-foreground text-2xl font-bold tracking-tight sm:text-3xl">
-                  500k+
-                </span>
-                <span className="text-muted-foreground/60 text-[10px] font-bold tracking-[0.2em] uppercase">
-                  Lines
-                </span>
-              </div>
-            </div>
+            <HomeStats />
           </div>
         </div>
       </div>

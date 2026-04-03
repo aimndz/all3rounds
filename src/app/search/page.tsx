@@ -429,7 +429,7 @@ function SearchResults() {
 
         {/* Initial state (no query) - Middle Search Bar */}
         {!query && (
-          <div className="animate-in fade-in slide-in-from-bottom-4 w-full max-w-2xl space-y-8 px-4 text-center duration-700 sm:px-6">
+          <div className="w-full max-w-2xl space-y-8 px-4 text-center sm:px-6">
             <div className="space-y-3">
               <h1 className="text-foreground text-3xl font-bold tracking-tight sm:text-4xl">
                 Explore Battle Rap <span className="block">Through Search</span>

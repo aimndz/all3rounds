@@ -38,11 +38,11 @@ export default function LoginPage() {
 
   return (
     <main className="flex flex-1 flex-col items-center justify-center overflow-hidden px-4 py-20">
-        <div className="animate-in fade-in slide-in-from-bottom-8 w-full max-w-sm duration-1000 ease-out">
+        <div className="w-full max-w-sm">
           <div className="flex flex-col items-center text-center">
             {/* Header Section */}
             <div className="mb-6 flex flex-col items-center gap-4">
-              <div className="relative transition-transform duration-500 hover:scale-105">
+              <div className="relative">
                 <Link href="/">
                   <Image
                     src="/logo/a3r-logo-full.svg"
@@ -71,7 +71,7 @@ export default function LoginPage() {
               <Button
                 variant="default"
                 size="lg"
-                className="group bg-primary hover:bg-primary/90 text-primary-foreground relative w-full gap-4 overflow-hidden rounded p-4 transition-all duration-300 active:scale-[0.98] sm:p-6"
+                className="group bg-primary hover:bg-primary/90 text-primary-foreground relative w-full gap-4 overflow-hidden rounded p-4 sm:p-6"
                 onClick={handleLogin}
               >
                 <div className="relative z-10 flex w-full items-center justify-center gap-3">
