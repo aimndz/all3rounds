@@ -1,23 +1,23 @@
 "use client";
- 
+
 import { useState } from "react";
 
-import { useAuthStore } from "@/stores/auth-store";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
+import Link from "next/link";
 import {
-  Shuffle,
   CheckCircle2,
   ChevronRight,
-  Loader2,
-  Repeat,
   HelpCircle,
   Info,
+  Loader2,
+  Repeat,
+  Shuffle,
 } from "lucide-react";
-import Link from "next/link";
+
+import { LoginModal } from "@/components/LoginModal";
 import { StatusBadge } from "@/components/StatusBadge";
-import { cn, formatTime } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Tooltip,
   TooltipContent,
@@ -26,41 +26,63 @@ import {
 } from "@/components/ui/tooltip";
 import { useRandomLine } from "@/features/random/hooks/use-random-line";
 import { useVideoLooping } from "@/features/random/hooks/use-video-looping";
-import { LoginModal } from "@/components/LoginModal";
-import { PageShell } from "@/components/ui/page-shell";
+import { cn, formatDate, formatTime } from "@/lib/utils";
+import { useAuthStore } from "@/stores/auth-store";
 
 function RandomLineSkeleton() {
   return (
-    <div className="animate-in fade-in grid items-start gap-8 duration-500 lg:grid-cols-[2fr_1fr]">
-      {/* Left Column: Video */}
-      <div className="flex flex-col gap-4">
-        <div className="bg-card overflow-hidden rounded-[var(--radius-surface)] border shadow-sm">
-          <Skeleton className="aspect-video w-full rounded-none" />
-          <div className="flex flex-col gap-4 p-4 sm:p-5">
-            <Skeleton className="h-7 w-2/3" />
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
-              <Skeleton className="h-4 w-24" />
-              <div className="bg-border h-1 w-1 rounded-full" />
-              <Skeleton className="h-5 w-16 rounded-full" />
-              <div className="bg-border h-1 w-1 rounded-full" />
-              <Skeleton className="h-4 w-20" />
+    <main className="mx-auto flex w-full max-w-7xl flex-col px-4 pb-8 sm:px-6 sm:pb-10">
+      <div className="flex shrink-0 flex-col gap-1 pt-3 pb-3 sm:pt-5 sm:pb-4">
+        <Skeleton className="h-8 w-44" />
+        <Skeleton className="h-4 w-full max-w-sm" />
+      </div>
+
+      <div className="animate-in fade-in flex flex-col gap-4 duration-500 lg:grid lg:grid-cols-12 lg:items-start lg:gap-8">
+        <div className="z-20 lg:col-span-7 xl:col-span-8">
+          <div className="border-border bg-card/95 -mx-4 overflow-hidden border-b shadow-sm backdrop-blur-sm sm:mx-0 sm:rounded-xl sm:border sm:shadow-lg">
+            <Skeleton className="aspect-video max-h-[32svh] min-h-[11.75rem] w-full rounded-none sm:max-h-none" />
+            <div className="border-border border-t px-4 py-3 sm:px-6 sm:py-4">
+              <div className="flex items-start justify-between gap-4">
+                <div className="min-w-0 flex-1 space-y-2">
+                  <Skeleton className="h-6 w-2/3" />
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Skeleton className="h-4 w-24" />
+                    <Skeleton className="h-4 w-20" />
+                    <Skeleton className="h-5 w-18 rounded-full" />
+                  </div>
+                </div>
+                <div className="flex shrink-0 items-center gap-2">
+                  <Skeleton className="h-8 w-8 rounded-md" />
+                  <Skeleton className="h-8 w-24 rounded-md" />
+                </div>
+              </div>
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Right Column: Content/Editor */}
-      <div className="w-full space-y-6">
-        <div>
-          <div className="mb-2 flex items-center justify-between">
-            <Skeleton className="h-3 w-28" />
-            <Skeleton className="h-4 w-20 rounded-full" />
+        <div className="flex min-h-0 flex-1 flex-col gap-3 lg:col-span-5 lg:pt-1 lg:pb-6 xl:col-span-4">
+          <div className="flex items-center justify-between gap-3">
+            <Skeleton className="h-4 w-24" />
+            <div className="flex items-center gap-2">
+              <Skeleton className="h-8 w-8 rounded-md" />
+              <Skeleton className="h-8 w-24 rounded-md" />
+            </div>
           </div>
-          <Skeleton className="h-35 w-full rounded-[var(--radius-surface)]" />
+          <div className="flex items-center gap-2">
+            <Skeleton className="h-4 w-1 rounded-full" />
+            <Skeleton className="h-4 w-18" />
+          </div>
+          <div className="border-border/60 bg-background/70 rounded-[var(--radius-surface)] border shadow-inner">
+            <Skeleton className="h-[7.5rem] w-full rounded-[var(--radius-surface)] border-0 bg-white/4" />
+          </div>
+          <Skeleton className="h-4 w-32" />
+          <div className="flex items-center justify-end gap-2">
+            <Skeleton className="h-9 w-20 rounded-md" />
+            <Skeleton className="h-9 w-32 rounded-md" />
+          </div>
         </div>
-        <Skeleton className="h-24 w-full rounded-[var(--radius-surface)]" />
       </div>
-    </div>
+    </main>
   );
 }
 
@@ -92,279 +114,292 @@ export default function RandomPage() {
 
   return (
     <>
-      <PageShell className="max-w-6xl">
-        <div className="mb-4 flex items-center justify-between sm:mb-6">
-          <div>
-            <h1 className="mb-1 text-xl font-bold tracking-tight sm:text-2xl">
-              Random Line
+      {loading ? (
+        <RandomLineSkeleton />
+      ) : error && !line ? (
+        <main className="mx-auto flex w-full max-w-7xl flex-col px-4 pb-8 sm:px-6 sm:pb-10">
+          <div className="flex shrink-0 flex-col gap-1 pt-3 pb-3 sm:pt-5 sm:pb-4">
+            <h1 className="text-foreground text-[1.75rem] font-black tracking-tight sm:text-[2rem]">
+              Random
             </h1>
-            <p className="text-muted-foreground w-full max-w-xl text-sm">
-              Discover random moments or help improve battle transcriptions.
+            <p className="text-muted-foreground max-w-xl text-sm leading-relaxed">
+              Discover random or help improve battle transcripts.
             </p>
           </div>
-        </div>
 
-        {loading ? (
-          <RandomLineSkeleton />
-        ) : error && !line ? (
-          <div className="flex h-[60vh] flex-col items-center justify-center text-center">
-            <p className="mb-4 text-red-500">{error}</p>
-            <Button onClick={loadRandomLine}>Try Again</Button>
+          <div className="flex min-h-[40vh] items-center justify-center">
+            <div className="surface-card flex w-full max-w-md flex-col items-center gap-4 px-6 py-8 text-center">
+              <p className="text-sm font-medium text-red-400">{error}</p>
+              <Button onClick={loadRandomLine} className="h-10 px-5 font-semibold">
+                Try Again
+              </Button>
+            </div>
           </div>
-        ) : line ? (
-          <div className="grid items-start gap-8 lg:grid-cols-[2fr_1fr]">
-            {/* Left: Large Video */}
-            <div className="flex flex-col gap-4">
-              <div className="bg-card overflow-hidden rounded-[var(--radius-surface)] border shadow-sm">
-                <div className="relative aspect-video w-full bg-black">
+        </main>
+      ) : line ? (
+        <main className="mx-auto flex w-full max-w-7xl flex-col px-4 pb-8 sm:px-6 sm:pb-10">
+          <div className="flex shrink-0 flex-col gap-1 pt-3 pb-3 sm:pt-5 sm:pb-4">
+            <h1 className="text-foreground text-[1.75rem] font-black tracking-tight sm:text-[2rem]">
+              Random
+            </h1>
+            <p className="text-muted-foreground max-w-xl text-sm leading-relaxed">
+              Discover random or help improve battle transcripts.
+            </p>
+          </div>
+
+          <div className="flex flex-col gap-4 lg:grid lg:grid-cols-12 lg:items-start lg:gap-8">
+            <div className="z-20 lg:col-span-7 xl:col-span-8">
+              <div className="border-border bg-card/95 -mx-4 overflow-hidden border-b shadow-sm backdrop-blur-sm transition-all duration-300 sm:mx-0 sm:rounded-xl sm:border sm:shadow-lg">
+                <div className="relative aspect-video max-h-[32svh] min-h-[11.75rem] w-full overflow-hidden bg-black sm:max-h-none">
                   <div
                     id="youtube-player-random"
                     className="absolute inset-0 h-full w-full"
-                  ></div>
+                  />
                 </div>
 
-                <div className="flex flex-col gap-4 p-4 sm:p-5">
-                  <div className="flex items-center gap-3">
-                    <Link
-                      href={`/battles/${line.battle.id}?t=${Math.floor(line.start_time)}`}
-                      prefetch={false}
-                      className="hover:text-primary group/link flex items-center gap-1 text-lg font-bold transition-colors hover:underline"
-                      title="Jump to this line in the full transcript"
-                    >
-                      <h1 className="line-clamp-1">{line.battle.title}</h1>
-                      <ChevronRight className="text-muted-foreground group-hover/link:text-primary h-5 w-5 shrink-0 transition-colors" />
-                    </Link>
-                  </div>
+                <div className="border-border border-t px-4 py-2.5 sm:px-6 sm:py-4">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="min-w-0 flex-1">
+                      <Link
+                        href={`/battles/${line.battle.id}?t=${Math.floor(line.start_time)}`}
+                        prefetch={false}
+                        className="group/link text-foreground hover:text-primary inline-flex max-w-full items-center gap-1.5 transition-colors"
+                        title="Jump to this line in the full transcript"
+                      >
+                        <h2 className="truncate text-[15px] font-bold tracking-tight sm:text-xl">
+                          {line.battle.title}
+                        </h2>
+                        <ChevronRight className="text-muted-foreground group-hover/link:text-primary h-4 w-4 shrink-0 transition-colors sm:h-5 sm:w-5" />
+                      </Link>
 
-                  <div className="text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-1.5 text-sm">
-                    {line.battle.event_name && (
-                      <>
-                        <span className="line-clamp-1">
-                          {line.battle.event_name}
-                        </span>
-                        <span className="text-border">|</span>
-                      </>
-                    )}
-                    <StatusBadge
-                      status={line.battle.status}
-                      className="origin-left scale-90"
-                    />
+                      <div className="text-muted-foreground/70 mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] font-medium sm:gap-x-3 sm:text-xs">
+                        {line.battle.event_name && (
+                          <span className="text-foreground/75 max-w-52 truncate sm:max-w-none">
+                            {line.battle.event_name}
+                          </span>
+                        )}
+                        {line.battle.event_date && (
+                          <>
+                            {line.battle.event_name && (
+                              <span className="text-border/40">|</span>
+                            )}
+                            <span>{formatDate(line.battle.event_date)}</span>
+                          </>
+                        )}
+                        {(line.battle.event_name || line.battle.event_date) && (
+                          <span className="text-border/40">|</span>
+                        )}
+                        <StatusBadge
+                          status={line.battle.status}
+                          className="origin-left scale-90"
+                        />
+                      </div>
+                    </div>
+
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Right: Editing & Info */}
-            <div className="w-full">
-              <div className="grid gap-4">
-                <div>
-                  <div className="mb-3 flex flex-row items-center justify-between gap-2">
-                    <div className="space-y-1.5">
-                      <div className="flex items-center gap-2">
-                        <h2 className="text-muted-foreground text-[10px] leading-none font-bold tracking-[0.2em] uppercase">
-                          Transcript
-                        </h2>
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <button className="text-muted-foreground/50 hover:text-primary transition-colors outline-none">
-                                <HelpCircle className="h-3 w-3" />
-                              </button>
-                            </TooltipTrigger>
-                            <TooltipContent
-                              side="bottom"
-                              align="end"
-                              className="bg-popover border-border/50 max-w-64 space-y-2.5 p-4 shadow-xl sm:max-w-72"
-                            >
-                              <h4 className="text-foreground flex items-center gap-2 text-[10px] font-bold tracking-[0.15em] uppercase">
-                                <Info className="text-primary h-3.5 w-3.5" />
-                                Transcription Guide
-                              </h4>
-                              <ul className="text-muted-foreground border-border/40 list-outside list-disc space-y-2 border-t pt-3 ml-4 text-[11px] leading-relaxed">
-                                <li>
-                                  <span className="text-foreground font-semibold">
-                                    Match audio exactly
-                                  </span>{" "}
-                                  — type everything as heard in the segment.
-                                </li>
-                                <li>
-                                  Use{" "}
-                                  <span className="text-foreground font-semibold">
-                                    Loop Mode
-                                  </span>{" "}
-                                  to repeat the audio while you transcribe.
-                                </li>
-                                <li>
-                                  Click{" "}
-                                  <span className="text-foreground font-semibold">
-                                    Next Random
-                                  </span>{" "}
-                                  if the line is too difficult to understand.
-                                </li>
-                              </ul>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      </div>
-                      {!canEdit && isUserLoggedIn && (
-                        <p className="text-muted-foreground/70 flex items-center gap-1 text-[10px] font-medium">
-                          Edit the text to submit a suggestion.
-                        </p>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => setIsLooping(!isLooping)}
-                        className={cn(
-                          "h-8 w-8 cursor-pointer transition-all",
-                          isLooping
-                            ? "text-primary bg-primary/10 hover:bg-primary/20"
-                            : "text-muted-foreground hover:text-foreground hover:bg-muted",
-                        )}
-                        title={
-                          isLooping ? "Looping enabled" : "Looping disabled"
-                        }
+            <div className="flex min-h-0 flex-1 flex-col gap-3 lg:col-span-5 lg:pt-1 lg:pb-6 xl:col-span-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex min-w-0 items-center gap-2">
+                  <h2 className="text-foreground/70 text-[11px] font-semibold tracking-[0.2em] uppercase">
+                    Transcript
+                  </h2>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button className="text-muted-foreground/55 hover:text-primary rounded-sm transition-colors outline-none">
+                          <HelpCircle className="h-3.5 w-3.5" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent
+                        side="bottom"
+                        align="end"
+                        className="bg-popover border-border/50 max-w-64 space-y-2.5 p-4 shadow-xl sm:max-w-72"
                       >
-                        <Repeat
-                          className={cn("h-4 w-4", !isLooping && "opacity-60")}
-                        />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={seekToStart}
-                        className="text-muted-foreground hover:bg-muted hover:text-foreground h-8 cursor-pointer px-2.5 font-mono text-[10px] font-medium transition-all"
-                        title={`Jump to ${formatTime(line.start_time)}`}
-                      >
-                        {formatTime(line.start_time)} -{" "}
-                        {formatTime(line.end_time)}
-                      </Button>
-                    </div>
-                  </div>
-
-                  <div className="mb-2 flex items-center gap-2 pl-1">
-                    <div className="bg-primary h-3.5 w-1 rounded-full" />
-                    <span className="text-primary text-xs font-bold tracking-widest uppercase">
-                      {speaker}
-                    </span>
-                  </div>
-                  <div className="relative">
-                    <Textarea
-                      value={content}
-                      onChange={(e) => setContent(e.target.value)}
-                      disabled={!isUserLoggedIn || saving || saved || loading}
-                      spellCheck={false}
-                      className={cn(
-                        "bg-card/50 border-border focus:bg-card min-h-35 resize-none rounded-[var(--radius-surface)] p-4 text-base leading-relaxed shadow-inner transition-all",
-                        !isUserLoggedIn &&
-                          "bg-muted/50 cursor-not-allowed border-transparent opacity-80",
-                      )}
-                      placeholder="Line content..."
-                    />
-                    {!isUserLoggedIn && (
-                      <div 
-                        className="absolute inset-0 cursor-pointer" 
-                        onClick={() => setIsLoginModalOpen(true)}
-                        title="Login to suggest correction"
-                      />
-                    )}
-                  </div>
-                </div>
-
-                <div className="flex flex-col gap-4">
-                  <div className="flex items-center justify-between transition-all">
-                    <div className="flex items-center gap-2">
-                      {!isUserLoggedIn ? (
-                        <div className="text-muted-foreground text-[10px] font-medium">
-                          <button
-                            onClick={() => setIsLoginModalOpen(true)}
-                            className="text-primary cursor-pointer hover:underline"
-                          >
-                            Log in
-                          </button>{" "}
-                          to suggest corrections.
-                        </div>
-                      ) : error ? (
-                        <div className="text-xs font-medium text-red-500">
-                          {error}
-                        </div>
-                      ) : null}
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      {content !== line.content && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setContent(line.content)}
-                          disabled={saving || saved || loading}
-                          className="h-9 text-xs"
-                        >
-                          Discard
-                        </Button>
-                      )}
-
-                      {content === line.content ? (
-                        <Button
-                          onClick={loadRandomLine}
-                          disabled={loading || saving || saved}
-                          className="h-9 gap-2 px-4 font-bold"
-                        >
-                          {loading ? (
-                            <>
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                              Loading...
-                            </>
-                          ) : (
-                            <>
-                              <Shuffle className="h-4 w-4" />
+                        <h4 className="text-foreground flex items-center gap-2 text-[10px] font-bold tracking-[0.15em] uppercase">
+                          <Info className="text-primary h-3.5 w-3.5" />
+                          Transcription Guide
+                        </h4>
+                        <ul className="text-muted-foreground border-border/40 ml-4 list-outside list-disc space-y-2 border-t pt-3 text-[11px] leading-relaxed">
+                          <li>
+                            <span className="text-foreground font-semibold">
+                              Match audio exactly
+                            </span>{" "}
+                            - type everything as heard in the segment.
+                          </li>
+                          <li>
+                            Use{" "}
+                            <span className="text-foreground font-semibold">
+                              Loop Mode
+                            </span>{" "}
+                            to repeat the audio while you transcribe.
+                          </li>
+                          <li>
+                            Click{" "}
+                            <span className="text-foreground font-semibold">
                               Next Random
-                            </>
-                          )}
-                        </Button>
-                      ) : (
-                        <Button
-                          onClick={
-                            canEdit
-                              ? () => performAutoSave(true)
-                              : submitSuggestion
-                          }
-                          disabled={saving || saved || loading}
-                          className="h-9 gap-2 px-4 font-bold transition-all"
-                        >
-                          {loading ? (
-                            <>
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                              Loading...
-                            </>
-                          ) : saving ? (
-                            <>
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                              {canEdit ? "Saving..." : "Submitting..."}
-                            </>
-                          ) : saved ? (
-                            <>
-                              <CheckCircle2 className="h-4 w-4 text-green-500" />
-                              {canEdit ? "Saved!" : "Submitted!"}
-                            </>
-                          ) : (
-                            <>
-                              <CheckCircle2 className="h-4 w-4" />
-                              {canEdit ? "Submit" : "Submit Suggestion"}
-                            </>
-                          )}
-                        </Button>
-                      )}
-                    </div>
-                  </div>
+                            </span>{" "}
+                            if the line is too difficult to understand.
+                          </li>
+                        </ul>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                 </div>
+
+                <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setIsLooping(!isLooping)}
+                    className={cn(
+                      "h-8 w-8 rounded-md transition-colors",
+                      isLooping
+                        ? "bg-primary/10 text-primary hover:bg-primary/20"
+                        : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                    )}
+                    title={isLooping ? "Looping enabled" : "Looping disabled"}
+                  >
+                    <Repeat
+                      className={cn("h-4 w-4", !isLooping && "opacity-70")}
+                    />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={seekToStart}
+                    className="text-muted-foreground hover:bg-muted hover:text-foreground h-8 px-2.5 font-mono text-[10px] font-semibold sm:px-3"
+                    title={`Jump to ${formatTime(line.start_time)}`}
+                  >
+                    {formatTime(line.start_time)} - {formatTime(line.end_time)}
+                  </Button>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="bg-primary h-4 w-1 rounded-full" />
+                <span className="text-primary text-[11px] font-bold tracking-[0.2em] uppercase">
+                  {speaker}
+                </span>
+                {line.round_number && (
+                  <span className="ui-chip border-border/40 bg-muted/25 text-muted-foreground">
+                    Round {line.round_number}
+                  </span>
+                )}
+              </div>
+
+              <div
+                className={cn(
+                  "border-input bg-input/35 hover:bg-input/50 focus-within:border-ring focus-within:ring-ring/50 focus-within:bg-input/55 relative rounded-[var(--radius-surface)] border shadow-xs transition-[background-color,border-color,box-shadow]",
+                  !isUserLoggedIn && "bg-input/25 hover:bg-input/25 border-input/60 opacity-85",
+                )}
+              >
+                <Textarea
+                  value={content}
+                  onChange={(e) => setContent(e.target.value)}
+                  disabled={!isUserLoggedIn || saving || saved || loading}
+                  spellCheck={false}
+                  rows={4}
+                  className="h-[7.5rem] resize-none overflow-hidden border-0 bg-transparent px-4 py-3 text-sm leading-6 shadow-none placeholder:text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0 sm:text-[15px]"
+                  placeholder="Line content..."
+                />
+                {!isUserLoggedIn && (
+                  <div
+                    className="absolute inset-0 cursor-pointer"
+                    onClick={() => setIsLoginModalOpen(true)}
+                    title="Log in to suggest correction"
+                  />
+                )}
+              </div>
+
+              {!isUserLoggedIn ? (
+                <div className="text-muted-foreground text-[11px] leading-relaxed">
+                  <button
+                    onClick={() => setIsLoginModalOpen(true)}
+                    className="text-primary font-semibold hover:underline"
+                  >
+                    Log in
+                  </button>{" "}
+                  to suggest corrections.
+                </div>
+              ) : error ? (
+                <div className="text-[11px] font-medium text-red-400">
+                  {error}
+                </div>
+              ) : null}
+
+              <div className="flex flex-wrap items-center justify-end gap-2">
+                {content !== line.content && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setContent(line.content)}
+                    disabled={saving || saved || loading}
+                    className="h-9 px-3 text-sm font-semibold"
+                  >
+                    Discard
+                  </Button>
+                )}
+
+                {content === line.content ? (
+                  <Button
+                    onClick={loadRandomLine}
+                    disabled={loading || saving || saved}
+                    className="h-9 gap-2 px-4 text-sm font-semibold"
+                  >
+                    {loading ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Loading
+                      </>
+                    ) : (
+                      <>
+                        <Shuffle className="h-4 w-4" />
+                        Next Random
+                      </>
+                    )}
+                  </Button>
+                ) : (
+                  <Button
+                    onClick={
+                      canEdit
+                        ? () => performAutoSave(true)
+                        : submitSuggestion
+                    }
+                    disabled={saving || saved || loading}
+                    className="h-9 gap-2 px-4 text-sm font-semibold"
+                  >
+                    {loading ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Loading
+                      </>
+                    ) : saving ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        {canEdit ? "Saving" : "Submitting"}
+                      </>
+                    ) : saved ? (
+                      <>
+                        <CheckCircle2 className="h-4 w-4 text-emerald-300" />
+                        {canEdit ? "Saved" : "Submitted"}
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle2 className="h-4 w-4" />
+                        {canEdit ? "Save And Next" : "Submit Suggestion"}
+                      </>
+                    )}
+                  </Button>
+                )}
               </div>
             </div>
           </div>
-        ) : null}
-      </PageShell>
+        </main>
+      ) : null}
 
       <LoginModal
         isOpen={isLoginModalOpen}

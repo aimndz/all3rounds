@@ -18,28 +18,28 @@ export const STATUS_CONFIG: Record<
     label: "Reviewed",
     icon: CheckCircle2,
     class:
-      "bg-emerald-500 text-emerald-50 border-emerald-400/20 shadow-[0_2px_10px_-3px_rgba(16,185,129,0.5)]",
+      "border-emerald-400/25 bg-emerald-500/14 text-emerald-100",
     description: "Human-checked. Ready to read.",
   },
   reviewing: {
     label: "Reviewing",
     icon: Clock,
     class:
-      "bg-amber-500 text-amber-50 border-amber-400/20 shadow-[0_2px_10px_-3px_rgba(245,158,11,0.5)]",
+      "border-amber-400/25 bg-amber-500/16 text-amber-100",
     description: "We are fixing the lyrics right now.",
   },
   arranged: {
     label: "Arranged",
     icon: Layout,
     class:
-      "bg-sky-500 text-sky-50 border-sky-400/20 shadow-[0_2px_10px_-3px_rgba(14,165,233,0.5)]",
+      "border-sky-400/25 bg-sky-500/14 text-sky-100",
     description: "Emcees and rounds are set.",
   },
   raw: {
     label: "Raw",
     icon: FileText,
     class:
-      "bg-slate-500 text-slate-50 border-slate-400/20 shadow-[0_2px_10px_-3px_rgba(71,85,105,0.5)]",
+      "border-slate-300/20 bg-slate-200/8 text-slate-100",
     description: "AI transcript—may have errors.",
   },
 };
@@ -60,12 +60,12 @@ export function StatusBadge({
     <Badge
       variant="outline"
       className={cn(
-        "gap-1 border px-1.5 py-0.5 font-semibold shadow-sm backdrop-blur-md transition-all",
+        "gap-1.5 border px-2 py-1 text-[10px] font-semibold shadow-none backdrop-blur-md transition-all",
         config.class,
         className,
       )}
     >
-      <Icon className="h-3 w-3" />
+      <Icon className="h-3 w-3 opacity-90" />
       {config.label}
     </Badge>
   );
