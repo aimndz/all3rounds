@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useSyncExternalStore } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import {
@@ -15,23 +15,28 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import Link from "next/link";
 import { useAuthStore } from "@/stores/auth-store";
 
+const SHEET_MENU_ITEM_CLASS =
+  "focus:bg-muted/70 focus:text-foreground active:bg-muted/70 active:opacity-90 text-foreground relative flex w-full items-center gap-2 rounded-[var(--radius-control-sm)] px-2.5 py-3 text-[10px] font-medium tracking-[0.18em] uppercase transition-[background-color,color,opacity] duration-200 outline-hidden";
+
 export default function AuthButton({
   inSheet = false,
   type = "all",
+  onSheetAction,
 }: {
   inSheet?: boolean;
   type?: "profile" | "actions" | "all";
+  onSheetAction?: () => void;
 }) {
   const { user, isLoading, isUserLoggedIn } = useAuthStore();
-  const [isMounted, setIsMounted] = useState(false);
+  const isMounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
   const supabase = createClient();
 
-  useEffect(() => {
-    const timer = setTimeout(() => setIsMounted(true), 0);
-    return () => clearTimeout(timer);
-  }, []);
-
   const handleLogout = async () => {
+    onSheetAction?.();
     await supabase.auth.signOut({ scope: "global" });
     if (typeof window !== "undefined") {
       window.localStorage.clear();
@@ -41,6 +46,15 @@ export default function AuthButton({
   };
 
   if (!isMounted || isLoading) {
+    if (inSheet) {
+      return (
+        <div className="flex w-full flex-col gap-2">
+          <div className="bg-muted/70 h-15 w-full animate-pulse rounded-[var(--radius-control)]" />
+          <div className="bg-muted/50 h-11 w-full animate-pulse rounded-[var(--radius-control-sm)]" />
+        </div>
+      );
+    }
+
     return <div className="bg-muted h-8 w-8 animate-pulse rounded-full" />;
   }
 
@@ -53,54 +67,35 @@ export default function AuthButton({
 
     if (inSheet) {
       return (
-        <div className="flex w-full flex-col gap-2">
-          {/* User Info Section */}
-          {(type === "all" || type === "profile") && (
-            <div className="border-border/10 -mx-3 flex items-center gap-3 rounded-md px-3 py-3 transition-colors">
-              <Avatar className="border-border/50 h-10 w-10 shrink-0 border">
-                <AvatarFallback className="bg-primary/10 text-primary text-sm font-bold">
-                  {initials}
-                </AvatarFallback>
-              </Avatar>
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-semibold leading-none">
-                  {user.displayName}
-                </p>
-                <p className="text-muted-foreground mt-1.5 truncate text-xs leading-none">
-                  {user.email}
-                </p>
-              </div>
-            </div>
-          )}
-
-          {/* Actions Section */}
+        <div className="flex w-full flex-col">
           {(type === "all" || type === "actions") && (
-            <div className="flex flex-col gap-2">
-              {/* Role-based link: Moderators and Admins */}
+            <div className="flex flex-col">
               {["superadmin", "admin", "moderator"].includes(user.role) && (
                 <Link
                   href="/reviews"
                   prefetch={false}
-                  className="nav-pill nav-pill--inactive -mx-1 justify-start px-3 py-3 tracking-[0.18em]"
+                  onClick={onSheetAction}
+                  className={SHEET_MENU_ITEM_CLASS}
                 >
                   Reviews
                 </Link>
               )}
 
-              {/* Role-based link: Superadmins only */}
               {user.role === "superadmin" && (
                 <Link
                   href="/admin/users"
                   prefetch={false}
-                  className="nav-pill nav-pill--inactive -mx-1 justify-start px-3 py-3 tracking-[0.18em]"
+                  onClick={onSheetAction}
+                  className={SHEET_MENU_ITEM_CLASS}
                 >
                   Admin Panel
                 </Link>
               )}
 
+              <div className="bg-border -mx-1 my-1 h-px" />
               <button
                 onClick={handleLogout}
-                className="nav-pill nav-pill--inactive -mx-1 justify-start px-3 py-3 text-left tracking-[0.18em]"
+                className={`${SHEET_MENU_ITEM_CLASS} text-left`}
               >
                 Log out
               </button>
@@ -111,7 +106,7 @@ export default function AuthButton({
     }
 
     return (
-      <DropdownMenu>
+      <DropdownMenu modal={false}>
         <DropdownMenuTrigger asChild>
           <Button
             variant="ghost"
@@ -172,10 +167,22 @@ export default function AuthButton({
     );
   }
 
+  if (inSheet) {
+    return (
+      <Button size="sm" asChild className="w-full">
+        <Link href="/login" prefetch={false} onClick={onSheetAction}>
+          Login
+        </Link>
+      </Button>
+    );
+  }
+
   // Render standard Login button if unauthenticated
   return (
     <Button size="sm" asChild>
-      <Link href="/login" prefetch={false}>Login</Link>
+      <Link href="/login" prefetch={false}>
+        Login
+      </Link>
     </Button>
   );
 }
