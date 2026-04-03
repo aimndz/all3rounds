@@ -56,6 +56,11 @@ import { useYouTubePlayer } from "@/features/battles/hooks/use-youtube-player";
 import { useLineSelection } from "@/features/battles/hooks/use-line-selection";
 import { useInlineEdit } from "@/features/battles/hooks/use-inline-edit";
 import { useAutoScroll } from "@/features/battles/hooks/use-auto-scroll";
+import {
+  applyLineUpdatesToBattleData,
+  removeLinesFromBattleData,
+  type BattleLineUpdate,
+} from "@/features/battles/utils/line-updates";
 
 const BattleEditModal = dynamic(
   () => import("@/features/battles/components/BattleEditModal"),
@@ -79,6 +84,49 @@ const LoginModal = dynamic(
 // ============================================================================
 
 // local date helper removed in favor of lib/utils version
+
+function buildBatchLineUpdate(config: {
+  action: "set_round" | "set_emcee" | "update" | "delete";
+  value?: string;
+  updates?: {
+    round_number?: number | null;
+    emcee_id?: string | null;
+    speaker_ids?: string[] | null;
+  };
+}): BattleLineUpdate | null {
+  const { action, value, updates } = config;
+
+  if (action === "delete") {
+    return null;
+  }
+
+  const nextUpdates: BattleLineUpdate = {};
+
+  if (action === "set_round") {
+    nextUpdates.round_number =
+      value === null || value === undefined || value === "" || value === "none"
+        ? null
+        : Number(value);
+  } else if (action === "set_emcee") {
+    nextUpdates.emcee_id =
+      value === null || value === undefined || value === "" || value === "none"
+        ? null
+        : value;
+  } else if (action === "update" && updates) {
+    if (Object.prototype.hasOwnProperty.call(updates, "round_number")) {
+      nextUpdates.round_number = updates.round_number;
+    }
+    if (Object.prototype.hasOwnProperty.call(updates, "emcee_id")) {
+      nextUpdates.emcee_id = updates.emcee_id;
+    }
+    if (Object.prototype.hasOwnProperty.call(updates, "speaker_ids")) {
+      nextUpdates.speaker_ids = updates.speaker_ids ?? [];
+      nextUpdates.emcee_id = (updates.speaker_ids ?? [])[0] ?? null;
+    }
+  }
+
+  return Object.keys(nextUpdates).length > 0 ? nextUpdates : null;
+}
 
 // ============================================================================
 // Main Component
@@ -493,6 +541,9 @@ export default function BattleClient() {
       if (selectedIds.size === 0) return;
 
       setBatchSaving(true);
+      const selectedLineIds = Array.from(selectedIds);
+      const optimisticUpdates = buildBatchLineUpdate(config);
+      const previousData = data;
 
       // Track a target line to scroll to after the operation (mostly for deletion)
       let targetLineId: number | null = null;
@@ -518,19 +569,23 @@ export default function BattleClient() {
               }
             }
           }
-        } else {
-          // For updates, just stay on the first selected line
-          const firstSelected = data.lines.find((l) => selectedIds.has(l.id));
-          if (firstSelected) targetLineId = firstSelected.id;
         }
       }
 
       try {
+        if (action === "delete") {
+          setData((prev) => removeLinesFromBattleData(prev, selectedLineIds));
+        } else if (optimisticUpdates) {
+          setData((prev) =>
+            applyLineUpdatesToBattleData(prev, selectedLineIds, optimisticUpdates),
+          );
+        }
+
         const res = await fetch("/api/lines/batch", {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            lineIds: Array.from(selectedIds),
+            lineIds: selectedLineIds,
             action,
             value: value ?? null,
             updates,
@@ -547,47 +602,57 @@ export default function BattleClient() {
               ? "Too many requests. Please try again later."
               : d.error || "Batch operation failed.",
           });
+          if (previousData) {
+            setData(previousData);
+          }
           return;
         }
 
         // Deletion resets the selection UI
         if (action === "delete") {
           clearSelection();
-        }
 
-        // Refresh data
-        const newBattleData = await fetchBattle({ forceFresh: true });
+          toast({
+            title: "Success",
+            description: `Successfully deleted ${selectedIds.size} lines.`,
+          });
 
-        toast({
-          title: "Success",
-          description:
-            action === "delete"
-              ? `Successfully deleted ${selectedIds.size} lines.`
-              : `Successfully updated ${selectedIds.size} lines.`,
-        });
+          // Maintain scroll position if we have a target line
+          if (targetLineId !== null) {
+            setTimeout(() => {
+              const container = transcriptContainerRef.current;
+              const targetEl = container?.querySelector(
+                `[data-line-id="${targetLineId}"]`,
+              ) as HTMLElement;
 
-        // Maintain scroll position if we have a target line
-        if (targetLineId !== null && newBattleData?.lines) {
-          setTimeout(() => {
-            const container = transcriptContainerRef.current;
-            const targetEl = container?.querySelector(
-              `[data-line-id="${targetLineId}"]`,
-            ) as HTMLElement;
+              if (targetEl && container) {
+                const containerRect = container.getBoundingClientRect();
+                const targetRect = targetEl.getBoundingClientRect();
+                container.scrollTo({
+                  top:
+                    container.scrollTop +
+                    (targetRect.top - containerRect.top) -
+                    60,
+                  behavior: "smooth",
+                });
+              }
+            }, 100);
+          }
+        } else {
+          transcriptContainerRef.current?.scrollTo({
+            top: 0,
+            behavior: "smooth",
+          });
 
-            if (targetEl && container) {
-              const containerRect = container.getBoundingClientRect();
-              const targetRect = targetEl.getBoundingClientRect();
-              container.scrollTo({
-                top:
-                  container.scrollTop +
-                  (targetRect.top - containerRect.top) -
-                  60,
-                behavior: "smooth",
-              });
-            }
-          }, 100);
+          toast({
+            title: "Success",
+            description: `Successfully updated ${selectedIds.size} lines.`,
+          });
         }
       } catch (err) {
+        if (previousData) {
+          setData(previousData);
+        }
         console.error("Batch UI handler error:", err);
         toast({
           variant: "destructive",
@@ -601,9 +666,9 @@ export default function BattleClient() {
     },
     [
       selectedIds,
-      data?.lines,
+      data,
       clearSelection,
-      fetchBattle,
+      setData,
       toast,
       transcriptContainerRef,
     ],
@@ -1284,13 +1349,15 @@ export default function BattleClient() {
           line={editingLine as BattleLine}
           participants={data?.participants}
           onClose={() => setEditingLine(null)}
-          onSaved={async () => {
+          onSaved={({ lineId, updates }) => {
             setEditingLine(null);
+            setData((prev) =>
+              applyLineUpdatesToBattleData(prev, [lineId], updates),
+            );
             toast({
               title: "Line Saved",
               description: "The line has been updated successfully.",
             });
-            await fetchBattle({ forceFresh: true });
           }}
         />
       )}

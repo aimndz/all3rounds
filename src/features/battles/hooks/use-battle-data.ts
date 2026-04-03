@@ -119,16 +119,26 @@ export function useBattleData(
             return d;
           }
 
+          const mergedLines = [
+            ...prev.lines,
+            ...d.lines.filter(
+              (line) => !prev.lines.some((existing) => existing.id === line.id),
+            ),
+          ];
+
+          const baseOffset =
+            prev.lines_pagination?.offset ?? d.lines_pagination?.offset ?? 0;
+
           return {
             ...prev,
-            lines: [
-              ...prev.lines,
-              ...d.lines.filter(
-                (line) =>
-                  !prev.lines.some((existing) => existing.id === line.id),
-              ),
-            ],
-            lines_pagination: d.lines_pagination,
+            lines: mergedLines,
+            lines_pagination: d.lines_pagination
+              ? {
+                  ...d.lines_pagination,
+                  offset: baseOffset,
+                  loaded: mergedLines.length,
+                }
+              : prev.lines_pagination,
           };
         });
 

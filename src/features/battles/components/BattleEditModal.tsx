@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { groupParticipants } from "../utils/participant-grouping";
+import type { BattleLineUpdate } from "../utils/line-updates";
 
 type BattleLine = {
   id: number;
@@ -35,7 +36,7 @@ export default function BattleEditModal({
     emcee: { id: string; name: string } | null;
   }[];
   onClose: () => void;
-  onSaved: () => void;
+  onSaved: (payload: { lineId: number; updates: BattleLineUpdate }) => void;
 }) {
   const [content, setContent] = useState(line.content);
   const [roundNumber, setRoundNumber] = useState(
@@ -149,6 +150,10 @@ export default function BattleEditModal({
               setSaving(true);
               setError("");
               try {
+                const nextRoundNumber =
+                  roundNumber === "none" ? null : parseInt(roundNumber, 10);
+                const nextSpeakerIds = [...activeEmceeIds];
+
                 // Use the batch endpoint for simpler implementation of multi-speaker updates
                 const res = await fetch("/api/lines/batch", {
                   method: "PATCH",
@@ -157,8 +162,8 @@ export default function BattleEditModal({
                     lineIds: [line.id],
                     action: "update",
                     updates: {
-                      round_number: roundNumber === "none" ? null : parseInt(roundNumber),
-                      speaker_ids: activeEmceeIds,
+                      round_number: nextRoundNumber,
+                      speaker_ids: nextSpeakerIds,
                     },
                   }),
                 });
@@ -180,7 +185,15 @@ export default function BattleEditModal({
                   if (!contentRes.ok) throw new Error("Failed to save text content");
                 }
 
-                onSaved();
+                onSaved({
+                  lineId: line.id,
+                  updates: {
+                    content,
+                    round_number: nextRoundNumber,
+                    speaker_ids: nextSpeakerIds,
+                    emcee_id: nextSpeakerIds[0] ?? null,
+                  },
+                });
               } catch (err: unknown) {
                 setError(
                   err instanceof Error ? err.message : "An error occurred",
@@ -191,7 +204,13 @@ export default function BattleEditModal({
             disabled={
               saving ||
               (content === line.content &&
-                JSON.stringify(activeEmceeIds.sort()) === JSON.stringify((line.emcees?.map(e => e.id) || (line.emcee ? [line.emcee.id] : [])).sort()) &&
+                JSON.stringify([...activeEmceeIds].sort()) ===
+                  JSON.stringify(
+                    [
+                      ...(line.emcees?.map((emcee) => emcee.id) ||
+                        (line.emcee ? [line.emcee.id] : [])),
+                    ].sort(),
+                  ) &&
                 roundNumber === (line.round_number?.toString() || "none"))
             }
           >
