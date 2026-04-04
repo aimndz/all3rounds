@@ -13,7 +13,7 @@ import Link from "next/link";
 import { Menu, X } from "lucide-react";
 
 const MOBILE_NAV_ITEM_CLASS =
-  "focus:bg-muted/70 focus:text-foreground active:bg-muted/70 active:opacity-90 text-foreground relative flex w-full items-center gap-2 rounded-[var(--radius-control-sm)] px-2.5 py-3 text-[10px] font-medium tracking-[0.18em] uppercase transition-[background-color,color,opacity] duration-200 outline-hidden";
+  "focus:bg-muted/70 focus:text-foreground active:bg-muted/70 active:opacity-90 text-foreground relative flex w-auto items-center gap-2 rounded-(--radius-control-sm) mx-2 px-4 py-3 text-[10px] font-medium tracking-[0.18em] uppercase transition-[background-color,color,opacity] duration-200 outline-hidden";
 
 type MobileDrawerProps = {
   open: boolean;
@@ -45,7 +45,7 @@ function MobileNavDrawer({
         type="button"
         aria-label="Close navigation menu"
         onClick={onClose}
-        className={`absolute inset-0 bg-black/50 transition-opacity duration-180 ease-out ${
+        className={`absolute inset-0 bg-black/50 transition-opacity duration-500 ease-out ${
           open ? "opacity-100" : "opacity-0"
         }`}
       />
@@ -54,13 +54,13 @@ function MobileNavDrawer({
         role="dialog"
         aria-modal="true"
         aria-labelledby="mobile-nav-title"
-        className={`bg-card border-l-border/40 absolute inset-y-0 right-0 flex h-full w-[86vw] max-w-sm transform-gpu flex-col border-l shadow-2xl transition-transform duration-180 ease-[cubic-bezier(0.22,1,0.36,1)] [backface-visibility:hidden] ${
+        className={`bg-card border-l-border/40 absolute inset-y-0 right-0 flex h-full w-[86vw] max-w-sm transform-gpu flex-col border-l shadow-2xl transition-transform duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] backface-hidden ${
           open ? "translate-x-0" : "translate-x-full"
         }`}
       >
-        <div className="flex h-full flex-col overflow-y-auto px-4 pt-14 pb-5">
+        <div className="flex h-full flex-col overflow-y-auto pt-14 pb-5">
           {isUserLoggedIn && user ? (
-            <div className="border-border/60 px-2.5 pb-3">
+            <div className="border-border/60 mx-2 px-4 pb-3">
               <div className="flex items-center gap-3">
                 <Avatar className="border-border/50 h-10 w-10 border">
                   <AvatarFallback className="bg-primary/10 text-primary text-sm font-bold">
@@ -93,7 +93,7 @@ function MobileNavDrawer({
           <button
             type="button"
             onClick={onClose}
-            className="ring-offset-background focus:ring-ring absolute top-4 right-4 rounded-[var(--radius-control-sm)] p-2 opacity-70 transition-[background-color,color,opacity] hover:bg-muted/70 hover:text-foreground focus:ring-2 focus:ring-offset-2 focus:outline-hidden"
+            className="ring-offset-background focus:ring-ring absolute top-4 right-4 rounded-(--radius-control-sm) p-2 opacity-70 transition-[background-color,color,opacity] hover:bg-muted/70 hover:text-foreground focus:ring-2 focus:ring-offset-2 focus:outline-hidden"
             aria-label="Close menu"
           >
             <X className="size-4" />
@@ -113,7 +113,7 @@ function MobileNavDrawer({
             ))}
           </div>
 
-          <Separator className="bg-border -mx-1 my-1" />
+          <Separator className="my-1" />
           <AuthButton
             inSheet
             type={isUserLoggedIn ? "actions" : "all"}
@@ -169,7 +169,7 @@ export default function Header() {
     closeTimerRef.current = window.setTimeout(() => {
       setIsDrawerMounted(false);
       closeTimerRef.current = null;
-    }, 180);
+    }, 500);
 
     return () => {
       if (closeTimerRef.current) {
