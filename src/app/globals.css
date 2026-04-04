@@ -160,6 +160,7 @@
   .app-stack {
     gap: var(--app-section-gap-lg);
     @apply flex flex-col;
+    margin-bottom: var(--app-section-gap-lg);
   }
 
   .sticky-panel {
@@ -175,7 +176,7 @@
   }
 
   .page-heading--admin {
-    @apply uppercase;
+    @apply uppercase tracking-wide;
   }
 
   .page-meta {

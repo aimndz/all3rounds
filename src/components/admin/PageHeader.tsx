@@ -14,7 +14,7 @@ export function PageHeader({
   return (
     <div className="page-toolbar">
       <div className="flex flex-col gap-1">
-        <h1 className="page-heading page-heading--admin flex items-center gap-2">
+        <h1 className="page-heading page-heading--admin flex items-center gap-3 sm:gap-4">
           {title}
           {itemCount !== undefined && (
             <div className="ui-chip text-muted-foreground sm:ml-2">

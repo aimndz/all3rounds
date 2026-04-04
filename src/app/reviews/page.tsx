@@ -19,7 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { PageShell } from "@/components/ui/page-shell";
+import { PageShell, PageStack } from "@/components/ui/page-shell";
 
 export default function ReviewsPage() {
   const [processingId, setProcessingId] = useState<string | null>(null);
@@ -75,7 +75,8 @@ export default function ReviewsPage() {
 
   return (
     <div className="selection:bg-primary/20 min-h-screen bg-[#09090b] text-[#fafafa]">
-      <PageShell width="narrow" spacing="roomy">
+      <PageShell width="narrow" spacing="roomy" className="pb-32">
+        <PageStack>
         <PageHeader
           title="PENDING FIXES"
           itemCount={loading ? undefined : total}
@@ -147,6 +148,7 @@ export default function ReviewsPage() {
             />
           </div>
         )}
+        </PageStack>
       </PageShell>
     </div>
   );
