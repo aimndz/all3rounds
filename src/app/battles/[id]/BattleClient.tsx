@@ -22,7 +22,6 @@ import {
   X,
   ChevronRight,
   ChevronDown,
-  ExternalLink,
   Mic2,
   ArrowLeft,
   Plus,
@@ -30,6 +29,7 @@ import {
   Minimize2,
   Trash2,
   ArrowUp,
+  Youtube,
 } from "lucide-react";
 import Footer from "@/components/Footer";
 import { cn, formatDate, formatSpeakerName } from "@/lib/utils";
@@ -210,9 +210,8 @@ export default function BattleClient() {
   );
   const [collapsedTurns, setCollapsedTurns] = useState<Set<string>>(new Set());
   const [isTranscriptExpanded, setIsTranscriptExpanded] = useState(false);
-  const [canLoadPreviousOnScroll, setCanLoadPreviousOnScroll] = useState(
-    !deepLinkLineId,
-  );
+  const [canLoadPreviousOnScroll, setCanLoadPreviousOnScroll] =
+    useState(!deepLinkLineId);
 
   useEffect(() => {
     if (isTranscriptExpanded) {
@@ -1015,90 +1014,93 @@ export default function BattleClient() {
               </div>
 
               {/* Meta bar */}
-              <div className="border-border border-t px-4 py-2.5 sm:px-6 sm:py-5">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex min-w-0 flex-1 flex-col">
+              <div className="border-border border-t px-4 py-3 sm:px-6 sm:py-5">
+                <div className="flex flex-col gap-1">
+                  {/* First Row: Title and Buttons */}
+                  <div className="flex items-center justify-between gap-4">
                     <h1
-                      className="text-foreground truncate text-[15px] font-bold tracking-tight sm:text-xl"
+                      className="text-foreground truncate text-[16px] font-bold tracking-tight sm:text-xl"
                       title={battle.title}
                     >
                       {battle.title}
                     </h1>
-                    <div className="text-muted-foreground/60 mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] font-medium sm:gap-x-3 sm:text-xs">
-                      {battle.event_name && (
-                        <span className="text-foreground/70 max-w-40 truncate sm:max-w-none">
-                          {battle.event_name}
-                        </span>
-                      )}
 
-                      {battle.event_date && (
-                        <>
-                          {battle.event_name && (
-                            <span className="text-border/40">|</span>
-                          )}
-                          <span>{formatDate(battle.event_date)}</span>
-                        </>
-                      )}
-
-                      {(battle.event_name || battle.event_date) && (
-                        <span className="text-border/40">|</span>
-                      )}
-                      <span>
-                        {data.lines_pagination?.total ?? lines.length} lines
-                      </span>
-
-                      <span className="text-border/40">|</span>
-
-                      {/* Status Badge */}
-                      {canEditBattleStatus ? (
-                        <InlineBattleStatusSelect
-                          battleId={battleId}
-                          status={battle.status}
-                          canEditStatus={canEditBattleStatus}
-                          badgeClassName="origin-left scale-90"
-                          onStatusUpdated={(status) =>
-                            setData((prev) =>
-                              prev
-                                ? {
-                                    ...prev,
-                                    battle: { ...prev.battle, status },
-                                  }
-                                : null,
-                            )
-                          }
-                        />
-                      ) : (
-                        <StatusBadge
-                          status={battle.status}
-                          className="origin-left scale-90"
-                        />
+                    <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+                      <a
+                        href={battle.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="border-border text-muted-foreground hover:bg-muted hover:text-foreground inline-flex h-7 items-center gap-1.5 rounded-md border px-2.5 text-[10px] font-bold tracking-wider transition-colors sm:h-9 sm:px-4 sm:text-xs sm:font-bold"
+                        title="Watch on YouTube"
+                      >
+                        <Youtube className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                        <span className="hidden sm:inline">YouTube</span>
+                        <span className="sm:hidden">Youtube</span>
+                      </a>
+                      {canDelete && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          disabled={deletingBattle}
+                          onClick={handleDeleteBattle}
+                          className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive h-7 w-7 border border-transparent p-0 transition-colors sm:h-9 sm:w-9"
+                          title="Delete entire battle"
+                        >
+                          <Trash2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                        </Button>
                       )}
                     </div>
                   </div>
 
-                  <div className="flex shrink-0 items-center gap-1.5 pt-0.5 sm:gap-2">
-                    <a
-                      href={battle.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="border-border text-muted-foreground hover:bg-muted hover:text-foreground inline-flex h-7 items-center gap-1.5 rounded-md border px-2.5 text-[10px] font-bold tracking-wider uppercase transition-colors sm:h-8 sm:px-3 sm:text-xs sm:font-medium sm:tracking-normal"
-                      title="Watch on YouTube"
-                    >
-                      <ExternalLink className="h-3 w-3" />
-                      <span className="hidden sm:inline">Watch on YouTube</span>
-                      <span className="sm:hidden">Watch</span>
-                    </a>
-                    {canDelete && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        disabled={deletingBattle}
-                        onClick={handleDeleteBattle}
-                        className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive h-7 w-7 p-0 transition-colors sm:h-8 sm:w-8"
-                        title="Delete entire battle"
-                      >
-                        <Trash2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                      </Button>
+                  {/* Second Row: Metadata */}
+                  <div className="text-muted-foreground/60 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] font-medium sm:gap-x-3 sm:text-xs">
+                    {battle.event_name && (
+                      <span className="text-foreground/70 max-w-40 truncate sm:max-w-none">
+                        {battle.event_name}
+                      </span>
+                    )}
+
+                    {battle.event_date && (
+                      <>
+                        {battle.event_name && (
+                          <span className="text-border">|</span>
+                        )}
+                        <span>{formatDate(battle.event_date)}</span>
+                      </>
+                    )}
+
+                    {(battle.event_name || battle.event_date) && (
+                      <span className="text-border">|</span>
+                    )}
+                    <span>
+                      {data.lines_pagination?.total ?? lines.length} lines
+                    </span>
+
+                    <span className="text-border">|</span>
+
+                    {/* Status Badge */}
+                    {canEditBattleStatus ? (
+                      <InlineBattleStatusSelect
+                        battleId={battleId}
+                        status={battle.status}
+                        canEditStatus={canEditBattleStatus}
+                        badgeClassName="origin-left scale-90"
+                        onStatusUpdated={(status) =>
+                          setData((prev) =>
+                            prev
+                              ? {
+                                  ...prev,
+                                  battle: { ...prev.battle, status },
+                                }
+                              : null,
+                          )
+                        }
+                      />
+                    ) : (
+                      <StatusBadge
+                        status={battle.status}
+                        className="origin-left scale-90"
+                      />
                     )}
                   </div>
                 </div>
