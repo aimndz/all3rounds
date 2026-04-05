@@ -66,14 +66,35 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-SUPABASE_URL = os.environ["SUPABASE_URL"]
-SUPABASE_KEY = os.environ["SUPABASE_SERVICE_KEY"]
-DATABASE_URL = os.environ["DATABASE_URL"]
-HF_TOKEN     = os.environ["HF_TOKEN"]
+def get_secret(key_name: str) -> str:
+    """
+    Get a secret/environment variable.
+    Prioritizes Google Colab Secrets (userdata) if available, then falls back to os.environ.
+    """
+    # 1. Try Google Colab Secrets
+    try:
+        from google.colab import userdata
+        val = userdata.get(key_name)
+        if val: return val
+    except (ImportError, Exception):
+        pass
+
+    # 2. Fallback to os.environ (.env)
+    val = os.environ.get(key_name)
+    if not val:
+        raise KeyError(f"Missing required environment variable or Colab Secret: '{key_name}'")
+    return val
+
+SUPABASE_URL = get_secret("SUPABASE_URL")
+SUPABASE_KEY = get_secret("SUPABASE_SERVICE_KEY")
+DATABASE_URL = get_secret("DATABASE_URL")
+HF_TOKEN     = get_secret("HF_TOKEN")
 
 def get_db_connection():
     """Create a direct connection to the Supabase pooler (Port 6543)."""
-    return psycopg2.connect(DATABASE_URL, sslmode="require")
+    # psycopg2 often chokes on ?pgbouncer=true query params.
+    clean_url = DATABASE_URL.split("?")[0] if "pgbouncer" in DATABASE_URL else DATABASE_URL
+    return psycopg2.connect(clean_url, sslmode="require")
 
 
 # ============================================================================
@@ -526,6 +547,7 @@ def main():
     parser.add_argument("--date",     default=None,   help="Event date YYYY-MM-DD (auto-detected if omitted)")
     parser.add_argument("--device",   default="cuda", choices=["cuda", "cpu"], help="Device for inference")
     parser.add_argument("--save-json",    default=None, help="Path to save raw transcript JSON")
+    parser.add_argument("--local-audio",  default=None, help="Path to a pre-downloaded audio file (skips download_audio)")
     parser.add_argument("--upload-only",  default=None, metavar="JSON_FILE",
                         help="Skip transcription — upload from existing JSON file")
     parser.add_argument("--no-auto-metadata", action="store_true",
@@ -599,11 +621,12 @@ def main():
         )
         return
 
-    # --- Full pipeline: download → transcribe → upload ---
-    with tempfile.TemporaryDirectory() as tmpdir:
-        audio_path = download_audio(args.url, tmpdir)
+    # --- Full pipeline: download/use-local → transcribe → upload ---
+    if args.local_audio:
+        print(f"[Local Mode] Using provided audio file: {args.local_audio}")
+        audio_path = args.local_audio
         segments = transcribe_and_diarize(audio_path, device=args.device)
-
+        
         if args.save_json:
             save_transcript_json(segments, args.save_json)
 
@@ -612,6 +635,19 @@ def main():
             event_name=event_name, event_date=event_date,
             battle_format=battle_format, participants=participants,
         )
+    else:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            audio_path = download_audio(args.url, tmpdir)
+            segments = transcribe_and_diarize(audio_path, device=args.device)
+
+            if args.save_json:
+                save_transcript_json(segments, args.save_json)
+
+            upload_to_supabase(
+                segments=segments, youtube_id=youtube_id, title=title,
+                event_name=event_name, event_date=event_date,
+                battle_format=battle_format, participants=participants,
+            )
 
 
 if __name__ == "__main__":
