@@ -30,6 +30,7 @@ import {
   Trash2,
   ArrowUp,
 } from "lucide-react";
+import Footer from "@/components/Footer";
 import { cn, formatDate, formatSpeakerName } from "@/lib/utils";
 import { getSpeakerColor } from "@/lib/constants";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -198,6 +199,17 @@ export default function BattleClient() {
   );
   const [collapsedTurns, setCollapsedTurns] = useState<Set<string>>(new Set());
   const [isTranscriptExpanded, setIsTranscriptExpanded] = useState(false);
+
+  useEffect(() => {
+    if (isTranscriptExpanded) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [isTranscriptExpanded]);
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
 
   // -- Active Line --
@@ -534,7 +546,11 @@ export default function BattleClient() {
           setData((prev) => removeLinesFromBattleData(prev, selectedLineIds));
         } else if (optimisticUpdates) {
           setData((prev) =>
-            applyLineUpdatesToBattleData(prev, selectedLineIds, optimisticUpdates),
+            applyLineUpdatesToBattleData(
+              prev,
+              selectedLineIds,
+              optimisticUpdates,
+            ),
           );
         }
 
@@ -621,14 +637,7 @@ export default function BattleClient() {
         setBatchSaving(false);
       }
     },
-    [
-      selectedIds,
-      data,
-      clearSelection,
-      setData,
-      toast,
-      transcriptContainerRef,
-    ],
+    [selectedIds, data, clearSelection, setData, toast, transcriptContainerRef],
   );
 
   const { battle, lines } = data || {
@@ -699,7 +708,7 @@ export default function BattleClient() {
   if (loading) {
     return (
       <>
-        <main className="mx-auto flex h-[calc(100vh-4rem)] w-full max-w-7xl flex-col overflow-hidden px-4 sm:px-6">
+        <main className="mx-auto flex h-[calc(100vh-var(--smart-header-height,4rem))] w-full max-w-7xl flex-col overflow-hidden px-4 sm:px-6">
           <div className="flex h-full min-h-0 flex-col gap-6 pt-4 lg:grid lg:grid-cols-12 lg:gap-8 lg:pt-6">
             {/* Left Column: Video Skeleton */}
             <div className="lg:col-span-7 xl:col-span-8">
@@ -770,11 +779,28 @@ export default function BattleClient() {
 
   return (
     <>
-      <main className="mx-auto flex h-[calc(100vh-4rem)] w-full max-w-7xl flex-col overflow-hidden px-4 sm:px-6">
+      <main
+        className={cn(
+          "mx-auto flex w-full flex-col overflow-hidden",
+          isTranscriptExpanded
+            ? "bg-background fixed top-(--smart-header-height,4rem) right-0 bottom-0 left-0 z-40 h-[calc(100vh-var(--smart-header-height,4rem))] max-w-none px-4 pt-3 sm:px-8 sm:pt-6"
+            : "h-[calc(100vh-var(--smart-header-height,4rem))] max-w-7xl px-4 sm:px-6",
+        )}
+      >
         {/* ── Two-Column Layout ── */}
-        <div className="flex h-full min-h-0 flex-col gap-4 pt-2 lg:grid lg:grid-cols-12 lg:gap-8 lg:pt-6">
+        <div
+          className={cn(
+            "flex h-full min-h-0 flex-col gap-4 pt-2 lg:grid lg:grid-cols-12 lg:gap-8 lg:pt-6",
+            isTranscriptExpanded && "gap-0 pt-0 lg:gap-8 lg:pt-6",
+          )}
+        >
           {/* Left Column: Video (Sticky/Docked) */}
-          <div className="z-30 lg:col-span-7 xl:col-span-8">
+          <div
+            className={cn(
+              "z-30 lg:col-span-7 xl:col-span-8",
+              isTranscriptExpanded && "hidden lg:block",
+            )}
+          >
             <button
               onClick={() => router.back()}
               className="text-muted-foreground/60 hover:text-foreground mb-2 ml-1 inline-flex cursor-pointer items-center gap-1.5 text-[10px] font-bold tracking-wider uppercase transition-colors sm:ml-0 lg:mb-4"
@@ -910,38 +936,23 @@ export default function BattleClient() {
           </div>
 
           {/* ── Right Column: Transcript (Scrollable) ── */}
-          <div className="flex min-h-0 flex-1 flex-col lg:col-span-5 lg:h-full lg:pb-6 xl:col-span-4">
-            <div
-              className={cn(
-                "flex h-full flex-col overflow-hidden transition-colors duration-300",
-                isTranscriptExpanded
-                  ? "bg-background animate-in slide-in-from-bottom-full fixed inset-0 z-50 p-4 pt-12 pb-8 duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] sm:p-8"
-                  : "relative pb-1",
-              )}
-            >
-              <div className="mb-1.5 flex items-center justify-between px-1 md:mb-3">
-                <div className="flex items-center gap-2">
-                  <div className="flex items-center gap-2">
-                    <h2 className="text-foreground/70 text-[11px] font-semibold tracking-[0.2em] uppercase">
-                      Transcript
-                    </h2>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="hover:bg-muted/80 h-8 w-8 rounded-full transition-all active:scale-90 lg:hidden"
-                    onClick={() =>
-                      setIsTranscriptExpanded(!isTranscriptExpanded)
-                    }
-                  >
-                    {isTranscriptExpanded ? (
-                      <Minimize2 className="text-primary animate-in spin-in-90 h-5 w-5 duration-300" />
-                    ) : (
-                      <Maximize2 className="text-muted-foreground h-4 w-4 transition-transform group-hover:scale-110" />
-                    )}
-                  </Button>
-                </div>
-                {canEdit && (
+          <div
+            className={cn(
+              "flex min-h-0 flex-1 flex-col",
+              isTranscriptExpanded
+                ? "lg:col-span-12 xl:col-span-12"
+                : "lg:col-span-5 xl:col-span-4",
+            )}
+          >
+            {/* Edit Mode & Status Bar */}
+            {canEdit && (
+              <div
+                className={cn(
+                  "flex shrink-0 flex-col pt-3 transition-all duration-300 md:pt-0",
+                  isTranscriptExpanded ? "mb-1 md:mb-2" : "mb-2 md:mb-3",
+                )}
+              >
+                <div className="flex items-center justify-end px-1 md:px-0">
                   <div className="flex items-center gap-2">
                     {editMode && (
                       <Button
@@ -979,38 +990,56 @@ export default function BattleClient() {
                       )}
                     </Button>
                   </div>
+                </div>
+
+                {editMode && (
+                  <div className="border-border/10 bg-primary/5 animate-in slide-in-from-top-1 mt-2.5 rounded-lg border px-3 py-1.5 duration-500 md:px-5 md:py-2">
+                    <div className="flex flex-col items-center gap-1">
+                      <p className="text-primary/80 text-[10px] font-bold tracking-widest uppercase">
+                        Editing Mode
+                      </p>
+                      <p className="text-muted-foreground/60 text-center text-[9px] font-medium tracking-wider uppercase">
+                        <span className="md:hidden">
+                          Tap text to edit • Saves automatically
+                        </span>
+                        <span className="hidden md:inline">
+                          Click text to edit •{" "}
+                          <span className="text-foreground/70 border-border bg-background rounded border px-1 py-0.5 text-[7px] font-bold shadow-xs">
+                            ENTER
+                          </span>{" "}
+                          SAVE & NEXT •{" "}
+                          <span className="text-foreground/70 border-border bg-background rounded border px-1 py-0.5 text-[7px] font-bold shadow-xs">
+                            ESC
+                          </span>{" "}
+                          CANCEL •{" "}
+                          <span className="text-primary/70 font-bold">
+                            SHIFT+CLICK
+                          </span>{" "}
+                          SELECT RANGE
+                        </span>
+                      </p>
+                    </div>
+                  </div>
                 )}
               </div>
+            )}
 
-              {editMode && (
-                <div className="border-border/10 bg-primary/5 animate-in slide-in-from-top-1 border-b px-3 py-1.5 duration-500 md:px-5 md:py-2">
-                  <div className="flex flex-col items-center gap-1">
-                    <p className="text-primary/80 text-[10px] font-bold tracking-widest uppercase">
-                      Editing Mode
-                    </p>
-                    <p className="text-muted-foreground/60 text-center text-[9px] font-medium tracking-wider uppercase">
-                      <span className="md:hidden">
-                        Tap text to edit • Saves automatically
-                      </span>
-                      <span className="hidden md:inline">
-                        Click text to edit •{" "}
-                        <span className="text-foreground/70 border-border bg-background rounded border px-1 py-0.5 text-[7px] font-bold shadow-xs">
-                          ENTER
-                        </span>{" "}
-                        SAVE & NEXT •{" "}
-                        <span className="text-foreground/70 border-border bg-background rounded border px-1 py-0.5 text-[7px] font-bold shadow-xs">
-                          ESC
-                        </span>{" "}
-                        CANCEL •{" "}
-                        <span className="text-primary/70 font-bold">
-                          SHIFT+CLICK
-                        </span>{" "}
-                        SELECT RANGE
-                      </span>
-                    </p>
-                  </div>
-                </div>
-              )}
+            <div className="relative flex h-full flex-col overflow-hidden">
+              <Button
+                variant="ghost"
+                size="icon"
+                className={cn(
+                  "hover:bg-muted/80 absolute z-50 h-8 w-8 rounded-full transition-all active:scale-90 lg:hidden",
+                  "top-1 right-2",
+                )}
+                onClick={() => setIsTranscriptExpanded(!isTranscriptExpanded)}
+              >
+                {isTranscriptExpanded ? (
+                  <Minimize2 className="text-muted-foreground h-5 w-5" />
+                ) : (
+                  <Maximize2 className="text-muted-foreground h-4 w-4" />
+                )}
+              </Button>
 
               <div
                 ref={transcriptContainerRef}
@@ -1050,7 +1079,7 @@ export default function BattleClient() {
                             ) : (
                               <ChevronDown className="text-muted-foreground h-4 w-4 shrink-0" />
                             )}
-                            <span className="text-foreground text-xs font-bold tracking-widest uppercase">
+                            <span className="text-foreground text-xs font-bold tracking-tight">
                               {roundLabel}
                             </span>
                             <span className="bg-muted text-muted-foreground rounded-full px-2 py-0.5 text-[10px] font-medium">
@@ -1075,7 +1104,7 @@ export default function BattleClient() {
 
                         {/* Round children */}
                         {!isRoundCollapsed && (
-                          <div className="border-border/40 ml-2 space-y-0.5 border-l-2 pl-3">
+                          <div className="border-border/60 ml-2 space-y-0.5 border-l pl-3">
                             {group.turns.map((turn: Turn, ti: number) => {
                               const turnKey = `${gi}-${ti}`;
                               const isTurnCollapsed =
@@ -1100,16 +1129,13 @@ export default function BattleClient() {
                                         onClick={() =>
                                           toggleTurnCollapse(turnKey)
                                         }
-                                        className={`hover:bg-muted/50 h-auto justify-start gap-1.5 rounded-md px-2 py-1 text-left text-xs transition-colors ${speakerColor.text}`}
+                                        className={`hover:bg-muted/50 h-auto flex-1 justify-start gap-1.5 rounded-md px-2 py-1 text-left text-xs transition-colors ${speakerColor.text} hover:${speakerColor.text}`}
                                       >
                                         {isTurnCollapsed ? (
                                           <ChevronRight className="h-3 w-3 shrink-0 opacity-50" />
                                         ) : (
                                           <ChevronDown className="h-3 w-3 shrink-0 opacity-50" />
                                         )}
-                                        <span
-                                          className={`h-1.5 w-1.5 rounded-full ${speakerColor.dot}`}
-                                        />
                                         <span className="font-bold tracking-tight">
                                           {turn.speaker}
                                         </span>
@@ -1129,7 +1155,7 @@ export default function BattleClient() {
 
                                   {/* Lines */}
                                   {!isTurnCollapsed && (
-                                    <div className="border-border/20 ml-2 border-l py-0 pl-3 [contain-intrinsic-size:1px_720px] [content-visibility:auto]">
+                                    <div className="border-border/60 ml-2 border-l py-0 pl-3 [contain-intrinsic-size:1px_720px] [content-visibility:auto]">
                                       {turn.lines.map(
                                         (line: BattleLine, li: number) => {
                                           const prevLine =
@@ -1227,7 +1253,7 @@ export default function BattleClient() {
                 </div>
 
                 {/* Footer */}
-                <div className="border-border/10 mt-8 border-t px-1 pt-6">
+                <div className="border-border/10 mt-8 border-t px-4 pt-6 pb-4 sm:px-6">
                   <div className="flex items-center justify-between gap-4">
                     <div className="flex flex-col gap-1">
                       <p className="text-muted-foreground/40 text-[9px] font-bold tracking-[0.2em] uppercase">
@@ -1240,22 +1266,29 @@ export default function BattleClient() {
 
                     <Button
                       variant="ghost"
-                      size="sm"
+                      size="icon"
                       onClick={() =>
                         transcriptContainerRef.current?.scrollTo({
                           top: 0,
                           behavior: "smooth",
                         })
                       }
-                      className="text-muted-foreground/50 hover:bg-muted/50 hover:text-foreground h-8 gap-1.5 rounded-lg px-2 text-[9px] font-bold tracking-widest uppercase transition-all active:scale-95"
+                      className="text-muted-foreground/50 hover:bg-muted/50 hover:text-foreground h-8 w-auto gap-1.5 rounded-lg px-2 text-[9px] font-bold tracking-widest uppercase transition-all active:scale-95 sm:w-auto"
                     >
                       <ArrowUp className="h-3.5 w-3.5" />
-                      <span>Back to Top</span>
+                      <span className="hidden sm:inline">Back to Top</span>
+                      <span className="sm:hidden">Top</span>
                     </Button>
                   </div>
 
                   {hasMore && <div ref={loadMoreSentinelRef} className="h-8" />}
                 </div>
+
+                {isTranscriptExpanded && (
+                  <div className="-mx-4 border-t transition-all duration-300 sm:-mx-8">
+                    <Footer />
+                  </div>
+                )}
 
                 {editMode && selectedIds.size > 0 && <div className="h-20" />}
               </div>

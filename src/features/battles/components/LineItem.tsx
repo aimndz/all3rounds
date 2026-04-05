@@ -4,7 +4,7 @@ import { memo, Fragment } from "react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
-import { Pencil, Play, Plus, MessageSquarePlus } from "lucide-react";
+import { Pencil, Plus, MessageSquarePlus } from "lucide-react";
 import { cn, formatTime } from "@/lib/utils";
 import type { BattleLine } from "@/features/battles/hooks/use-battle-data";
 
@@ -96,13 +96,16 @@ export const LineItem = memo(
               className="group/seek mt-1 flex min-w-[28px] shrink-0 items-center justify-center outline-none"
               title={`Seek to ${formatTime(line.start_time)}`}
             >
-              {isActive ? (
-                <Play className="fill-primary text-primary h-2.5 w-2.5 animate-pulse" />
-              ) : (
-                <span className="text-muted-foreground/40 group-hover/seek:text-primary font-mono text-[9px] tabular-nums transition-colors">
-                  {formatTime(line.start_time)}
-                </span>
-              )}
+              <span
+                className={cn(
+                  "font-mono text-[9px] tabular-nums transition-colors",
+                  isActive
+                    ? "text-primary font-bold"
+                    : "text-muted-foreground/40 group-hover/seek:text-primary",
+                )}
+              >
+                {formatTime(line.start_time)}
+              </span>
             </button>
 
             {inlineEditingId === line.id ? (
@@ -155,13 +158,16 @@ export const LineItem = memo(
             )}
           >
             <div className="flex min-w-[32px] shrink-0 items-center gap-1">
-              {isActive ? (
-                <Play className="fill-primary text-primary h-2 w-2 animate-pulse" />
-              ) : (
-                <span className="text-muted-foreground/30 group-hover/line:text-muted-foreground font-mono text-[9px] tabular-nums transition-colors">
-                  {formatTime(line.start_time)}
-                </span>
-              )}
+              <span
+                className={cn(
+                  "font-mono text-[9px] tabular-nums transition-colors",
+                  isActive
+                    ? "text-primary font-bold"
+                    : "text-muted-foreground/30 group-hover/line:text-muted-foreground",
+                )}
+              >
+                {formatTime(line.start_time)}
+              </span>
             </div>
             <span className="flex-1">{line.content}</span>
             {!canEdit && (
@@ -172,7 +178,12 @@ export const LineItem = memo(
                   e.stopPropagation();
                   onSuggestClick(line);
                 }}
-                className="text-muted-foreground hover:bg-muted hover:text-foreground ml-auto h-5 w-5 shrink-0 opacity-100 focus:opacity-100 lg:opacity-0 lg:transition-opacity lg:group-hover/line:opacity-100"
+                className={cn(
+                  "text-muted-foreground hover:bg-muted hover:text-foreground ml-auto h-5 w-5 shrink-0 transition-opacity",
+                  isActive
+                    ? "opacity-100"
+                    : "opacity-0 focus:opacity-100 lg:group-hover/line:opacity-100",
+                )}
                 title="Suggest a correction"
               >
                 <MessageSquarePlus className="h-2.5 w-2.5" />
