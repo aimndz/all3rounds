@@ -47,6 +47,7 @@ function createBattleData(): BattleData {
       limit: 200,
       offset: 0,
       has_more: true,
+      has_previous: false,
       loaded: 2,
       total: 250,
     },
@@ -116,6 +117,7 @@ describe("removeLinesFromBattleData", () => {
       limit: 200,
       offset: 0,
       has_more: true,
+      has_previous: false,
       loaded: 1,
       total: 249,
     });

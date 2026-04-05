@@ -2,6 +2,7 @@
 
 import {
   useEffect,
+  useLayoutEffect,
   useState,
   useCallback,
   useMemo,
@@ -133,8 +134,15 @@ export default function BattleClient() {
   const battleId = params.id as string;
   const { toast } = useToast();
   const [isPending, startTransition] = useTransition();
+  const loadPreviousSentinelRef = useRef<HTMLDivElement>(null);
   const loadMoreSentinelRef = useRef<HTMLDivElement>(null);
   const lastDeepLinkHandledRef = useRef<number | null>(null);
+  const previousScrollTopRef = useRef(0);
+  const touchStartYRef = useRef<number | null>(null);
+  const pendingPrependScrollRef = useRef<{
+    scrollHeight: number;
+    scrollTop: number;
+  } | null>(null);
 
   const deepLinkLineId = useMemo(() => {
     const raw = searchParams.get("lineId");
@@ -153,10 +161,13 @@ export default function BattleClient() {
     setData,
     loading,
     loadingMore,
+    loadingPrevious,
     hasMore,
+    hasPrevious,
     error,
     fetchBattle,
     fetchMoreLines,
+    fetchPreviousLines,
   } = useBattleData(battleId, deepLinkLineId);
   const { player, activeTime, playerRef, seekTo } = useYouTubePlayer(
     data?.battle.youtube_id,
@@ -199,6 +210,9 @@ export default function BattleClient() {
   );
   const [collapsedTurns, setCollapsedTurns] = useState<Set<string>>(new Set());
   const [isTranscriptExpanded, setIsTranscriptExpanded] = useState(false);
+  const [canLoadPreviousOnScroll, setCanLoadPreviousOnScroll] = useState(
+    !deepLinkLineId,
+  );
 
   useEffect(() => {
     if (isTranscriptExpanded) {
@@ -243,6 +257,13 @@ export default function BattleClient() {
   }, [fetchBattle]);
 
   useEffect(() => {
+    setCanLoadPreviousOnScroll(!deepLinkLineId);
+    pendingPrependScrollRef.current = null;
+    previousScrollTopRef.current = 0;
+    touchStartYRef.current = null;
+  }, [deepLinkLineId]);
+
+  useEffect(() => {
     if (isTranscriptExpanded) {
       document.body.style.overflow = "hidden";
     } else {
@@ -284,6 +305,156 @@ export default function BattleClient() {
     transcriptContainerRef,
     data?.lines.length,
   ]);
+
+  const loadPreviousLines = useCallback(() => {
+    if (loadingPrevious || !hasPrevious) {
+      return Promise.resolve(null);
+    }
+
+    const container = transcriptContainerRef.current;
+    if (container) {
+      pendingPrependScrollRef.current = {
+        scrollHeight: container.scrollHeight,
+        scrollTop: container.scrollTop,
+      };
+    }
+
+    return fetchPreviousLines().then((result) => {
+      if (!result) {
+        pendingPrependScrollRef.current = null;
+      }
+
+      return result;
+    });
+  }, [
+    fetchPreviousLines,
+    hasPrevious,
+    loadingPrevious,
+    transcriptContainerRef,
+  ]);
+
+  useEffect(() => {
+    const root = transcriptContainerRef.current;
+
+    if (!root) {
+      return;
+    }
+
+    const handleScroll = () => {
+      const nextScrollTop = root.scrollTop;
+      const isScrollingUp = nextScrollTop < previousScrollTopRef.current;
+      previousScrollTopRef.current = nextScrollTop;
+
+      if (!isScrollingUp) {
+        return;
+      }
+
+      if (!canLoadPreviousOnScroll) {
+        setCanLoadPreviousOnScroll(true);
+      }
+
+      if (nextScrollTop <= 48 && hasPrevious && !loadingPrevious) {
+        void loadPreviousLines();
+      }
+    };
+
+    const maybeLoadPreviousFromTopIntent = () => {
+      if (!canLoadPreviousOnScroll) {
+        setCanLoadPreviousOnScroll(true);
+      }
+
+      if (root.scrollTop <= 48 && hasPrevious && !loadingPrevious) {
+        void loadPreviousLines();
+      }
+    };
+
+    const handleWheel = (event: WheelEvent) => {
+      if (event.deltaY < 0) {
+        maybeLoadPreviousFromTopIntent();
+      }
+    };
+
+    const handleTouchStart = (event: TouchEvent) => {
+      touchStartYRef.current = event.touches[0]?.clientY ?? null;
+    };
+
+    const handleTouchMove = (event: TouchEvent) => {
+      const touchStartY = touchStartYRef.current;
+      const currentY = event.touches[0]?.clientY ?? null;
+
+      if (touchStartY === null || currentY === null) {
+        return;
+      }
+
+      if (currentY - touchStartY > 12) {
+        maybeLoadPreviousFromTopIntent();
+      }
+    };
+
+    root.addEventListener("scroll", handleScroll, { passive: true });
+    root.addEventListener("wheel", handleWheel, { passive: true });
+    root.addEventListener("touchstart", handleTouchStart, { passive: true });
+    root.addEventListener("touchmove", handleTouchMove, { passive: true });
+    previousScrollTopRef.current = root.scrollTop;
+
+    return () => {
+      root.removeEventListener("scroll", handleScroll);
+      root.removeEventListener("wheel", handleWheel);
+      root.removeEventListener("touchstart", handleTouchStart);
+      root.removeEventListener("touchmove", handleTouchMove);
+    };
+  }, [
+    canLoadPreviousOnScroll,
+    hasPrevious,
+    loadPreviousLines,
+    loadingPrevious,
+    transcriptContainerRef,
+  ]);
+
+  useEffect(() => {
+    const root = transcriptContainerRef.current;
+    const sentinel = loadPreviousSentinelRef.current;
+
+    if (!root || !sentinel || !hasPrevious || !canLoadPreviousOnScroll) {
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting) && !loadingPrevious) {
+          void loadPreviousLines();
+        }
+      },
+      {
+        root,
+        rootMargin: "200px 0px",
+        threshold: 0,
+      },
+    );
+
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [
+    canLoadPreviousOnScroll,
+    data?.lines.length,
+    hasPrevious,
+    loadPreviousLines,
+    loadingPrevious,
+    transcriptContainerRef,
+  ]);
+
+  useLayoutEffect(() => {
+    const pending = pendingPrependScrollRef.current;
+    const container = transcriptContainerRef.current;
+
+    if (!pending || !container || loadingPrevious) {
+      return;
+    }
+
+    const heightDelta = container.scrollHeight - pending.scrollHeight;
+    container.scrollTop = pending.scrollTop + heightDelta;
+    pendingPrependScrollRef.current = null;
+  }, [data?.lines.length, loadingPrevious, transcriptContainerRef]);
 
   // Ensure deep-linked line is loaded and highlighted even when it is outside
   // the first pagination chunk.
@@ -1046,6 +1217,26 @@ export default function BattleClient() {
                 className="[&::-webkit-scrollbar-thumb]:bg-muted flex-1 overflow-y-auto pr-1 [scrollbar-color:var(--muted)_transparent] [scrollbar-width:thin] [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:rounded-full"
               >
                 <div className="space-y-1">
+                  {hasPrevious && (
+                    <div
+                      ref={loadPreviousSentinelRef}
+                      className="flex w-full items-center justify-center py-3"
+                    >
+                      <p
+                        className={cn(
+                          "text-center text-[10px] font-semibold tracking-wider uppercase",
+                          loadingPrevious
+                            ? "text-muted-foreground animate-pulse"
+                            : "text-muted-foreground/70",
+                        )}
+                      >
+                        {loadingPrevious
+                          ? "Loading earlier lines..."
+                          : "Scroll up for earlier lines"}
+                      </p>
+                    </div>
+                  )}
+
                   {roundGroups.map((group: RoundGroup, gi: number) => {
                     const isRoundCollapsed = collapsedRounds.has(gi);
                     const roundLabel =

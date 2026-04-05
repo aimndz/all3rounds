@@ -13,10 +13,12 @@ vi.mock("@/lib/supabase/server", () => {
     or: vi.fn().mockReturnThis(),
     gte: vi.fn().mockReturnThis(),
     lte: vi.fn().mockReturnThis(),
+    lt: vi.fn().mockReturnThis(),
     order: vi.fn().mockReturnThis(),
     range: vi.fn().mockReturnThis(),
     limit: vi.fn().mockReturnThis(),
     single: vi.fn().mockResolvedValue({ data: null, error: null }),
+    maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
   };
   const mockFrom = vi.fn().mockReturnValue(mockChain);
   const client = {
@@ -98,6 +100,58 @@ describe("GET /api/battles/[id]", () => {
     });
     expect(res.status).toBe(200);
     expect(res.headers.get("Cache-Control")).toContain("s-maxage=3600");
+  });
+
+  it("marks deep-linked transcript pages as having previous lines", async () => {
+    const { __mocks } = (await import("@/lib/supabase/server")) as unknown as {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      __mocks: { mockChain: any };
+    };
+
+    __mocks.mockChain.maybeSingle.mockResolvedValueOnce({
+      data: { id: 401, start_time: 401 },
+      error: null,
+    });
+    __mocks.mockChain.single
+      .mockResolvedValueOnce({
+        data: {
+          id: "550e8400-e29b-41d4-a716-446655440000",
+          title: "Test",
+          youtube_id: "yt1",
+          event_name: "Event",
+          event_date: "2025-01-01",
+          url: "https://example.com",
+          status: "reviewed",
+        },
+        error: null,
+      })
+      .mockResolvedValueOnce({ data: [], error: null });
+    __mocks.mockChain.range.mockResolvedValueOnce({
+      data: [],
+      error: null,
+      count: 450,
+    });
+    __mocks.mockChain.lt.mockResolvedValueOnce({
+      count: 250,
+      error: null,
+    });
+
+    const { GET } = await import("@/app/api/battles/[id]/route");
+    const req = new NextRequest(
+      "http://localhost/api/battles/550e8400-e29b-41d4-a716-446655440000?lineId=401",
+    );
+    const res = await GET(req, {
+      params: Promise.resolve({ id: "550e8400-e29b-41d4-a716-446655440000" }),
+    });
+
+    expect(res.status).toBe(200);
+
+    const body = await res.json();
+    expect(body.lines_pagination).toMatchObject({
+      offset: 200,
+      has_previous: true,
+      total: 450,
+    });
   });
 });
 
