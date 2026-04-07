@@ -66,14 +66,12 @@ function SearchBar({
           type="search"
           defaultValue={initialQuery}
           onChange={handleInputChange}
-          placeholder="Search lines, verses, or words..."
+          placeholder="Search lines..."
           autoFocus={autoFocus}
           size={isLarge ? "xl" : "lg"}
           className={cn(
             "focus-visible:border-primary border-2 shadow-none focus-visible:ring-0 [&::-webkit-search-cancel-button]:hidden",
-            isLarge
-              ? "pr-28 pl-12 sm:pr-36"
-              : "pr-14 pl-11 sm:pr-28",
+            isLarge ? "pr-28 pl-12 sm:pr-36" : "pr-14 pl-11 sm:pr-28",
           )}
         />
 
@@ -83,7 +81,7 @@ function SearchBar({
               type="button"
               onClick={clearQuery}
               aria-label="Clear query"
-              className="text-muted-foreground/50 hover:bg-muted/70 hover:text-foreground mr-1 flex h-7 w-7 items-center justify-center rounded-full transition-[background-color,color,opacity] active:bg-muted/70 active:opacity-90"
+              className="text-muted-foreground/50 hover:bg-muted/70 hover:text-foreground active:bg-muted/70 mr-1 flex h-7 w-7 items-center justify-center rounded-full transition-[background-color,color,opacity] active:opacity-90"
             >
               <X className="h-4 w-4" />
             </button>
@@ -101,9 +99,7 @@ function SearchBar({
           <Button
             type="submit"
             size={isLarge ? "icon-lg" : "icon-sm"}
-            className={cn(
-              "flex sm:hidden",
-            )}
+            className={cn("flex sm:hidden")}
           >
             <Search className="h-4 w-4" />
           </Button>
