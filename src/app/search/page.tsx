@@ -373,28 +373,18 @@ function SearchResults() {
 
   return (
     <>
-      {/* Top Search bar (Sticky) - Only show when there is a search query */}
-      {query && (
-        <StickyPageHeader>
-          <div className="bg-background/95 border-border/40 mx-auto mb-0 w-full max-w-4xl border-b px-4 py-4 backdrop-blur-xl sm:px-6 lg:px-8">
-            <SearchBar
-              key={query}
-              initialQuery={query}
-              size="lg"
-              placeholder={SEARCH_PLACEHOLDER}
-            />
-          </div>
-        </StickyPageHeader>
-      )}
+      <StickyPageHeader>
+        <div className="bg-background/95 border-border/40 mx-auto mb-0 w-full max-w-4xl border-b px-4 py-4 backdrop-blur-xl sm:px-6 lg:px-8">
+          <SearchBar
+            key={query || "search-empty"}
+            initialQuery={query}
+            size="lg"
+            placeholder={SEARCH_PLACEHOLDER}
+          />
+        </div>
+      </StickyPageHeader>
 
-      {/* Results or Middle Search */}
-      <PageShell
-        className={cn(
-          "max-w-4xl pb-12",
-          !query &&
-            "flex min-h-[70vh] flex-col items-center justify-center py-0",
-        )}
-      >
+      <PageShell className={cn("max-w-4xl pb-12")}>
         <div className="w-full">
           {/* Result count */}
           {!loading && !isInitialLoad && !error && query && (
@@ -542,25 +532,16 @@ function SearchResults() {
           )}
         </div>
 
-        {/* Initial state (no query) - Middle Search Bar */}
         {!query && (
-          <div className="w-full max-w-2xl space-y-8 px-4 text-center sm:px-6">
-            <div className="space-y-3">
-              <h1 className="text-foreground text-3xl font-bold tracking-tight sm:text-4xl">
-                Explore Battle Rap <span className="block">Through Search</span>
-              </h1>
-              <p className="text-muted-foreground text-sm sm:text-base">
-                Search lines, then narrow by emcee or battle.
-              </p>
-            </div>
-            <div className="mx-auto max-w-xl">
-              <SearchBar
-                key="search-empty"
-                initialQuery=""
-                size="lg"
-                placeholder={SEARCH_PLACEHOLDER}
-              />
-            </div>
+          <div className="flex min-h-[50vh] flex-col items-center justify-center py-20 text-center">
+            <Search className="text-muted-foreground mb-4 h-12 w-12" />
+            <h1 className="text-foreground text-2xl font-semibold tracking-tight">
+              Search the archive
+            </h1>
+            <p className="text-muted-foreground mt-2 max-w-lg text-sm">
+              Start typing above to search lines or add filters for emcees,
+              battles, and events.
+            </p>
           </div>
         )}
       </PageShell>

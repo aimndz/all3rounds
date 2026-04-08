@@ -5,6 +5,7 @@ import {
   useCallback,
   useEffect,
   useLayoutEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -20,6 +21,14 @@ type SearchBarProps = {
   autoFocus?: boolean;
   size?: "lg" | "sm";
   placeholder?: string;
+};
+
+type SearchSuggestion = {
+  phrase: string;
+  query: string;
+  lineCount: number;
+  battleTitle?: string;
+  eventName?: string;
 };
 
 const FILTER_OPTIONS: Array<{
@@ -65,7 +74,9 @@ type ComposerSegment = TextSegment | FilterSegment;
 
 function parseComposerSegments(rawInput: string): ComposerSegment[] {
   const raw = rawInput.trim().replace(/\s+/g, " ");
-  if (!raw) return [];
+  if (!raw) {
+    return [];
+  }
 
   const segments: ComposerSegment[] = [];
   const filterPattern =
@@ -101,6 +112,13 @@ function parseComposerSegments(rawInput: string): ComposerSegment[] {
   return segments;
 }
 
+function createInitialSegments(rawInput: string): ComposerSegment[] {
+  const parsed = parseComposerSegments(rawInput);
+  return parsed.length > 0
+    ? [...parsed, { type: "text", value: "", isEditing: true }]
+    : [{ type: "text", value: "", isEditing: true }];
+}
+
 function serializeOrderedSegments(segments: ComposerSegment[]): string {
   return segments
     .map((segment) => {
@@ -127,13 +145,17 @@ function SearchBar({
   const inputRef = useRef<HTMLInputElement>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const [segments, setSegments] = useState<ComposerSegment[]>(() => {
-    const parsed = parseComposerSegments(initialQuery);
-    return parsed.length > 0
-      ? [...parsed, { type: "text", value: "", isEditing: true }]
-      : [{ type: "text", value: "", isEditing: true }];
-  });
+  const [segments, setSegments] = useState<ComposerSegment[]>(() =>
+    createInitialSegments(initialQuery),
+  );
   const [isFocused, setIsFocused] = useState(false);
+  const [transcriptSuggestions, setTranscriptSuggestions] = useState<
+    SearchSuggestion[]
+  >([]);
+
+  useEffect(() => {
+    setSegments(createInitialSegments(initialQuery));
+  }, [initialQuery]);
 
   useEffect(() => {
     if (autoFocus) {
@@ -152,7 +174,10 @@ function SearchBar({
     return () => document.removeEventListener("mousedown", handleOutsideClick);
   }, []);
 
-  const activeIndex = segments.findIndex((segment) => segment.isEditing);
+  const activeIndex = useMemo(
+    () => segments.findIndex((segment) => segment.isEditing),
+    [segments],
+  );
   const activeSegment = activeIndex >= 0 ? segments[activeIndex] : null;
 
   useEffect(() => {
@@ -165,10 +190,20 @@ function SearchBar({
   const hasQuery = segments.some((segment) => segment.value.trim().length > 0);
   const isLarge = size === "lg";
   const inputPlaceholder = hasQuery ? "" : placeholder;
-  const showSuggestions = isFocused && activeSegment?.type === "text";
   const composerTextClass = isLarge
     ? "text-sm leading-6 font-normal"
     : "text-xs leading-5 font-normal";
+  const activeTextValue =
+    activeSegment?.type === "text" ? activeSegment.value.trim() : "";
+  const hasTypedText = activeTextValue.length >= 1;
+  const showSuggestions =
+    isFocused &&
+    activeSegment?.type === "text" &&
+    (hasTypedText || FILTER_OPTIONS.length > 0);
+  const currentQuery = useMemo(
+    () => serializeOrderedSegments(segments.filter((segment) => segment.value.trim())),
+    [segments],
+  );
 
   const focusInput = useCallback(() => {
     window.requestAnimationFrame(() => inputRef.current?.focus());
@@ -180,11 +215,54 @@ function SearchBar({
     }
   }, [activeSegment, isFocused]);
 
+  useEffect(() => {
+    if (!showSuggestions || !hasTypedText) {
+      setTranscriptSuggestions([]);
+      return;
+    }
+
+    const controller = new AbortController();
+    const timer = window.setTimeout(async () => {
+      try {
+        const response = await fetch(
+          `/api/search-suggestions?q=${encodeURIComponent(currentQuery)}&limit=5`,
+          { signal: controller.signal },
+        );
+
+        if (!response.ok) {
+          setTranscriptSuggestions([]);
+          return;
+        }
+
+        const payload = (await response.json()) as {
+          suggestions?: SearchSuggestion[];
+        };
+        setTranscriptSuggestions(payload.suggestions || []);
+      } catch (error) {
+        if (
+          error instanceof Error &&
+          (error.name === "AbortError" || error.message.includes("aborted"))
+        ) {
+          return;
+        }
+        setTranscriptSuggestions([]);
+      }
+    }, 120);
+
+    return () => {
+      controller.abort();
+      window.clearTimeout(timer);
+    };
+  }, [currentQuery, hasTypedText, showSuggestions]);
+
   const syncQueryToRoute = useCallback(
     (nextSegments: ComposerSegment[]) => {
       const nextQuery = serializeOrderedSegments(nextSegments);
-      if (!nextQuery) return;
+      if (!nextQuery) {
+        return;
+      }
       router.push(`/search?q=${encodeURIComponent(nextQuery)}`);
+      setIsFocused(false);
     },
     [router],
   );
@@ -210,7 +288,9 @@ function SearchBar({
       const normalized = parseSearchQuery(
         serializeOrderedSegments(finalSegments),
       );
-      if (!normalized.hasSearchIntent) return;
+      if (!normalized.hasSearchIntent) {
+        return;
+      }
       syncQueryToRoute(finalSegments);
     },
     [segments, syncQueryToRoute],
@@ -218,14 +298,18 @@ function SearchBar({
 
   const handleInputChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
-      if (!activeSegment || activeIndex === -1) return;
+      if (!activeSegment || activeIndex === -1) {
+        return;
+      }
 
       const nextValue = e.target.value;
 
       setSegments((prev) => {
         const next = [...prev];
         const current = next[activeIndex];
-        if (!current) return prev;
+        if (!current) {
+          return prev;
+        }
 
         if (current.type === "text") {
           const triggerMatch = nextValue.match(
@@ -270,7 +354,9 @@ function SearchBar({
 
   const handleInputKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>) => {
-      if (!activeSegment || activeIndex === -1) return;
+      if (!activeSegment || activeIndex === -1) {
+        return;
+      }
 
       if (e.key === "Enter" || e.key === "Tab") {
         const trimmedValue = activeSegment.value.trim();
@@ -308,14 +394,15 @@ function SearchBar({
               });
             }
 
-            for (let i = 0; i < next.length; i += 1) {
-              if (i !== activeIndex + 1) {
-                next[i] = { ...next[i], isEditing: false };
+            for (let index = 0; index < next.length; index += 1) {
+              if (index !== activeIndex + 1) {
+                next[index] = { ...next[index], isEditing: false };
               }
             }
 
             return next;
           });
+          return;
         }
       }
 
@@ -353,12 +440,16 @@ function SearchBar({
 
   const handlePickFilter = useCallback(
     (key: SearchFilterKey) => {
-      if (activeIndex === -1) return;
+      if (activeIndex === -1) {
+        return;
+      }
 
       setSegments((prev) => {
         const next = [...prev];
         const current = next[activeIndex];
-        if (!current || current.type !== "text") return prev;
+        if (!current || current.type !== "text") {
+          return prev;
+        }
 
         if (current.value.trim()) {
           next[activeIndex] = {
@@ -389,8 +480,21 @@ function SearchBar({
     [activeIndex, focusInput],
   );
 
+  const handleSuggestionClick = useCallback(
+    (query: string) => {
+      if (!query) {
+        return;
+      }
+
+      router.push(`/search?q=${encodeURIComponent(query)}`);
+      setIsFocused(false);
+    },
+    [router],
+  );
+
   const clearQuery = useCallback(() => {
     setSegments([{ type: "text", value: "", isEditing: true }]);
+    setTranscriptSuggestions([]);
     setIsFocused(true);
     focusInput();
   }, [focusInput]);
@@ -400,8 +504,8 @@ function SearchBar({
       <div ref={rootRef} className="group relative">
         <div
           className={cn(
-            "bg-input/35 hover:bg-input/50 border-input focus-within:border-primary focus-within:bg-input/55 flex min-h-10 w-full items-center gap-2 rounded-(--radius-control) border shadow-xs transition-[background-color,border-color,color,box-shadow]",
-            "pr-1.5 pl-3",
+            "border-input bg-input/35 hover:bg-input/50 focus-within:border-primary focus-within:bg-input/55 flex min-h-10 w-full items-center gap-2 rounded-(--radius-control) border shadow-xs transition-[background-color,border-color,color,box-shadow]",
+            "pl-3 pr-1.5",
             isLarge ? "min-h-12 py-1.5" : "py-1",
           )}
           onClick={() => {
@@ -414,7 +518,7 @@ function SearchBar({
               ref={scrollContainerRef}
               className="absolute inset-0 overflow-hidden"
             >
-              <div className="flex h-full min-w-full items-center gap-1.5 px-0.5 whitespace-nowrap">
+              <div className="flex h-full min-w-full items-center gap-1.5 whitespace-nowrap px-0.5">
                 {segments.map((segment, index) => {
                   const isEditing = index === activeIndex;
                   const segmentKey = `${segment.type}-${index}`;
@@ -424,7 +528,7 @@ function SearchBar({
                       <span
                         key={segmentKey}
                         className={cn(
-                          "bg-muted text-foreground border-border/80 flex flex-none shrink-0 items-center gap-1 rounded-(--radius-control) border px-2 py-1",
+                          "border-border/80 bg-muted text-foreground flex flex-none shrink-0 items-center gap-1 rounded-(--radius-control) border px-2 py-1",
                           composerTextClass,
                         )}
                       >
@@ -432,7 +536,7 @@ function SearchBar({
                         <div className="inline-grid min-w-[1ch] items-center">
                           <span
                             className={cn(
-                              "invisible col-start-1 row-start-1 px-0.5 font-sans whitespace-pre",
+                              "invisible col-start-1 row-start-1 whitespace-pre px-0.5 font-sans",
                               composerTextClass,
                             )}
                           >
@@ -470,7 +574,7 @@ function SearchBar({
                         }}
                         aria-label={`Edit ${segment.key} filter`}
                         className={cn(
-                          "bg-muted text-foreground border-border/80 flex flex-none shrink-0 items-center gap-1 rounded-(--radius-control) border px-2 py-1 text-left",
+                          "border-border/80 bg-muted text-foreground flex flex-none shrink-0 items-center gap-1 rounded-(--radius-control) border px-2 py-1 text-left",
                           composerTextClass,
                         )}
                       >
@@ -488,7 +592,7 @@ function SearchBar({
                     >
                       <span
                         className={cn(
-                          "invisible col-start-1 row-start-1 px-0.5 font-sans whitespace-pre",
+                          "invisible col-start-1 row-start-1 whitespace-pre px-0.5 font-sans",
                           composerTextClass,
                         )}
                       >
@@ -543,7 +647,7 @@ function SearchBar({
                 type="button"
                 onClick={clearQuery}
                 aria-label="Clear query"
-                className="text-muted-foreground/50 hover:bg-muted/70 hover:text-foreground active:bg-muted/70 ml-1 flex h-7 w-7 items-center justify-center rounded-full transition-[background-color,color,opacity] active:opacity-90"
+                className="text-muted-foreground/50 hover:bg-muted/70 hover:text-foreground ml-1 flex h-7 w-7 items-center justify-center rounded-full transition-[background-color,color,opacity] active:opacity-90"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -560,32 +664,61 @@ function SearchBar({
         </div>
 
         {showSuggestions && (
-          <div className="bg-popover text-popover-foreground border-border/60 absolute top-[calc(100%+0.5rem)] left-0 z-40 w-full overflow-hidden rounded-xl border p-2 shadow-2xl">
-            <div className="space-y-1">
-              {FILTER_OPTIONS.map((option) => {
-                const Icon = option.icon;
-                return (
+          <div className="bg-popover text-popover-foreground border-border/60 absolute left-0 top-[calc(100%+0.5rem)] z-40 w-full overflow-hidden rounded-xl border p-2 shadow-2xl">
+            {transcriptSuggestions.length > 0 && (
+              <div className="space-y-1">
+                {transcriptSuggestions.map((suggestion) => (
                   <button
-                    key={option.key}
+                    key={suggestion.query}
                     type="button"
                     onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => handlePickFilter(option.key)}
-                    className="hover:bg-muted/70 flex w-full items-start gap-3 rounded-xl px-3 py-3 text-left transition-colors"
+                    onClick={() => handleSuggestionClick(suggestion.query)}
+                    className="hover:bg-muted/70 flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition-colors"
                   >
-                    <span className="text-muted-foreground mt-0.5">
-                      <Icon className="h-4 w-4" />
-                    </span>
-                    <span className="min-w-0">
-                      <span className="block text-sm font-semibold">
-                        {option.title}
-                      </span>
-                      <span className="text-muted-foreground block text-xs">
-                        {option.subtitle}
-                      </span>
+                    <Search className="text-muted-foreground h-4 w-4 shrink-0" />
+                    <span className="min-w-0 truncate text-sm font-medium">
+                      {suggestion.phrase}
                     </span>
                   </button>
-                );
-              })}
+                ))}
+              </div>
+            )}
+
+            <div
+              className={cn(
+                transcriptSuggestions.length > 0 &&
+                  "border-border/60 mt-2 border-t pt-2",
+              )}
+            >
+              <div className="text-muted-foreground px-3 pb-1 text-[11px] font-semibold uppercase tracking-[0.18em]">
+                Filters
+              </div>
+              <div className="space-y-1">
+                {FILTER_OPTIONS.map((option) => {
+                  const Icon = option.icon;
+                  return (
+                    <button
+                      key={option.key}
+                      type="button"
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => handlePickFilter(option.key)}
+                      className="hover:bg-muted/70 flex w-full items-start gap-3 rounded-xl px-3 py-3 text-left transition-colors"
+                    >
+                      <span className="text-muted-foreground mt-0.5">
+                        <Icon className="h-4 w-4" />
+                      </span>
+                      <span className="min-w-0">
+                        <span className="block text-sm font-semibold">
+                          {option.title}
+                        </span>
+                        <span className="text-muted-foreground block text-xs">
+                          {option.subtitle}
+                        </span>
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </div>
         )}

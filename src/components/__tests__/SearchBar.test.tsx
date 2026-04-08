@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 
 // Mock next/navigation
 const mockPush = vi.fn();
+const mockFetch = vi.fn();
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: mockPush }),
 }));
@@ -17,7 +18,14 @@ function getSubmitButton() {
 describe("SearchBar", () => {
   beforeEach(() => {
     mockPush.mockClear();
+    mockFetch.mockReset();
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: async () => ({ suggestions: [] }),
+    });
+    vi.stubGlobal("fetch", mockFetch);
   });
+
   it("renders search input and button", () => {
     render(<SearchBar />);
     expect(screen.getByPlaceholderText(/search lines/i)).toBeInTheDocument();
@@ -187,5 +195,31 @@ describe("SearchBar", () => {
     await user.click(screen.getByRole("button", { name: /clear query/i }));
 
     expect(screen.getByPlaceholderText(/search lines/i)).toHaveValue("");
+  });
+
+  it("navigates when a transcript suggestion is clicked", async () => {
+    const user = userEvent.setup();
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        suggestions: [
+          {
+            phrase: "fliptop bars",
+            query: "fliptop bars",
+            lineCount: 42,
+          },
+        ],
+      }),
+    });
+
+    render(<SearchBar />);
+
+    const input = screen.getByRole("textbox", { name: /search/i });
+    await user.type(input, "f");
+
+    expect(await screen.findByText("fliptop bars")).toBeInTheDocument();
+    await user.click(screen.getByText("fliptop bars"));
+
+    expect(mockPush).toHaveBeenCalledWith("/search?q=fliptop%20bars");
   });
 });

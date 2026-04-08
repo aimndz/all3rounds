@@ -28,10 +28,16 @@ vi.mock("@/lib/supabase/server", () => {
 
   return {
     createClient: vi.fn().mockResolvedValue(client),
+    createPublicClient: vi.fn().mockReturnValue(client),
     createAdminClient: vi.fn().mockReturnValue(client),
     __mocks: { client, mockRpc, mockFrom, mockChain },
   };
 });
+
+vi.mock("@/lib/meilisearch/server", () => ({
+  isMeilisearchConfigured: vi.fn().mockReturnValue(false),
+  searchMeilisearchLines: vi.fn(),
+}));
 
 // Import the GET handler AFTER mocking
 import { GET } from "@/app/api/search/route";

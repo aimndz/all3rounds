@@ -79,6 +79,9 @@ output.json
 *.mp4
 *.webm
 *.pem
+meili_data/
+meili_keys.txt
+_tmp_*
 
 supabase/.temp/
 
