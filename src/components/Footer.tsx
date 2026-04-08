@@ -1,6 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
-import { Github, Mail } from "lucide-react";
+import { Github, Mail, Star } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 export default function Footer() {
   return (
@@ -9,10 +10,7 @@ export default function Footer() {
         <div className="grid grid-cols-2 gap-x-8 gap-y-12 md:grid-cols-12">
           {/* Column 1: Main */}
           <div className="col-span-2 flex flex-col gap-6 md:col-span-6">
-            <Link
-              href="/"
-              className="inline-block transition-opacity"
-            >
+            <Link href="/" className="inline-block transition-opacity">
               <Image
                 src="/logo/a3r-logo-full.svg"
                 alt="All3Rounds"
@@ -47,6 +45,26 @@ export default function Footer() {
                 <Github className="text-muted-foreground h-3.5 w-3.5 shrink-0" />
                 GitHub
               </a>
+              <div className="flex flex-col items-start gap-1.5">
+                <Button
+                  variant="outline"
+                  size="xs"
+                  className="group text-muted-foreground/60 hover:text-foreground border-border/40 flex items-center gap-2 px-3 py-1 text-[13px] font-normal transition-colors hover:bg-white/3"
+                  asChild
+                >
+                  <a
+                    href="https://ko-fi.com/all3rounds"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <Star className="text-muted-foreground/60 group-hover:text-foreground h-3.5 w-3.5 shrink-0 transition-colors" />
+                    Support the Archive
+                  </a>
+                </Button>
+                <span className="text-muted-foreground/30 ml-1 text-[10px] leading-none font-normal">
+                  Supports development and maintenance
+                </span>
+              </div>
             </div>
           </div>
 
