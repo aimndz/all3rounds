@@ -196,14 +196,14 @@ function SearchBar({
   const activeTextValue =
     activeSegment?.type === "text" ? activeSegment.value.trim() : "";
   const hasTypedText = activeTextValue.length >= 1;
-  const showSuggestions =
-    isFocused &&
-    activeSegment?.type === "text" &&
-    (hasTypedText || FILTER_OPTIONS.length > 0);
   const currentQuery = useMemo(
     () => serializeOrderedSegments(segments.filter((segment) => segment.value.trim())),
     [segments],
   );
+
+  const showSuggestions =
+    isFocused &&
+    activeSegment?.type === "text";
 
   const focusInput = useCallback(() => {
     window.requestAnimationFrame(() => inputRef.current?.focus());

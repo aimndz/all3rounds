@@ -18,10 +18,7 @@ import {
   getAppliedSearchFilters,
   parseSearchQuery,
 } from "@/lib/search-query";
-import type {
-  SearchResult,
-  SearchQueryMeta,
-} from "@/lib/types";
+import type { SearchResult, SearchQueryMeta } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -82,7 +79,7 @@ const SearchResultsList = memo(function SearchResultsList({
 const SearchResultsLoadingSkeleton = memo(
   function SearchResultsLoadingSkeleton() {
     return (
-      <div className="w-full flex flex-col gap-6">
+      <div className="flex w-full flex-col gap-6">
         {[...Array(4)].map((_, i) => (
           <div key={i}>
             {i > 0 && <Separator className="mb-6" />}
@@ -133,11 +130,14 @@ function SearchResults() {
     Map<string, { data: SearchApiResponse; cachedAt: number }>
   >(new Map());
   const { canEdit, isUserLoggedIn } = useAuthStore();
+
   const activeFilters = useMemo(
     () => getAppliedSearchFilters(queryMeta.appliedFilters),
     [queryMeta],
   );
+
   const hasExactEmceeFilter = Boolean(queryMeta.appliedFilters.emcee);
+
   const textMentionFallbackQuery = useMemo(() => {
     const emceeFilter = queryMeta.appliedFilters.emcee;
     if (!emceeFilter) return "";
@@ -148,6 +148,7 @@ function SearchResults() {
     const nextText = [queryMeta.text, emceeFilter].filter(Boolean).join(" ");
     return buildSearchQuery(nextText, nextFilters);
   }, [queryMeta]);
+
   const noEmceeFilterQuery = useMemo(() => {
     const emceeFilter = queryMeta.appliedFilters.emcee;
     if (!emceeFilter) return "";
@@ -212,7 +213,7 @@ function SearchResults() {
       setLoading(true);
       setError("");
 
-      const MAX_RETRIES = 0; // Disabled during spike to prevent retry storms
+      const MAX_RETRIES = 0;
       let attempt = 0;
 
       const performFetch = async (): Promise<void> => {
@@ -228,7 +229,7 @@ function SearchResults() {
           );
 
           if (res.status === 429) {
-            setError("Too many requests — slow down and try again.");
+            setError("Too many requests â€” slow down and try again.");
             setLoading(false);
             setIsInitialLoad(false);
             return;
@@ -341,6 +342,7 @@ function SearchResults() {
   const handleResultEdited = useCallback(() => {
     scheduleRefresh(query, page);
   }, [scheduleRefresh, query, page]);
+
   const handleFallbackSearch = useCallback(
     (nextQuery: string) => {
       if (!nextQuery) return;
@@ -365,11 +367,13 @@ function SearchResults() {
     }
     return summaryParts.join(" ");
   }, [activeFilters, queryMeta.text]);
-  const resultsLabel = total === 0
-    ? "No results"
-    : total >= 500
-      ? "500+ results"
-      : `${total} results`;
+
+  const resultsLabel =
+    total === 0
+      ? "No results"
+      : total >= 500
+        ? "500+ results"
+        : `${total} results`;
 
   return (
     <>
@@ -386,7 +390,6 @@ function SearchResults() {
 
       <PageShell className={cn("max-w-4xl pb-12")}>
         <div className="w-full">
-          {/* Result count */}
           {!loading && !isInitialLoad && !error && query && (
             <div className="mb-5 flex flex-col gap-1 sm:flex-row sm:items-baseline sm:gap-2">
               <h1 className="text-foreground text-lg font-semibold whitespace-nowrap">
@@ -398,7 +401,6 @@ function SearchResults() {
             </div>
           )}
           <div id="results" className="w-full scroll-mt-32">
-            {/* Results list */}
             {!loading && !error && results.length > 0 && (
               <SearchResultsList
                 results={results}
@@ -409,7 +411,6 @@ function SearchResults() {
             )}
           </div>
 
-          {/* Error state */}
           {error && (
             <div className="border-destructive/30 bg-destructive/5 text-destructive mb-6 flex items-center justify-between rounded-2xl border px-4 py-3 text-sm">
               <div className="flex items-center gap-3">
@@ -429,10 +430,8 @@ function SearchResults() {
             </div>
           )}
 
-          {/* Loading state */}
           {loading && <SearchResultsLoadingSkeleton />}
 
-          {/* Empty state */}
           {!loading &&
             !isInitialLoad &&
             !error &&
@@ -462,27 +461,30 @@ function SearchResults() {
                           Search mentions instead
                         </Button>
                       )}
-                      {noEmceeFilterQuery && noEmceeFilterQuery !== textMentionFallbackQuery && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleFallbackSearch(noEmceeFilterQuery)}
-                          className="text-xs font-bold"
-                        >
-                          Remove emcee filter
-                        </Button>
-                      )}
+                      {noEmceeFilterQuery &&
+                        noEmceeFilterQuery !== textMentionFallbackQuery && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() =>
+                              handleFallbackSearch(noEmceeFilterQuery)
+                            }
+                            className="text-xs font-bold"
+                          >
+                            Remove emcee filter
+                          </Button>
+                        )}
                     </div>
                   </>
                 ) : (
-                  <p className="text-muted-foreground/60 mt-1 text-xs">
-                    Try searching for a phrase, or narrow by emcee, battle, or event.
+                  <p className="text-muted-foreground/60 mt-1 max-w-md text-center text-xs">
+                    Try searching for a phrase, or narrow by emcee, battle, or
+                    event.
                   </p>
                 )}
               </div>
             )}
 
-          {/* Pagination */}
           {!loading && totalPages > 1 && (
             <div className="mt-12">
               <Pagination>
@@ -490,16 +492,19 @@ function SearchResults() {
                   <PaginationItem>
                     <PaginationPrevious
                       onClick={() => page > 1 && handlePageChange(page - 1)}
-                      className={`cursor-pointer ${page === 1 ? "pointer-events-none opacity-50" : ""}`}
+                      className={cn(
+                        "cursor-pointer",
+                        page === 1 && "pointer-events-none opacity-50",
+                      )}
                     />
                   </PaginationItem>
 
-                  {paginationItems.map((item) => {
+                  {paginationItems.map((item, idx) => {
                     if (!item) return null;
 
                     if (item.type === "ellipsis") {
                       return (
-                        <PaginationItem key={`ellipsis-${item.page}`}>
+                        <PaginationItem key={`ellipsis-${item.page}-${idx}`}>
                           <PaginationEllipsis />
                         </PaginationItem>
                       );
@@ -523,7 +528,10 @@ function SearchResults() {
                       onClick={() =>
                         page < totalPages && handlePageChange(page + 1)
                       }
-                      className={`cursor-pointer ${page === totalPages ? "pointer-events-none opacity-50" : ""}`}
+                      className={cn(
+                        "cursor-pointer",
+                        page === totalPages && "pointer-events-none opacity-50",
+                      )}
                     />
                   </PaginationItem>
                 </PaginationContent>
@@ -562,5 +570,3 @@ export default function SearchPage() {
     </Suspense>
   );
 }
-
-
