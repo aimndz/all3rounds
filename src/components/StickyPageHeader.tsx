@@ -62,7 +62,7 @@ export function StickyPageHeader({
     <div
       ref={ref}
       className={cn(
-        "smart-page-header sticky top-(--smart-header-offset,56px) z-30 overflow-hidden",
+        "smart-page-header sticky top-(--smart-header-offset,56px) z-30",
         className,
       )}
       {...props}

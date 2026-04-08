@@ -12,12 +12,14 @@ vi.mock("@/lib/supabase/server", () => {
     order: vi.fn().mockReturnThis(),
     single: vi.fn().mockReturnThis(),
     // Important: supabase-js methods return a promise-like object
-    then: vi.fn((onFulfilled: (res: any) => any) => Promise.resolve({ data: [], error: null }).then(onFulfilled)),
+    then: vi.fn((onFulfilled: (res: any) => any) =>
+      Promise.resolve({ data: [], error: null }).then(onFulfilled),
+    ),
   };
-  
+
   const mockRpc = vi.fn().mockReturnValue(mockChain);
   const mockFrom = vi.fn().mockReturnValue(mockChain);
-  
+
   const client = {
     rpc: mockRpc,
     from: mockFrom,
@@ -63,8 +65,10 @@ describe("GET /api/search (Cloudflare Migration)", () => {
   });
 
   it("returns success with formatted results from Supabase RPC", async () => {
-    const { __mocks } = await import("@/lib/supabase/server") as unknown as { __mocks: any };
-    
+    const { __mocks } = (await import("@/lib/supabase/server")) as unknown as {
+      __mocks: any;
+    };
+
     // Mock the RPC result structure
     const mockRpcData = [
       {
@@ -74,43 +78,90 @@ describe("GET /api/search (Cloudflare Migration)", () => {
         battle_title: "Mock Battle",
         battle_youtube_id: "y1",
         battle_status: "reviewed",
-        rank: 0.99
-      }
+        rank: 0.99,
+      },
     ];
 
-    __mocks.mockChain.then.mockImplementationOnce((onFulfilled: any) => 
+    __mocks.mockChain.then.mockImplementationOnce((onFulfilled: any) =>
       Promise.resolve({
         data: mockRpcData,
         error: null,
-        count: 1
-      }).then(onFulfilled)
+        count: 1,
+      }).then(onFulfilled),
     );
 
     // Mock the secondary fetches (emcees, participants, context) to return empty
     // Subsequent calls to .then should return empty data
-    __mocks.mockChain.then.mockImplementation((onFulfilled: any) => 
-      Promise.resolve({ data: [], error: null }).then(onFulfilled)
+    __mocks.mockChain.then.mockImplementation((onFulfilled: any) =>
+      Promise.resolve({ data: [], error: null }).then(onFulfilled),
     );
 
     const res = await GET(makeRequest({ q: "mock term" }));
     expect(res.status).toBe(200);
     expect(res.headers.get("Cache-Control")).toContain("s-maxage=7200");
-    
+    expect(__mocks.mockRpc).toHaveBeenCalledWith(
+      "search_fast",
+      { search_term: "mock term" },
+      { count: "exact" },
+    );
+
     const body = await res.json();
     expect(body.results).toHaveLength(1);
     expect(body.results[0].content).toBe("Mocked line content");
     expect(body.total).toBe(1);
+    expect(body.query).toEqual({
+      text: "mock term",
+      appliedFilters: {},
+    });
+  });
+
+  it("switches to the filtered RPC when structured filters are present", async () => {
+    const { __mocks } = (await import("@/lib/supabase/server")) as unknown as {
+      __mocks: any;
+    };
+
+    __mocks.mockChain.then.mockImplementationOnce((onFulfilled: any) =>
+      Promise.resolve({
+        data: [],
+        error: null,
+        count: 0,
+      }).then(onFulfilled),
+    );
+    __mocks.mockChain.then.mockImplementation((onFulfilled: any) =>
+      Promise.resolve({ data: [], error: null }).then(onFulfilled),
+    );
+
+    const res = await GET(makeRequest({ q: "FlipTop game emcee:loonie" }));
+    expect(res.status).toBe(200);
+    expect(__mocks.mockRpc).toHaveBeenCalledWith(
+      "search_lines_filtered",
+      {
+        search_term: "FlipTop game",
+        p_emcee_name: "loonie",
+        p_battle_term: null,
+        p_event_term: null,
+      },
+      { count: "exact" },
+    );
+
+    const body = await res.json();
+    expect(body.query).toEqual({
+      text: "FlipTop game",
+      appliedFilters: { emcee: "loonie" },
+    });
   });
 
   it("handles RPC errors gracefully (returns 500)", async () => {
-    const { __mocks } = await import("@/lib/supabase/server") as unknown as { __mocks: any };
-    
-    __mocks.mockChain.then.mockImplementationOnce((onFulfilled: any) => 
+    const { __mocks } = (await import("@/lib/supabase/server")) as unknown as {
+      __mocks: any;
+    };
+
+    __mocks.mockChain.then.mockImplementationOnce((onFulfilled: any) =>
       Promise.resolve({
         data: null,
         error: { message: "Database Error", code: "P0001" },
-        count: 0
-      }).then(onFulfilled)
+        count: 0,
+      }).then(onFulfilled),
     );
 
     const res = await GET(makeRequest({ q: "trigger error" }));

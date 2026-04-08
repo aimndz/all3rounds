@@ -41,6 +41,17 @@ export type SearchResult = {
   } | null;
 };
 
+export type SearchFilterKey = "emcee" | "battle" | "event";
+
+export type SearchAppliedFilters = Partial<
+  Record<SearchFilterKey, string>
+>;
+
+export type SearchQueryMeta = {
+  text: string;
+  appliedFilters: SearchAppliedFilters;
+};
+
 export type Emcee = {
   id: string;
   name: string;

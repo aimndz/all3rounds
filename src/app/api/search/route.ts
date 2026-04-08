@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import type { SearchResult, BattleStatus } from "@/lib/types";
+import { parseSearchQuery } from "@/lib/search-query";
+import type { SearchResult, BattleStatus, SearchQueryMeta } from "@/lib/types";
 
 interface SearchRpcRow {
   id: number;
@@ -20,6 +21,8 @@ interface SearchRpcRow {
   speaker_ids: string[] | null;
   rank: number;
 }
+
+type SearchRpcName = "search_fast" | "search_lines_filtered";
 
 const SEARCH_CACHE_HEADERS = {
   "Cache-Control": "public, s-maxage=7200, stale-while-revalidate=59",
@@ -52,6 +55,14 @@ export async function GET(request: NextRequest) {
     );
   }
 
+  const parsedQuery = parseSearchQuery(query);
+  if (!parsedQuery.hasSearchIntent) {
+    return NextResponse.json(
+      { error: "Search query must include text or a filter value." },
+      { status: 400, headers: NO_STORE_HEADERS },
+    );
+  }
+
   const supabase = await createClient();
 
   // --- Hybrid Search with Supabase RPC ---
@@ -60,12 +71,24 @@ export async function GET(request: NextRequest) {
   let countRows = 0;
 
   try {
+    const rpcName: SearchRpcName = parsedQuery.hasStructuredFilters
+      ? "search_lines_filtered"
+      : "search_fast";
+    const rpcArgs = parsedQuery.hasStructuredFilters
+      ? {
+          search_term: parsedQuery.text || null,
+          p_emcee_name: parsedQuery.appliedFilters.emcee || null,
+          p_battle_term: parsedQuery.appliedFilters.battle || null,
+          p_event_term: parsedQuery.appliedFilters.event || null,
+        }
+      : { search_term: parsedQuery.text };
+
     const {
       data: searchData,
       error: searchError,
       count,
     } = await supabase
-      .rpc("search_fast", { search_term: query }, { count: "exact" })
+      .rpc(rpcName, rpcArgs, { count: "exact" })
       .range(offset, offset + limit - 1);
 
     if (searchError) throw searchError;
@@ -232,11 +255,17 @@ export async function GET(request: NextRequest) {
     console.error("[SEARCH] Secondary fetch failed:", subError);
   }
 
+  const responseQuery: SearchQueryMeta = {
+    text: parsedQuery.text,
+    appliedFilters: parsedQuery.appliedFilters,
+  };
+
   const result = {
     results: formattedData,
     total: countRows,
     page,
     totalPages: Math.ceil(countRows / limit),
+    query: responseQuery,
   };
 
   return NextResponse.json(result, {
