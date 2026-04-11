@@ -25,9 +25,11 @@ import { EditEmceeDialog } from "@/components/admin/EditEmceeDialog";
 import { DeleteEmceeDialog } from "@/components/admin/DeleteEmceeDialog";
 import { MergeEmceeDialog } from "@/components/admin/MergeEmceeDialog";
 import { UnmergeEmceeDialog } from "@/components/admin/UnmergeEmceeDialog";
+import { getEmceePath } from "@/lib/emcees";
 
 type EmceeAdmin = {
   id: string;
+  slug: string;
   name: string;
   aka: string[];
   created_at: string;
@@ -207,7 +209,7 @@ export default function EmceeAdminPage() {
                     >
                       <TableCell className="px-6 py-4">
                         <Link
-                          href={`/emcees/${e.id}`}
+                          href={getEmceePath(e.slug)}
                           prefetch={false}
                           className="group/link flex flex-col hover:cursor-pointer"
                           target="_blank"
@@ -301,7 +303,7 @@ export default function EmceeAdminPage() {
               >
                 <div className="mb-4 flex items-start justify-between gap-4">
                   <Link
-                    href={`/emcees/${e.id}`}
+                    href={getEmceePath(e.slug)}
                     prefetch={false}
                     target="_blank"
                     className="group flex flex-col"

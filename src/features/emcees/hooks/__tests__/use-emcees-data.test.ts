@@ -14,7 +14,7 @@ vi.mock("next/navigation", () => ({
 }));
 
 const mockInitialEmcees: Emcee[] = [
-  { id: "1", name: "Anygma", aka: [], battle_count: 5 },
+  { id: "1", slug: "anygma", name: "Anygma", aka: [], battle_count: 5 },
 ];
 
 describe("useEmceesData", () => {
@@ -34,7 +34,9 @@ describe("useEmceesData", () => {
     (global.fetch as Mock).mockResolvedValue({
       ok: true,
       json: async () => ({
-        emcees: [{ id: "2", name: "Loonie", aka: [], battle_count: 50 }],
+        emcees: [
+          { id: "2", slug: "loonie", name: "Loonie", aka: [], battle_count: 50 },
+        ],
         totalCount: 1,
       }),
     });
@@ -56,7 +58,9 @@ describe("useEmceesData", () => {
     (global.fetch as Mock).mockResolvedValue({
       ok: true,
       json: async () => ({
-        emcees: [{ id: "3", name: "Abra", aka: [], battle_count: 30 }],
+        emcees: [
+          { id: "3", slug: "abra", name: "Abra", aka: [], battle_count: 30 },
+        ],
         totalCount: 1,
       }),
     });

@@ -1,10 +1,11 @@
 import { Metadata } from "next";
 import { Suspense, cache } from "react";
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 import { createPublicClient } from "@/lib/supabase/server";
 import { uuidSchema } from "@/lib/schemas";
 import EmceeProfile from "./EmceeProfile";
 import { Battle } from "@/features/battles/hooks/use-battles-data";
+import { getEmceePath, normalizeEmceeSlug } from "@/lib/emcees";
 import { getSiteUrl } from "@/lib/utils";
 import JsonLd from "@/components/shared/JsonLd";
 
@@ -12,14 +13,25 @@ export const revalidate = 86400; // 24 hours (1 day)
 
 const siteUrl = getSiteUrl();
 
-const getEmcee = cache(async (id: string) => {
-  if (!uuidSchema.safeParse(id).success) return null;
+const getEmcee = cache(async (identifier: string) => {
   const supabase = createPublicClient();
+
+  if (uuidSchema.safeParse(identifier).success) {
+    const { data } = await supabase
+      .from("emcees")
+      .select("id, slug, name, aka")
+      .eq("id", identifier)
+      .maybeSingle();
+
+    if (data) return data;
+  }
+
   const { data } = await supabase
     .from("emcees")
-    .select("id, name, aka")
-    .eq("id", id)
-    .single();
+    .select("id, slug, name, aka")
+    .eq("slug", normalizeEmceeSlug(identifier))
+    .maybeSingle();
+
   return data;
 });
 
@@ -28,8 +40,8 @@ export async function generateMetadata({
 }: {
   params: Promise<{ id: string }>;
 }): Promise<Metadata> {
-  const { id } = await params;
-  const emcee = await getEmcee(id);
+  const { id: identifier } = await params;
+  const emcee = await getEmcee(identifier);
 
   if (!emcee) {
     return { title: "Emcee Not Found" };
@@ -43,7 +55,7 @@ export async function generateMetadata({
     openGraph: {
       title: `${emcee.name} — Profile & Battle History`,
       description,
-      url: `${siteUrl}/emcees/${id}`,
+      url: `${siteUrl}${getEmceePath(emcee.slug)}`,
     },
     twitter: {
       card: "summary",
@@ -58,10 +70,13 @@ export default async function EmceeProfilePage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const { id } = await params;
-  const emcee = await getEmcee(id);
+  const { id: identifier } = await params;
+  const emcee = await getEmcee(identifier);
 
   if (!emcee) notFound();
+  if (identifier !== emcee.slug) {
+    permanentRedirect(getEmceePath(emcee.slug));
+  }
 
   const supabase = createPublicClient();
 
@@ -81,7 +96,7 @@ export default async function EmceeProfilePage({
       )
     `,
     )
-    .eq("emcee_id", id)
+    .eq("emcee_id", emcee.id)
     .order("event_date", { foreignTable: "battles", ascending: false });
 
   if (battlesError) {
@@ -98,6 +113,7 @@ export default async function EmceeProfilePage({
 
   const profileData = {
     id: emcee.id,
+    slug: emcee.slug,
     name: emcee.name,
     aka: emcee.aka || [],
     battles,
@@ -108,7 +124,7 @@ export default async function EmceeProfilePage({
     "@type": "Person",
     name: emcee.name,
     description: `Profile of Filipino battle rapper ${emcee.name}.`,
-    url: `${siteUrl}/emcees/${emcee.id}`,
+    url: `${siteUrl}${getEmceePath(emcee.slug)}`,
     knowsAbout: ["Battle Rap", "Hip Hop", "Freestyle Rap"],
   };
 
@@ -127,7 +143,7 @@ export default async function EmceeProfilePage({
         "@type": "ListItem",
         position: 3,
         name: emcee.name,
-        item: `${siteUrl}/emcees/${emcee.id}`,
+        item: `${siteUrl}${getEmceePath(emcee.slug)}`,
       },
     ],
   };

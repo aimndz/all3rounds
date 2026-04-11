@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
   let query = adminClient
     .from("emcees")
     .select(
-      "id, name, aka, created_at, battle_participants(count), lines(count)",
+      "id, slug, name, aka, created_at, battle_participants(count), lines(count)",
       { count: "exact" }
     )
     .order("name", { ascending: true });
@@ -51,6 +51,7 @@ export async function GET(request: NextRequest) {
   const formattedData = data.map(
     (emcee: {
       id: string;
+      slug: string;
       name: string;
       aka: string[] | null;
       created_at: string;
@@ -58,6 +59,7 @@ export async function GET(request: NextRequest) {
       lines: { count: number }[];
     }) => ({
       id: emcee.id,
+      slug: emcee.slug,
       name: emcee.name,
       aka: emcee.aka || [],
       created_at: emcee.created_at,

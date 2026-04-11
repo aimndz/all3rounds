@@ -26,7 +26,7 @@ export default async function EmceesPage() {
     count,
   } = await supabase
     .from("emcees")
-    .select("id, name, battle_count", { count: "exact" })
+    .select("id, slug, name, battle_count", { count: "exact" })
     .order("name")
     .range(0, 47);
 
@@ -35,8 +35,9 @@ export default async function EmceesPage() {
   }
 
   const flattenedEmcees = (initialEmcees || []).map(
-    (e: { id: string; name: string; battle_count: number }) => ({
+    (e: { id: string; slug: string; name: string; battle_count: number }) => ({
       id: e.id,
+      slug: e.slug,
       name: e.name,
       aka: [],
       battle_count: e.battle_count || 0,

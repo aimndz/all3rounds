@@ -73,13 +73,6 @@ export async function PATCH(
 
   if (error) {
     console.error("Update emcee error:", error);
-    if (error.code === "23505") {
-      // unique violation
-      return NextResponse.json(
-        { error: "Another emcee with this name already exists." },
-        { status: 409 },
-      );
-    }
     return NextResponse.json(
       { error: "Failed to update emcee." },
       { status: 500 },

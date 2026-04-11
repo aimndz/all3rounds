@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
   // Now querying the 'emcees' table directly since battle_count is denormalized
   let dbQuery = supabase
     .from("emcees")
-    .select("id, name, aka, battle_count", { count: "exact" });
+    .select("id, slug, name, aka, battle_count", { count: "exact" });
 
   // 1. Filtering by search query 
   if (query) {

@@ -1,5 +1,6 @@
 export type Emcee = {
   id: string;
+  slug: string;
   name: string;
   aka: string[];
   battle_count: number;

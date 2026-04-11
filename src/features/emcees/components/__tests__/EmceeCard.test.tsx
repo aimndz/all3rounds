@@ -5,6 +5,7 @@ import { Emcee } from "../../types";
 
 const mockEmcee: Emcee = {
   id: "1",
+  slug: "loonie",
   name: "Loonie",
   aka: ["Luni"],
   battle_count: 50,
@@ -21,8 +22,8 @@ describe("EmceeCard", () => {
 
   it("links to the correct profile page", () => {
     render(<EmceeCard emcee={mockEmcee} />);
-    
+
     const link = screen.getByRole("link");
-    expect(link).toHaveAttribute("href", "/emcees/1");
+    expect(link).toHaveAttribute("href", "/emcees/loonie");
   });
 });

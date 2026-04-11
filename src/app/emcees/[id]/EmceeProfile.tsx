@@ -17,6 +17,7 @@ import {
 interface EmceeProfileProps {
   data: {
     id: string;
+    slug: string;
     name: string;
     aka: string[];
     battles: Battle[];

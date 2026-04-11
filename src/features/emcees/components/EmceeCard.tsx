@@ -1,5 +1,6 @@
 import { memo } from "react";
 import Link from "next/link";
+import { getEmceePath } from "@/lib/emcees";
 import { Emcee } from "../types";
 
 interface EmceeCardProps {
@@ -9,7 +10,7 @@ interface EmceeCardProps {
 export const EmceeCard = memo(function EmceeCard({ emcee }: EmceeCardProps) {
   return (
     <Link
-      href={`/emcees/${emcee.id}`}
+      href={getEmceePath(emcee.slug)}
       prefetch={false}
       className="surface-card surface-card--interactive group relative flex min-h-28 flex-col justify-between p-4 transition-all duration-500 hover:shadow-2xl active:scale-[0.99] sm:min-h-32 sm:p-5"
     >
