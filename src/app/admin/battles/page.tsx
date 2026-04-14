@@ -29,6 +29,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { getBattleHref } from "@/lib/battles";
 
 import { BulkAssignDialog } from "@/components/admin/BulkAssignDialog";
 
@@ -47,6 +48,8 @@ type Participant = {
 
 type BattleAdmin = {
   id: string;
+  league: string;
+  slug: string;
   title: string;
   youtube_id: string;
   event_name: string;
@@ -274,7 +277,7 @@ export default function BattleAdminPage() {
                       </TableCell>
                       <TableCell className="max-w-[300px] px-6 py-4">
                         <Link
-                          href={`/battles/${b.id}`}
+                          href={getBattleHref(b)}
                           prefetch={false}
                           className="group/link flex flex-col hover:cursor-pointer"
                           target="_blank"
@@ -369,7 +372,7 @@ export default function BattleAdminPage() {
                     />
                     <div>
                       <Link
-                        href={`/battles/${b.id}`}
+                        href={getBattleHref(b)}
                         prefetch={false}
                         target="_blank"
                         className="hover:text-primary text-sm leading-tight font-semibold text-white transition-colors"

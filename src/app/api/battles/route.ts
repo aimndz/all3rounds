@@ -6,6 +6,8 @@ const OTHER_BATTLES_KEY = "Other Battles";
 
 type BattleRow = {
   id: string;
+  league: string;
+  slug: string;
   title: string;
   youtube_id: string;
   event_name: string | null;
@@ -173,7 +175,7 @@ export async function GET(request: NextRequest) {
           supabase
             .from("battles")
             .select(
-              "id, title, youtube_id, event_name, event_date, status, url",
+              "id, league, slug, title, youtube_id, event_name, event_date, status, url",
             ),
           cleanStatus,
           cleanYear,
@@ -322,7 +324,7 @@ export async function GET(request: NextRequest) {
           supabase
             .from("battles")
             .select(
-              "id, title, youtube_id, event_name, event_date, status, url",
+              "id, league, slug, title, youtube_id, event_name, event_date, status, url",
             )
             .or(orConditions.join(",")),
           cleanStatus,

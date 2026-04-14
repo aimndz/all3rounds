@@ -90,7 +90,7 @@ export default async function BattlesPage({
     namedEvents.length > 0
       ? supabase
           .from("battles")
-          .select("id, title, youtube_id, event_name, event_date, status, url")
+          .select("id, league, slug, title, youtube_id, event_name, event_date, status, url")
           .neq("status", "excluded")
           .in("event_name", namedEvents)
           .order("event_date", {
@@ -101,7 +101,7 @@ export default async function BattlesPage({
     includeOtherBattles
       ? supabase
           .from("battles")
-          .select("id, title, youtube_id, event_name, event_date, status, url")
+          .select("id, league, slug, title, youtube_id, event_name, event_date, status, url")
           .neq("status", "excluded")
           .is("event_name", null)
           .order("event_date", {

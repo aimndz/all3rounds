@@ -1,4 +1,5 @@
 import { MetadataRoute } from "next";
+import { getBattlePath } from "@/lib/battles";
 import { getEmceePath } from "@/lib/emcees";
 import { createPublicClient } from "@/lib/supabase/server";
 
@@ -60,13 +61,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     const supabase = createPublicClient();
 
     const [battlesRes, emceesRes] = await Promise.all([
-      supabase.from("battles").select("id").neq("status", "excluded"),
+      supabase.from("battles").select("league, slug").neq("status", "excluded"),
       supabase.from("emcees").select("slug"),
     ]);
 
     const battleRoutes: MetadataRoute.Sitemap =
       battlesRes.data?.map((battle) => ({
-        url: `${siteUrl}/battles/${battle.id}`,
+        url: `${siteUrl}${getBattlePath(battle.league, battle.slug)}`,
         lastModified: now,
         changeFrequency: "monthly",
         priority: 0.6,

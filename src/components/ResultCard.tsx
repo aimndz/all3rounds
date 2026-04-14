@@ -7,6 +7,7 @@ import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { MessageSquarePlus, SquarePen } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { getBattleHref } from "@/lib/battles";
 import { cn, formatTime, formatSpeakerName } from "@/lib/utils";
 
 const EditLineModal = dynamic(() => import("./EditLineModal"), {
@@ -40,6 +41,7 @@ function ResultCard({
   const [showSuggest, setShowSuggest] = useState(false);
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const router = useRouter();
+  const battleHref = getBattleHref(result.battle);
 
   // Determine the most descriptive speaker label (handles teams for 2v2/3v3)
   const speakerLabel = useMemo(() => {
@@ -101,7 +103,7 @@ function ResultCard({
       <div
         onClick={() =>
           router.push(
-            `/battles/${result.battle.id}?t=${Math.floor(result.start_time)}&lineId=${result.id}`,
+            `${battleHref}?t=${Math.floor(result.start_time)}&lineId=${result.id}`,
           )
         }
         className="group relative block cursor-pointer py-4 transition-[background-color,opacity] duration-200 hover:bg-muted/40 active:bg-muted/40 active:opacity-90 sm:rounded-(--radius-surface)"

@@ -1,24 +1,19 @@
 import { cache } from "react";
-import { notFound } from "next/navigation";
-import { Metadata } from "next";
+import { notFound, permanentRedirect } from "next/navigation";
 import { createPublicClient } from "@/lib/supabase/server";
-import { getSiteUrl, formatDateLong } from "@/lib/utils";
+import { getBattleHref } from "@/lib/battles";
 import { uuidSchema } from "@/lib/schemas";
-import BattleClient from "./BattleClient";
-import JsonLd from "@/components/shared/JsonLd";
 
 export const revalidate = 86400; // 24 hours (1 day)
-
-const siteUrl = getSiteUrl();
 
 const getBattle = cache(async (id: string) => {
   if (!uuidSchema.safeParse(id).success) return null;
   const supabase = createPublicClient();
   const { data, error } = await supabase
     .from("battles")
-    .select("title, event_name, event_date, youtube_id")
+    .select("id, league, slug")
     .eq("id", id)
-    .single();
+    .maybeSingle();
 
   if (error) {
     console.error("[getBattle] Supabase error:", error.message, "for ID:", id);
@@ -27,6 +22,7 @@ const getBattle = cache(async (id: string) => {
   return data;
 });
 
+/*
 export async function generateMetadata({
   params,
 }: {
@@ -136,4 +132,38 @@ export default async function BattlePage({
       <BattleClient />
     </>
   );
+}
+*/
+
+function buildQueryString(
+  searchParams: Record<string, string | string[] | undefined>,
+): string {
+  const query = new URLSearchParams();
+
+  for (const [key, value] of Object.entries(searchParams)) {
+    if (typeof value === "string") {
+      query.set(key, value);
+    } else if (Array.isArray(value)) {
+      value.forEach((item) => query.append(key, item));
+    }
+  }
+
+  const queryString = query.toString();
+  return queryString ? `?${queryString}` : "";
+}
+
+export default async function BattleRedirectPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ league: string }>;
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
+  const { league: id } = await params;
+  const battle = await getBattle(id);
+
+  if (!battle) notFound();
+
+  const queryString = buildQueryString(await searchParams);
+  permanentRedirect(`${getBattleHref(battle)}${queryString}`);
 }

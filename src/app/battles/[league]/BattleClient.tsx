@@ -127,11 +127,15 @@ function buildBatchLineUpdate(config: {
 // Main Component
 // ============================================================================
 
-export default function BattleClient() {
+export default function BattleClient({
+  battleId: battleIdProp,
+}: {
+  battleId?: string;
+}) {
   const params = useParams();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const battleId = params.id as string;
+  const battleId = battleIdProp ?? (params.id as string);
   const { toast } = useToast();
   const [isPending, startTransition] = useTransition();
   const loadPreviousSentinelRef = useRef<HTMLDivElement>(null);

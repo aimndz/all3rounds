@@ -29,6 +29,8 @@ export async function GET(request: NextRequest) {
     .select(
       `
         id, 
+        league,
+        slug,
         title, 
         youtube_id, 
         event_name, 

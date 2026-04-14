@@ -136,7 +136,13 @@ export async function GET(request: NextRequest) {
         round_number: number | null;
       }
 
-      const [participantsResult, contextResult] = await Promise.all([
+      interface BattleRouteRow {
+        id: string;
+        league: string;
+        slug: string;
+      }
+
+      const [participantsResult, contextResult, battleRoutesResult] = await Promise.all([
         uniqueBattleIds.length > 0
           ? supabase
               .from("battle_participants")
@@ -150,11 +156,34 @@ export async function GET(request: NextRequest) {
               .select("id, content, battle_id, speaker_label, round_number")
               .in("id", contextLineIds)
           : Promise.resolve({ data: [] as LineRow[] | null }),
+        uniqueBattleIds.length > 0
+          ? supabase
+              .from("battles")
+              .select("id, league, slug")
+              .in("id", uniqueBattleIds)
+          : Promise.resolve({ data: [] as BattleRouteRow[] | null }),
       ]);
 
       const participantsData =
         (participantsResult.data as unknown as ParticipantRow[]) || [];
       const contextData = (contextResult.data as unknown as LineRow[]) || [];
+      const battleRoutesData =
+        (battleRoutesResult.data as unknown as BattleRouteRow[]) || [];
+
+      const battleRouteMap = new Map(
+        battleRoutesData.map((battle) => [
+          battle.id,
+          { league: battle.league, slug: battle.slug },
+        ]),
+      );
+
+      formattedData.forEach((row) => {
+        const battleRoute = battleRouteMap.get(row.battle.id);
+        if (battleRoute) {
+          row.battle.league = battleRoute.league;
+          row.battle.slug = battleRoute.slug;
+        }
+      });
 
       const emceeMap = new Map<string, { id: string; name: string }>();
 

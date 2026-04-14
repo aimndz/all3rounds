@@ -9,6 +9,8 @@ function makeBattleData(
   return {
     battle: {
       id: "battle-1",
+      league: "fliptop",
+      slug: "test-battle",
       title: "Test Battle",
       youtube_id: "yt1",
       event_name: "Event",

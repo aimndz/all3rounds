@@ -1,6 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { Check, Youtube, Info } from "lucide-react";
+import { getBattleHref } from "@/lib/battles";
 import { cn, formatDate } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { InlineBattleStatusSelect } from "@/features/battles/components/InlineBattleStatusSelect";
@@ -23,6 +24,7 @@ export function BattleCard({
 }) {
   const youtubeUrl =
     battle.url || `https://www.youtube.com/watch?v=${battle.youtube_id}`;
+  const battleHref = getBattleHref(battle);
 
   return (
     <div
@@ -46,7 +48,7 @@ export function BattleCard({
     >
       {/* Thumbnail */}
       <Link
-        href={`/battles/${battle.id}`}
+        href={battleHref}
         prefetch={false}
         className="relative aspect-video w-full overflow-hidden bg-black"
         onClick={(e) => selectable && e.preventDefault()}
@@ -92,7 +94,7 @@ export function BattleCard({
       <div className="flex flex-1 flex-col p-3 sm:p-4">
         <div className="flex-1">
           <Link
-            href={`/battles/${battle.id}`}
+            href={battleHref}
             prefetch={false}
             onClick={(e) => selectable && e.preventDefault()}
           >
@@ -118,7 +120,7 @@ export function BattleCard({
             variant="secondary"
             className="w-full text-[10px] font-bold"
           >
-            <Link href={`/battles/${battle.id}`} prefetch={false}>
+            <Link href={battleHref} prefetch={false}>
               <Info className="mr-1.5 h-3 w-3" />
               View Details
             </Link>

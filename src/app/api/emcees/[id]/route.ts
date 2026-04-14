@@ -52,6 +52,8 @@ export async function GET(
     .select(`
       battles (
         id,
+        league,
+        slug,
         title,
         youtube_id,
         event_name,

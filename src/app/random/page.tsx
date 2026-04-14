@@ -24,6 +24,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { getBattleHref } from "@/lib/battles";
 import { useRandomLine } from "@/features/random/hooks/use-random-line";
 import { useVideoLooping } from "@/features/random/hooks/use-video-looping";
 import { cn, formatDate, formatTime } from "@/lib/utils";
@@ -161,7 +162,7 @@ export default function RandomPage() {
                   <div className="flex items-start justify-between gap-4">
                     <div className="min-w-0 flex-1">
                       <Link
-                        href={`/battles/${line.battle.id}?t=${Math.floor(line.start_time)}`}
+                        href={`${getBattleHref(line.battle)}?t=${Math.floor(line.start_time)}`}
                         prefetch={false}
                         className="group/link text-foreground hover:text-primary inline-flex max-w-full items-center gap-1.5 transition-colors"
                         title="Jump to this line in the full transcript"

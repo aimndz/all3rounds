@@ -2,6 +2,7 @@ import { formatDistanceToNow } from "date-fns";
 import { useState } from "react";
 import Link from "next/link";
 import { formatTime } from "@/lib/utils";
+import { getBattleHref } from "@/lib/battles";
 import YouTubeLoopPlayer from "@/components/YouTubeLoopPlayer";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -24,7 +25,13 @@ export type SuggestionLog = {
     content: string;
     start_time: number;
     end_time: number;
-    battle: { id: string; title: string; youtube_id: string };
+    battle: {
+      id: string;
+      title: string;
+      youtube_id: string;
+      league?: string;
+      slug?: string;
+    };
   };
 };
 
@@ -84,7 +91,7 @@ export function SuggestionCard({
           <div className="flex min-w-0 flex-1 flex-col gap-1.5">
             <div className="flex items-center gap-2">
               <Link
-                href={`/battles/${s.lines.battle.id}?t=${Math.floor(s.lines.start_time)}`}
+                href={`${getBattleHref(s.lines.battle)}?t=${Math.floor(s.lines.start_time)}`}
                 prefetch={false}
                 target="_blank"
                 title="View Full Battle"

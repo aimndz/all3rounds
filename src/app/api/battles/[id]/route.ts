@@ -61,7 +61,7 @@ export async function GET(
   // Fetch battle details
   const { data: battle, error: battleError } = await supabase
     .from("battles")
-    .select("id, title, youtube_id, event_name, event_date, url, status")
+    .select("id, league, slug, title, youtube_id, event_name, event_date, url, status")
     .eq("id", id)
     .single();
 

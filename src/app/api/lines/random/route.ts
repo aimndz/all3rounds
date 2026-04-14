@@ -23,6 +23,8 @@ type RawRandomLine = {
   battle:
     | {
         id: string;
+        league: string;
+        slug: string;
         title: string;
         youtube_id: string;
         event_name: string | null;
@@ -39,6 +41,8 @@ type RawRandomLine = {
       }
     | {
         id: string;
+        league: string;
+        slug: string;
         title: string;
         youtube_id: string;
         event_name: string | null;
@@ -93,6 +97,8 @@ function normalizeRandomLine(rawLine: RawRandomLine): SearchResult | null {
     emcee: Array.isArray(rawLine.emcee) ? rawLine.emcee[0] : rawLine.emcee,
     battle: {
       id: battle.id,
+      league: battle.league,
+      slug: battle.slug,
       title: battle.title,
       youtube_id: battle.youtube_id,
       event_name: battle.event_name,
@@ -165,6 +171,8 @@ export async function GET(request: NextRequest) {
       ),
       battle:battles!inner (
         id,
+        league,
+        slug,
         title,
         youtube_id,
         event_name,

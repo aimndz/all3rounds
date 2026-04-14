@@ -87,6 +87,8 @@ export default async function EmceeProfilePage({
       `
       battles (
         id,
+        league,
+        slug,
         title,
         youtube_id,
         event_name,

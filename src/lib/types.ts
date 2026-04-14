@@ -16,6 +16,8 @@ export type SearchResult = {
   }[];
   battle: {
     id: string;
+    league?: string;
+    slug?: string;
     title: string;
     youtube_id: string;
     event_name: string | null;
@@ -50,6 +52,8 @@ export type Emcee = {
 export type BattleStatus = "raw" | "arranged" | "reviewing" | "reviewed";
 export type Battle = {
   id: string;
+  league?: string;
+  slug?: string;
   title: string;
   youtube_id: string;
   event_name: string | null;
