@@ -3,27 +3,37 @@ import type { UserRole } from "../auth";
 
 vi.mock("next/headers", () => ({
   cookies: vi.fn(),
+  headers: vi.fn(),
 }));
 
 // Mock the supabase server module
 vi.mock("@/lib/supabase/server", () => ({
-  createClient: vi.fn(),
   createAdminClient: vi.fn(),
 }));
 
-import { cookies } from "next/headers";
-import { createClient, createAdminClient } from "@/lib/supabase/server";
+vi.mock("@/lib/better-auth", () => ({
+  betterAuth: {
+    api: {
+      getSession: vi.fn(),
+    },
+  },
+}));
+
+import { cookies, headers } from "next/headers";
+import { createAdminClient } from "@/lib/supabase/server";
+import { betterAuth } from "@/lib/better-auth";
 import { hasPermission, getUserWithRole, requirePermission } from "../auth";
 
-const mockCreateClient = vi.mocked(createClient);
 const mockCreateAdminClient = vi.mocked(createAdminClient);
 const mockCookies = vi.mocked(cookies);
+const mockHeaders = vi.mocked(headers);
+const mockGetSession = vi.mocked(betterAuth.api.getSession);
 
 function setupMocks(
   user: {
     id: string;
     email: string;
-    user_metadata?: Record<string, string>;
+    name?: string | null;
   } | null,
   profile: { role: string; display_name: string } | null,
   options?: { authDelayMs?: number },
@@ -34,22 +44,21 @@ function setupMocks(
     getAll: vi
       .fn()
       .mockReturnValue(
-        user ? [{ name: "sb-test-auth-token", value: "token" }] : [],
+        user ? [{ name: "better-auth.session_token", value: "token" }] : [],
       ),
   } as unknown as Awaited<ReturnType<typeof cookies>>);
+  mockHeaders.mockResolvedValue(new Headers());
 
-  const mockAuthGetUser = vi.fn().mockImplementation(
+  const mockSessionGet = vi.fn().mockImplementation(
     () =>
-      new Promise<{ data: { user: typeof user } }>((resolve) => {
+      new Promise<{ user: typeof user } | null>((resolve) => {
         setTimeout(() => {
-          resolve({ data: { user } });
+          resolve(user ? { user } : null);
         }, authDelayMs);
       }),
   );
 
-  mockCreateClient.mockResolvedValue({
-    auth: { getUser: mockAuthGetUser },
-  } as unknown as Awaited<ReturnType<typeof createClient>>);
+  mockGetSession.mockImplementation(mockSessionGet);
 
   const singleFn = vi.fn().mockResolvedValue({ data: profile, error: null });
   const eqFn = vi.fn().mockReturnValue({ single: singleFn });
@@ -59,7 +68,7 @@ function setupMocks(
     from: vi.fn().mockReturnValue({ select: selectFn }),
   } as unknown as ReturnType<typeof createAdminClient>);
 
-  return { mockAuthGetUser };
+  return { mockSessionGet };
 }
 
 describe("hasPermission", () => {
@@ -141,21 +150,14 @@ describe("getUserWithRole", () => {
     expect(result.role).toBe("viewer");
   });
 
-  it("uses user_metadata.full_name as fallback display name", async () => {
-    setupMocks(
-      {
-        id: "u3",
-        email: "meta@test.com",
-        user_metadata: { full_name: "Meta User" },
-      },
-      null,
-    );
+  it("uses Better Auth user name as fallback display name", async () => {
+    setupMocks({ id: "u3", email: "meta@test.com", name: "Meta User" }, null);
     const result = await getUserWithRole();
     expect(result.user!.displayName).toBe("Meta User");
   });
 
   it("deduplicates concurrent user-role lookups", async () => {
-    const { mockAuthGetUser } = setupMocks(
+    const { mockSessionGet } = setupMocks(
       { id: "u4", email: "dedup@test.com" },
       { role: "admin", display_name: "Dedup User" },
       { authDelayMs: 20 },
@@ -165,9 +167,8 @@ describe("getUserWithRole", () => {
 
     expect(a.role).toBe("admin");
     expect(b.role).toBe("admin");
-    expect(mockCreateClient).toHaveBeenCalledTimes(1);
     expect(mockCreateAdminClient).toHaveBeenCalledTimes(1);
-    expect(mockAuthGetUser).toHaveBeenCalledTimes(1);
+    expect(mockSessionGet).toHaveBeenCalledTimes(1);
   });
 });
 

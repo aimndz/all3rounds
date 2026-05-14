@@ -1,7 +1,7 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
-import { createClient } from "@/lib/supabase/client";
+import { authClient } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -34,11 +34,10 @@ export default function AuthButton({
     () => true,
     () => false,
   );
-  const supabase = createClient();
 
   const handleLogout = async () => {
     onSheetAction?.();
-    await supabase.auth.signOut({ scope: "global" });
+    await authClient.signOut();
     if (typeof window !== "undefined") {
       window.localStorage.clear();
       window.sessionStorage.clear();

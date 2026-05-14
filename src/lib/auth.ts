@@ -1,5 +1,6 @@
-import { createClient, createAdminClient } from "@/lib/supabase/server";
-import { cookies } from "next/headers";
+import { createAdminClient } from "@/lib/supabase/server";
+import { betterAuth } from "@/lib/better-auth";
+import { cookies, headers } from "next/headers";
 
 // ============================================================================
 // Types
@@ -23,6 +24,11 @@ type UserWithRoleResult = {
   user: AuthUser | null;
   role: UserRole;
 };
+
+type UserProfile = {
+  role: string;
+  display_name: string | null;
+} | null;
 
 // ============================================================================
 // Permissions Map
@@ -51,6 +57,44 @@ const PERMISSIONS: Record<string, UserRole[]> = {
 
 const inFlightUserRoleLookups = new Map<string, Promise<UserWithRoleResult>>();
 
+function isBetterAuthCookie(name: string) {
+  return name.includes("better-auth");
+}
+
+async function getUserProfile(
+  adminClient: ReturnType<typeof createAdminClient>,
+  userId: string,
+): Promise<UserProfile> {
+  const { data: profile } = await adminClient
+    .from("user_profiles")
+    .select("role, display_name")
+    .eq("id", userId)
+    .single();
+
+  return profile;
+}
+
+function buildAuthResult(
+  user: { id: string; email: string; name?: string | null },
+  profile: UserProfile,
+): UserWithRoleResult {
+  const role = (profile?.role ?? "viewer") as UserRole;
+
+  return {
+    user: {
+      id: user.id,
+      email: user.email,
+      role,
+      displayName:
+        profile?.display_name ??
+        user.name ??
+        user.email.split("@")[0] ??
+        "User",
+    },
+    role,
+  };
+}
+
 // ============================================================================
 // Core Functions
 // ============================================================================
@@ -67,11 +111,12 @@ export async function getUserWithRole(): Promise<{
   // In non-request contexts (e.g. some tests), cookies() can throw.
   let hasAuthCookie = false;
   let authCookieFingerprint = "";
+  let authCookies: { name: string; value: string }[] = [];
   try {
     const cookieStore = await cookies();
-    const authCookies = cookieStore
+    authCookies = cookieStore
       .getAll()
-      .filter((cookie) => cookie.name.includes("-auth-token"));
+      .filter((cookie) => isBetterAuthCookie(cookie.name));
 
     hasAuthCookie = authCookies.length > 0;
     authCookieFingerprint = authCookies
@@ -93,37 +138,17 @@ export async function getUserWithRole(): Promise<{
   }
 
   const lookupPromise = (async (): Promise<UserWithRoleResult> => {
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const session = await betterAuth.api.getSession({
+      headers: await headers(),
+    });
 
-    if (!user) {
-      return { user: null, role: "viewer" };
+    if (session?.user) {
+      const adminClient = createAdminClient();
+      const profile = await getUserProfile(adminClient, session.user.id);
+      return buildAuthResult(session.user, profile);
     }
 
-    const adminClient = createAdminClient();
-    const { data: profile } = await adminClient
-      .from("user_profiles")
-      .select("role, display_name")
-      .eq("id", user.id)
-      .single();
-
-    const role = (profile?.role ?? "viewer") as UserRole;
-
-    return {
-      user: {
-        id: user.id,
-        email: user.email ?? "",
-        role,
-        displayName:
-          profile?.display_name ??
-          user.user_metadata?.full_name ??
-          user.email?.split("@")[0] ??
-          "User",
-      },
-      role,
-    };
+    return { user: null, role: "viewer" };
   })();
 
   inFlightUserRoleLookups.set(lookupKey, lookupPromise);

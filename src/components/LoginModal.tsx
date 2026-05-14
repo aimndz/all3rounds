@@ -1,6 +1,6 @@
 "use client";
 
-import { createClient } from "@/lib/supabase/client";
+import { authClient } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -17,21 +17,15 @@ interface LoginModalProps {
 
 export function LoginModal({ isOpen, onOpenChange }: LoginModalProps) {
   const handleLogin = async () => {
-    const supabase = createClient();
+    const currentPath =
+      typeof window !== "undefined"
+        ? window.location.pathname + window.location.search
+        : "/";
 
-    // Use a cookie to store the current path to redirect back after auth
-    if (typeof window !== "undefined") {
-      const currentPath = window.location.pathname + window.location.search;
-      const secureFlag =
-        window.location.protocol === "https:" ? "; Secure" : "";
-      document.cookie = `auth-redirect=${encodeURIComponent(currentPath)}; path=/; max-age=300; SameSite=Lax${secureFlag}`;
-    }
-
-    await supabase.auth.signInWithOAuth({
+    await authClient.signIn.social({
       provider: "google",
-      options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
-      },
+      callbackURL: currentPath,
+      errorCallbackURL: "/auth/error",
     });
   };
 

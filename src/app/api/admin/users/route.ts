@@ -25,7 +25,9 @@ export async function GET(request: NextRequest) {
 
   let query = adminClient
     .from("user_profiles")
-    .select("id, display_name, role, created_at, updated_at", { count: "exact" })
+    .select("id, display_name, role, created_at, updated_at", {
+      count: "exact",
+    })
     .order("created_at", { ascending: false });
 
   if (role && role !== "all") {
@@ -46,16 +48,18 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  // Fetch emails from auth.users for the current set of profiles
-  const profilesWithEmail = await Promise.all(
-    (profiles || []).map(async (profile) => {
-      const { data: { user }, error: authError } = await adminClient.auth.admin.getUserById(profile.id);
-      return {
-        ...profile,
-        email: authError ? "N/A" : user?.email || "N/A"
-      };
-    })
+  const profileIds = (profiles || []).map((profile) => profile.id);
+  const { data: betterAuthUsers } = profileIds.length
+    ? await adminClient.from("user").select("id, email").in("id", profileIds)
+    : { data: [] };
+
+  const emailById = new Map(
+    (betterAuthUsers || []).map((user) => [user.id, user.email]),
   );
+  const profilesWithEmail = (profiles || []).map((profile) => ({
+    ...profile,
+    email: emailById.get(profile.id) || "N/A",
+  }));
 
   return NextResponse.json({
     data: profilesWithEmail,

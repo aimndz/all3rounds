@@ -1,5 +1,4 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { updateSession } from "@/lib/supabase/middleware";
 import {
   checkRateLimit,
   getRateLimitHeaders,
@@ -108,15 +107,12 @@ export default async function middleware(request: NextRequest) {
 
   let response: NextResponse;
   if (cacheConfig || isApiRequest) {
-    // PUBLIC PAGES & APIs: Bypass Supabase to stay under 10ms CPU limit.
-    // APIs handle their own auth natively, so middleware doesn't need to double-check.
     response = NextResponse.next();
     if (cacheConfig) {
       response.headers.set("Cache-Control", cacheConfig.cache);
     }
   } else {
-    // PROTECTED PAGES: Fetch session for /admin or non-cached paths.
-    response = await updateSession(request);
+    response = NextResponse.next();
   }
 
   // 3. Global Headers
