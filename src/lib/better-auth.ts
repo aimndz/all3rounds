@@ -1,26 +1,9 @@
 import { betterAuth as createBetterAuth } from "better-auth";
-import { Pool } from "pg";
-
-const databaseUrl =
-  process.env.BETTER_AUTH_DATABASE_URL ?? process.env.DATABASE_URL;
-
-const globalForBetterAuth = globalThis as typeof globalThis & {
-  betterAuthPool?: Pool;
-};
-
-const pool =
-  globalForBetterAuth.betterAuthPool ??
-  new Pool({
-    connectionString: databaseUrl,
-    max: 5,
-  });
-
-if (process.env.NODE_ENV !== "production") {
-  globalForBetterAuth.betterAuthPool = pool;
-}
+import { createAdminClient } from "@/lib/supabase/server";
+import { supabaseBetterAuthAdapter } from "@/lib/better-auth-supabase-adapter";
 
 export const betterAuth = createBetterAuth({
-  database: pool,
+  database: supabaseBetterAuthAdapter,
   baseURL: process.env.BETTER_AUTH_URL ?? process.env.NEXT_PUBLIC_SITE_URL,
   secret: process.env.BETTER_AUTH_SECRET,
   advanced: {
@@ -32,13 +15,12 @@ export const betterAuth = createBetterAuth({
     user: {
       create: {
         async after(user) {
-          await pool.query(
-            `
-              insert into public.user_profiles (id, display_name)
-              values ($1, $2)
-              on conflict (id) do nothing
-            `,
-            [user.id, user.name || user.email.split("@")[0] || "User"],
+          await createAdminClient().from("user_profiles").upsert(
+            {
+              id: user.id,
+              display_name: user.name || user.email.split("@")[0] || "User",
+            },
+            { onConflict: "id", ignoreDuplicates: true },
           );
         },
       },

@@ -66,14 +66,7 @@ begin
   end if;
 end $$;
 
-create temp table better_auth_source_user_ids on commit drop as
-select id as source_user_id from auth.users
-union
-select id as source_user_id from public.user_profiles
-union
-select user_id as source_user_id from public.suggestions
-union
-select reviewed_by as source_user_id from public.suggestions where reviewed_by is not null;
+drop table if exists public.__better_auth_supabase_user_map;
 
 insert into public."user" (
   "id",
@@ -84,8 +77,19 @@ insert into public."user" (
   "createdAt",
   "updatedAt"
 )
+with source as (
+  select id::text as source_user_id from auth.users
+  union
+  select id::text as source_user_id from public.user_profiles
+  union
+  select user_id::text as source_user_id from public.suggestions
+  union
+  select reviewed_by::text as source_user_id
+  from public.suggestions
+  where reviewed_by is not null
+)
 select
-  source.source_user_id::text,
+  source.source_user_id,
   coalesce(
     au.raw_user_meta_data->>'full_name',
     au.raw_user_meta_data->>'name',
@@ -95,7 +99,7 @@ select
   ) as "name",
   coalesce(
     lower(au.email),
-    'migrated+' || replace(source.source_user_id::text, '-', '') || '@all3rounds.invalid'
+    'migrated+' || replace(source.source_user_id, '-', '') || '@all3rounds.invalid'
   ) as "email",
   au.email is not null as "emailVerified",
   coalesce(
@@ -104,15 +108,15 @@ select
   ) as "image",
   coalesce(up.created_at, au.created_at, now()) as "createdAt",
   coalesce(up.updated_at, au.updated_at, au.created_at, now()) as "updatedAt"
-from better_auth_source_user_ids source
+from source
 left join auth.users au
-  on au.id = source.source_user_id
+  on au.id::text = source.source_user_id
 left join public.user_profiles up
-  on up.id = source.source_user_id
+  on up.id::text = source.source_user_id
 where not exists (
   select 1
   from public."user" bu
-  where bu."id" = source.source_user_id::text
+  where bu."id" = source.source_user_id
      or (
        au.email is not null
        and lower(bu."email") = lower(au.email)
@@ -124,80 +128,6 @@ on conflict ("id") do update set
   "emailVerified" = public."user"."emailVerified" or excluded."emailVerified",
   "image" = coalesce(public."user"."image", excluded."image"),
   "updatedAt" = greatest(public."user"."updatedAt", excluded."updatedAt");
-
-create temp table better_auth_supabase_user_map on commit drop as
-select
-  source.source_user_id as supabase_user_id,
-  coalesce(ba_by_email."id", ba_by_id."id", source.source_user_id::text) as better_auth_user_id,
-  lower(au.email) as email
-from better_auth_source_user_ids source
-left join auth.users au
-  on au.id = source.source_user_id
-left join public."user" ba_by_email
-  on au.email is not null
-  and lower(ba_by_email."email") = lower(au.email)
-left join public."user" ba_by_id
-  on ba_by_id."id" = source.source_user_id::text;
-
-do $$
-begin
-  if exists (
-    select 1
-    from better_auth_supabase_user_map m
-    left join public."user" bu on bu."id" = m.better_auth_user_id
-    where bu."id" is null
-  ) then
-    raise exception 'Supabase to Better Auth user mapping contains missing Better Auth users.';
-  end if;
-end $$;
-
-do $$
-declare
-  account_id_expression text;
-begin
-  if to_regclass('auth.identities') is not null then
-    if exists (
-      select 1
-      from information_schema.columns
-      where table_schema = 'auth'
-        and table_name = 'identities'
-        and column_name = 'provider_id'
-    ) then
-      account_id_expression := 'coalesce(i.identity_data->>''sub'', i.provider_id, i.id::text)';
-    else
-      account_id_expression := 'coalesce(i.identity_data->>''sub'', i.id::text)';
-    end if;
-
-    execute format(
-      $sql$
-        insert into public."account" (
-          "id",
-          "accountId",
-          "providerId",
-          "userId",
-          "createdAt",
-          "updatedAt"
-        )
-        select
-          'supabase-identity:' || i.provider || ':' || %1$s as "id",
-          %1$s as "accountId",
-          i.provider as "providerId",
-          m.better_auth_user_id as "userId",
-          coalesce(i.created_at, now()) as "createdAt",
-          coalesce(i.updated_at, i.created_at, now()) as "updatedAt"
-        from auth.identities i
-        join better_auth_supabase_user_map m
-          on m.supabase_user_id = i.user_id
-        where i.provider is not null
-          and %1$s is not null
-        on conflict ("id") do update set
-          "userId" = excluded."userId",
-          "updatedAt" = greatest(public."account"."updatedAt", excluded."updatedAt")
-      $sql$,
-      account_id_expression
-    );
-  end if;
-end $$;
 
 drop trigger if exists on_auth_user_created on auth.users;
 
@@ -227,15 +157,63 @@ begin
     alter table public.suggestions add column if not exists user_id_better_auth text;
     alter table public.suggestions add column if not exists reviewed_by_better_auth text;
 
+    with source as (
+      select id::text as source_user_id from auth.users
+      union
+      select id::text as source_user_id from public.user_profiles
+      union
+      select user_id::text as source_user_id from public.suggestions
+      union
+      select reviewed_by::text as source_user_id
+      from public.suggestions
+      where reviewed_by is not null
+    ),
+    user_map as (
+      select
+        source.source_user_id as supabase_user_id,
+        coalesce(ba_by_email."id", ba_by_id."id", source.source_user_id) as better_auth_user_id
+      from source
+      left join auth.users au
+        on au.id::text = source.source_user_id
+      left join public."user" ba_by_email
+        on au.email is not null
+        and lower(ba_by_email."email") = lower(au.email)
+      left join public."user" ba_by_id
+        on ba_by_id."id" = source.source_user_id
+    )
     update public.suggestions s
     set user_id_better_auth = m.better_auth_user_id
-    from better_auth_supabase_user_map m
-    where s.user_id = m.supabase_user_id;
+    from user_map m
+    where s.user_id::text = m.supabase_user_id;
 
+    with source as (
+      select id::text as source_user_id from auth.users
+      union
+      select id::text as source_user_id from public.user_profiles
+      union
+      select user_id::text as source_user_id from public.suggestions
+      union
+      select reviewed_by::text as source_user_id
+      from public.suggestions
+      where reviewed_by is not null
+    ),
+    user_map as (
+      select
+        source.source_user_id as supabase_user_id,
+        coalesce(ba_by_email."id", ba_by_id."id", source.source_user_id) as better_auth_user_id
+      from source
+      left join auth.users au
+        on au.id::text = source.source_user_id
+      left join public."user" ba_by_email
+        on au.email is not null
+        and lower(ba_by_email."email") = lower(au.email)
+      left join public."user" ba_by_id
+        on ba_by_id."id" = source.source_user_id
+    )
     update public.suggestions s
     set reviewed_by_better_auth = m.better_auth_user_id
-    from better_auth_supabase_user_map m
-    where s.reviewed_by = m.supabase_user_id;
+    from user_map m
+    where s.reviewed_by::text = m.supabase_user_id;
 
     if exists (
       select 1
@@ -274,10 +252,34 @@ begin
   ) = 'uuid' then
     alter table public.user_profiles add column if not exists id_better_auth text;
 
+    with source as (
+      select id::text as source_user_id from auth.users
+      union
+      select id::text as source_user_id from public.user_profiles
+      union
+      select user_id::text as source_user_id from public.suggestions
+      union
+      select reviewed_by::text as source_user_id
+      from public.suggestions
+      where reviewed_by is not null
+    ),
+    user_map as (
+      select
+        source.source_user_id as supabase_user_id,
+        coalesce(ba_by_email."id", ba_by_id."id", source.source_user_id) as better_auth_user_id
+      from source
+      left join auth.users au
+        on au.id::text = source.source_user_id
+      left join public."user" ba_by_email
+        on au.email is not null
+        and lower(ba_by_email."email") = lower(au.email)
+      left join public."user" ba_by_id
+        on ba_by_id."id" = source.source_user_id
+    )
     update public.user_profiles up
     set id_better_auth = m.better_auth_user_id
-    from better_auth_supabase_user_map m
-    where up.id = m.supabase_user_id;
+    from user_map m
+    where up.id::text = m.supabase_user_id;
 
     if exists (
       select 1
