@@ -70,7 +70,7 @@ function SearchBar({
           autoFocus={autoFocus}
           size={isLarge ? "xl" : "lg"}
           className={cn(
-            "focus-visible:border-primary border-2 shadow-none focus-visible:ring-0 [&::-webkit-search-cancel-button]:hidden",
+            "focus-visible:border-primary border shadow-none focus-visible:ring-0 [&::-webkit-search-cancel-button]:hidden",
             isLarge ? "pr-28 pl-12 sm:pr-36" : "pr-14 pl-11 sm:pr-28",
           )}
         />
