@@ -31,42 +31,45 @@ export function LoginModal({ isOpen, onOpenChange }: LoginModalProps) {
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-card overflow-hidden rounded-2xl p-0 sm:max-w-100">
-        <div className="flex flex-col items-center px-6 pt-12 pb-10 text-center">
+      <DialogContent className="bg-card/90 border-border overflow-hidden rounded-2xl backdrop-blur-sm w-[calc(100%-2.5rem)] max-w-[340px] sm:max-w-[360px]">
+        <div className="flex flex-col items-center py-8 text-center">
           {/* Header Section */}
-          <div className="mb-8 flex flex-col items-center gap-4">
+          <div className="mb-6 flex flex-col items-center gap-3">
             <div className="relative">
               <Image
                 src="/logo/a3r-logo-full.svg"
                 alt="A3R Logo"
                 width={200}
                 height={70}
-                className="h-auto w-28"
+                className="h-auto w-24"
                 priority
                 unoptimized
               />
             </div>
 
-            <div className="space-y-1 sm:space-y-2">
-              <DialogTitle className="text-foreground text-2xl font-bold tracking-tight sm:text-3xl">
+            <div className="space-y-1">
+              <DialogTitle className="text-foreground text-xl font-bold tracking-tight sm:text-2xl">
                 Welcome Back
               </DialogTitle>
-              <DialogDescription className="text-muted-foreground text-xs font-normal tracking-wide sm:text-sm">
+              <DialogDescription className="text-muted-foreground text-xs font-normal tracking-wide">
                 Log in to help improve the archive.
               </DialogDescription>
             </div>
           </div>
 
-          <div className="w-full space-y-6 sm:space-y-8">
+          <div className="w-full space-y-4 sm:space-y-5">
             <Button
               variant="default"
               size="lg"
-              className="group bg-primary hover:bg-primary/90 text-primary-foreground relative w-full gap-4 overflow-hidden rounded p-4 transition-all duration-300 active:scale-[0.98] sm:p-6"
+              className="group bg-primary hover:bg-primary/90 text-primary-foreground relative w-full gap-3 overflow-hidden rounded-xl px-4 py-3 transition-all duration-300 active:scale-[0.98] sm:py-3.5"
               onClick={handleLogin}
             >
               <div className="relative z-10 flex w-full items-center justify-center gap-3">
-                <div className="flex items-center gap-2 sm:gap-3">
-                  <svg className="h-5 w-5 sm:h-6 sm:w-6" viewBox="0 0 24 24">
+                <div className="flex items-center gap-2 sm:gap-2.5">
+                  <svg
+                    className="h-5 w-5 sm:h-5.5 sm:w-5.5"
+                    viewBox="0 0 24 24"
+                  >
                     <path
                       d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"
                       fill="#4285F4"
@@ -84,14 +87,14 @@ export function LoginModal({ isOpen, onOpenChange }: LoginModalProps) {
                       fill="#EA4335"
                     />
                   </svg>
-                  <span className="text-sm font-bold tracking-tight sm:text-base">
+                  <span className="text-sm font-bold tracking-tight sm:text-sm">
                     Continue with Google
                   </span>
                 </div>
               </div>
             </Button>
 
-            <p className="text-muted-foreground/60 text-xs font-normal">
+            <p className="text-muted-foreground/60 text-[10px] leading-relaxed font-normal">
               By continuing, you agree to our{" "}
               <span className="whitespace-nowrap">
                 <a
