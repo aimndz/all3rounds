@@ -73,8 +73,13 @@ export default function Home() {
           <Separator />
         </div>
 
-        <HomeSection title="Frequently Asked Questions" className="px-4">
-          <HomeFaq />
+        <HomeSection
+          title="Frequently Asked Questions"
+          className="mx-auto flex w-full flex-col items-center px-4 text-center"
+        >
+          <div className="w-full text-left">
+            <HomeFaq />
+          </div>
         </HomeSection>
 
         <div className="px-4">

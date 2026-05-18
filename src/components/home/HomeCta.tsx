@@ -23,16 +23,16 @@ export default function HomeCta() {
       <section className="py-0">
         <div className="mx-auto flex max-w-3xl flex-col items-center text-center">
           <div className="space-y-4">
-            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl md:text-4xl">
-              Help <span className="text-primary">Improve</span> the Archive
+            <h2 className="text-foreground text-3xl font-bold tracking-tight sm:text-4xl md:text-4xl">
+              Help Improve the Archive
             </h2>
-            <p className="text-muted-foreground sm:text-md mx-auto max-w-xl text-base leading-relaxed">
-              Review random lines, suggest transcript corrections, or support the
-              development and maintenance of All3Rounds.
+            <p className="text-muted-foreground mx-auto max-w-xl text-sm leading-relaxed sm:text-base">
+              Review random lines, suggest transcript corrections, or support
+              the development and maintenance of All3Rounds.
             </p>
           </div>
 
-          <div className="mt-10 flex w-full max-w-xs flex-col gap-4 sm:max-w-none sm:flex-row sm:items-center sm:justify-center">
+          <div className="mt-10 flex w-full max-w-xs flex-col gap-3 sm:max-w-none sm:flex-row sm:items-center sm:justify-center">
             <Button
               asChild
               size="lg"
@@ -48,7 +48,7 @@ export default function HomeCta() {
               asChild
               size="lg"
               variant="secondary"
-              className="h-9 w-full sm:h-11 sm:w-44"
+              className="border-input h-9 w-full sm:h-11 sm:w-44"
             >
               <a
                 href="https://ko-fi.com/all3rounds"

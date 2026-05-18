@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, Mic2, Search, Shuffle, Swords } from "lucide-react";
+import { ArrowRight, Search, Shuffle, Trophy, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const ACTIONS = [
@@ -14,14 +14,14 @@ const ACTIONS = [
     href: "/battles",
     title: "Browse battles",
     description: "Explore events, matchups, and synced transcripts.",
-    icon: Swords,
+    icon: Trophy,
     cta: "Explore matchups",
   },
   {
     href: "/emcees",
     title: "Explore emcees",
     description: "View profiles, appearances, and battle history.",
-    icon: Mic2,
+    icon: User,
     cta: "View profiles",
   },
   {
