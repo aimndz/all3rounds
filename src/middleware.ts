@@ -7,7 +7,6 @@ import {
 
 // 1. These paths are safe to cache publicly because they don't contain user-specific data.
 // We use regex to support sub-paths like /battles/slug or /emcees/slug.
-// Bypassing Supabase session checks here
 const PUBLIC_CACHE_CONFIGS = [
   {
     pattern: /^\/$/,
@@ -60,7 +59,7 @@ function buildCsp(isDev: boolean) {
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' https://img.youtube.com https://i.ytimg.com data: blob: https://www.google-analytics.com https://www.googletagmanager.com https://*.google.com https://*.google.com.ph https://*.doubleclick.net",
     "frame-src https://www.youtube.com https://*.doubleclick.net",
-    "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://vitals.vercel-analytics.com https://cloud.umami.is https://api-gateway.umami.dev https://cloudflareinsights.com https://www.google-analytics.com https://*.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com https://*.doubleclick.net",
+    "connect-src 'self' https://vitals.vercel-analytics.com https://cloud.umami.is https://api-gateway.umami.dev https://cloudflareinsights.com https://www.google-analytics.com https://*.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com https://*.doubleclick.net",
     "font-src 'self'",
     !isDev ? "upgrade-insecure-requests" : "",
   ]

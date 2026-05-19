@@ -11,23 +11,25 @@ vi.mock("@/lib/supabase/server", () => ({
   createAdminClient: vi.fn(),
 }));
 
-vi.mock("@/lib/better-auth", () => ({
-  betterAuth: {
-    api: {
-      getSession: vi.fn(),
-    },
+const mockBetterAuth = {
+  api: {
+    getSession: vi.fn(),
   },
+};
+
+vi.mock("@/lib/better-auth", () => ({
+  getBetterAuth: vi.fn(() => mockBetterAuth),
 }));
 
 import { cookies, headers } from "next/headers";
 import { createAdminClient } from "@/lib/supabase/server";
-import { betterAuth } from "@/lib/better-auth";
+import { getBetterAuth } from "@/lib/better-auth";
 import { hasPermission, getUserWithRole, requirePermission } from "../auth";
 
 const mockCreateAdminClient = vi.mocked(createAdminClient);
 const mockCookies = vi.mocked(cookies);
 const mockHeaders = vi.mocked(headers);
-const mockGetSession = vi.mocked(betterAuth.api.getSession);
+const mockGetSession = vi.mocked(getBetterAuth().api.getSession);
 
 function setupMocks(
   user: {

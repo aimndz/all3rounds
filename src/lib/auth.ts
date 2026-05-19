@@ -1,5 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/server";
-import { betterAuth } from "@/lib/better-auth";
+import { getBetterAuth } from "@/lib/better-auth";
 import { cookies, headers } from "next/headers";
 
 // ============================================================================
@@ -138,7 +138,7 @@ export async function getUserWithRole(): Promise<{
   }
 
   const lookupPromise = (async (): Promise<UserWithRoleResult> => {
-    const session = await betterAuth.api.getSession({
+    const session = await getBetterAuth().api.getSession({
       headers: await headers(),
     });
 
