@@ -2,6 +2,19 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { requirePermission } from "@/lib/auth";
 
+type UserProfileRow = {
+  id: string;
+  display_name: string | null;
+  role: string;
+  created_at: string;
+  updated_at: string;
+};
+
+type AuthUserRow = {
+  id: string;
+  email: string;
+};
+
 export async function GET(request: NextRequest) {
   // ── Auth & Permission Check ──
   const auth = await requirePermission("users:manage");
@@ -48,15 +61,19 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const profileIds = (profiles || []).map((profile) => profile.id);
+  const profileRows = (profiles || []) as UserProfileRow[];
+  const profileIds = profileRows.map((profile) => profile.id);
   const { data: betterAuthUsers } = profileIds.length
     ? await adminClient.from("user").select("id, email").in("id", profileIds)
     : { data: [] };
 
   const emailById = new Map(
-    (betterAuthUsers || []).map((user) => [user.id, user.email]),
+    ((betterAuthUsers || []) as AuthUserRow[]).map((user) => [
+      user.id,
+      user.email,
+    ]),
   );
-  const profilesWithEmail = (profiles || []).map((profile) => ({
+  const profilesWithEmail = profileRows.map((profile) => ({
     ...profile,
     email: emailById.get(profile.id) || "N/A",
   }));

@@ -4,6 +4,17 @@ import { requirePermission } from "@/lib/auth";
 import { verifyCsrf } from "@/lib/csrf";
 import { z } from "zod";
 
+type EmceeMergeRow = {
+  id: string;
+  name: string;
+  aka?: string[] | null;
+};
+
+type BattleParticipantRow = {
+  id: string;
+  battle_id: string;
+};
+
 const MergeEmceesSchema = z
   .object({
     sourceId: z.string().uuid("Invalid source ID"),
@@ -57,7 +68,8 @@ export async function POST(request: NextRequest) {
       .select("*")
       .in("id", [sourceId, targetId]);
 
-    if (fetchError || !emcees || emcees.length !== 2) {
+    const emceeRows = (emcees || []) as EmceeMergeRow[];
+    if (fetchError || emceeRows.length !== 2) {
       console.error("Merge emcees fetch error:", fetchError);
       return NextResponse.json(
         { error: "Could not find both emcees." },
@@ -65,8 +77,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const source = emcees.find((e) => e.id === sourceId);
-    const target = emcees.find((e) => e.id === targetId);
+    const source = emceeRows.find((emcee) => emcee.id === sourceId);
+    const target = emceeRows.find((emcee) => emcee.id === targetId);
 
     if (!source || !target) {
       throw new Error("Logic error separating source/target");
@@ -115,11 +127,13 @@ export async function POST(request: NextRequest) {
     if (spError || tpError) throw spError || tpError;
 
     const targetBattleIds = new Set(
-      (targetParts || []).map((p) => p.battle_id),
+      ((targetParts || []) as BattleParticipantRow[]).map(
+        (part) => part.battle_id,
+      ),
     );
 
     // For each source participation
-    for (const sp of sourceParts || []) {
+    for (const sp of (sourceParts || []) as BattleParticipantRow[]) {
       if (targetBattleIds.has(sp.battle_id)) {
         // Target is already in this battle! Delete the source's duplicate participation entry
         // to prevent violating the UNIQUE(battle_id, emcee_id) constraint.

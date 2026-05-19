@@ -4,6 +4,7 @@ import BattlesDirectory from "./BattlesDirectory";
 
 const INITIAL_EVENTS_PER_PAGE = 5;
 const OTHER_BATTLES_KEY = "Other Battles";
+const PUBLIC_BATTLE_STATUSES = ["raw", "arranged", "reviewing", "reviewed"];
 
 export const revalidate = 86400; // 24 hours (1 day)
 
@@ -31,11 +32,11 @@ export default async function BattlesPage({
     supabase
       .from("battles")
       .select("id", { count: "exact", head: true })
-      .neq("status", "excluded"),
+      .in("status", PUBLIC_BATTLE_STATUSES),
     supabase
       .from("battles")
       .select("event_name, event_date")
-      .neq("status", "excluded")
+      .in("status", PUBLIC_BATTLE_STATUSES)
       .order("event_date", { ascending: sort === "oldest" })
       .limit(5000),
   ]);
@@ -91,7 +92,7 @@ export default async function BattlesPage({
       ? supabase
           .from("battles")
           .select("id, league, slug, title, youtube_id, event_name, event_date, status, url")
-          .neq("status", "excluded")
+          .in("status", PUBLIC_BATTLE_STATUSES)
           .in("event_name", namedEvents)
           .order("event_date", {
             ascending: sort === "oldest",
@@ -102,7 +103,7 @@ export default async function BattlesPage({
       ? supabase
           .from("battles")
           .select("id, league, slug, title, youtube_id, event_name, event_date, status, url")
-          .neq("status", "excluded")
+          .in("status", PUBLIC_BATTLE_STATUSES)
           .is("event_name", null)
           .order("event_date", {
             ascending: sort === "oldest",

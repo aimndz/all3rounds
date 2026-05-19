@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createPublicClient } from "@/lib/supabase/server";
 import type { SearchResult } from "@/lib/types";
 
-export const dynamic = "force-dynamic"; // Completely disable caching for this route
+export const dynamic = "force-dynamic";
 
 const DEFAULT_BATCH_SIZE = 6;
 const MAX_BATCH_SIZE = 12;
@@ -201,12 +201,12 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const normalizedLines = (data || [])
-    .map((rawLine) => normalizeRandomLine(rawLine as RawRandomLine))
-    .filter((line): line is SearchResult => line !== null);
+  const normalizedLines = ((data || []) as RawRandomLine[])
+    .map((rawLine) => normalizeRandomLine(rawLine))
+    .filter((line: SearchResult | null): line is SearchResult => line !== null);
 
   const lineMap = new Map<number, SearchResult>(
-    normalizedLines.map((line) => [line.id, line]),
+    normalizedLines.map((line: SearchResult) => [line.id, line]),
   );
 
   const lines = randomLineIds

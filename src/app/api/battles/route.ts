@@ -25,9 +25,12 @@ type ScoredBattle = {
 type FilterableQuery = {
   neq: (column: string, value: string) => FilterableQuery;
   eq: (column: string, value: string) => FilterableQuery;
+  in: (column: string, value: string[]) => FilterableQuery;
   gte: (column: string, value: string) => FilterableQuery;
   lte: (column: string, value: string) => FilterableQuery;
 };
+
+const PUBLIC_BATTLE_STATUSES = ["raw", "arranged", "reviewing", "reviewed"];
 
 function getEventKey(battle: Pick<BattleRow, "event_name">): string {
   return battle.event_name || OTHER_BATTLES_KEY;
@@ -98,7 +101,10 @@ function applyCommonFilters<T>(
   cleanStatus: string,
   cleanYear: string,
 ): T {
-  let next = (query as unknown as FilterableQuery).neq("status", "excluded");
+  let next = (query as unknown as FilterableQuery).in(
+    "status",
+    PUBLIC_BATTLE_STATUSES,
+  );
 
   if (cleanStatus !== "all") {
     next = next.eq("status", cleanStatus);
@@ -339,7 +345,7 @@ export async function GET(request: NextRequest) {
         }
 
         const order = new Map(pageEventKeys.map((key, idx) => [key, idx]));
-        data = (battlesResponse.data || []).sort((a, b) => {
+        data = (battlesResponse.data || []).sort((a: BattleRow, b: BattleRow) => {
           const keyA = getEventKey(a);
           const keyB = getEventKey(b);
           const groupA = order.get(keyA) ?? Number.MAX_SAFE_INTEGER;

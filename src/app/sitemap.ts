@@ -9,6 +9,7 @@ export const revalidate = 86400; // 24 hours (1 day)
 import { getSiteUrl } from "@/lib/utils";
 
 const siteUrl = getSiteUrl();
+const PUBLIC_BATTLE_STATUSES = ["raw", "arranged", "reviewing", "reviewed"];
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const now = new Date();
@@ -61,12 +62,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     const supabase = createPublicClient();
 
     const [battlesRes, emceesRes] = await Promise.all([
-      supabase.from("battles").select("league, slug").neq("status", "excluded"),
+      supabase.from("battles").select("league, slug").in("status", PUBLIC_BATTLE_STATUSES),
       supabase.from("emcees").select("slug"),
     ]);
 
     const battleRoutes: MetadataRoute.Sitemap =
-      battlesRes.data?.map((battle) => ({
+      battlesRes.data?.map((battle: { league: string; slug: string }) => ({
         url: `${siteUrl}${getBattlePath(battle.league, battle.slug)}`,
         lastModified: now,
         changeFrequency: "monthly",
@@ -74,7 +75,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       })) ?? [];
 
     const emceeRoutes: MetadataRoute.Sitemap =
-      emceesRes.data?.map((emcee) => ({
+      emceesRes.data?.map((emcee: { slug: string }) => ({
         url: `${siteUrl}${getEmceePath(emcee.slug)}`,
         lastModified: now,
         changeFrequency: "monthly",

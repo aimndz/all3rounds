@@ -20,6 +20,21 @@ export function useInlineEdit(
     setInlineContent(line.content);
   }, []);
 
+  const focusNextLine = useCallback(
+    (currentId: number) => {
+      const currentIndex = data?.lines.findIndex((l) => l.id === currentId);
+      if (
+        currentIndex !== undefined &&
+        currentIndex !== -1 &&
+        data?.lines[currentIndex + 1]
+      ) {
+        const nextLine = data.lines[currentIndex + 1];
+        setTimeout(() => startInlineEdit(nextLine), 10);
+      }
+    },
+    [data?.lines, startInlineEdit],
+  );
+
   const handleInlineSave = useCallback(
     async (id: number, moveToNext = false) => {
       if (!canEdit) return;
@@ -69,20 +84,8 @@ export function useInlineEdit(
         setInlineEditingId(null);
       }
     },
-    [canEdit, data?.lines, inlineContent, setData, fetchBattle],
+    [canEdit, data?.lines, inlineContent, setData, fetchBattle, focusNextLine],
   );
-
-  function focusNextLine(currentId: number) {
-    const currentIndex = data?.lines.findIndex((l) => l.id === currentId);
-    if (
-      currentIndex !== undefined &&
-      currentIndex !== -1 &&
-      data?.lines[currentIndex + 1]
-    ) {
-      const nextLine = data.lines[currentIndex + 1];
-      setTimeout(() => startInlineEdit(nextLine), 10);
-    }
-  }
 
   return {
     inlineEditingId,

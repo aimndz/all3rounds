@@ -18,10 +18,18 @@ const BatchLinesSchema = z.object({
     .object({
       round_number: z.union([z.number(), z.null()]).optional(),
       emcee_id: z.union([z.string(), z.null()]).optional(),
-      speaker_ids: z.array(z.string()).optional(), // New: Support multiple emcees
+      speaker_ids: z.array(z.string()).optional(),
     })
     .optional(),
 });
+
+type ExistingLineRow = {
+  id: number;
+  round_number?: number | null;
+  emcee_id?: string | null;
+  battle_id: string;
+  content?: string;
+};
 
 /**
  * PATCH /api/lines/batch
@@ -132,7 +140,8 @@ export async function PATCH(request: NextRequest) {
 
       if (selectError) throw selectError;
 
-      if (existing) {
+      const existingRows = (existing || []) as ExistingLineRow[];
+      if (existingRows.length > 0) {
         const historyRows: {
           line_id: number;
           user_id: string;
@@ -141,7 +150,7 @@ export async function PATCH(request: NextRequest) {
           new_value: string;
         }[] = [];
 
-        existing.forEach((line) => {
+        existingRows.forEach((line) => {
           // Track round changes
           if ("round_number" in finalUpdates) {
             historyRows.push({
@@ -185,7 +194,7 @@ export async function PATCH(request: NextRequest) {
       if (finalUpdates.speaker_ids) {
         if (finalUpdates.speaker_ids.length > 0) {
           linesTableUpdate.speaker_ids = finalUpdates.speaker_ids;
-          linesTableUpdate.emcee_id = finalUpdates.speaker_ids[0]; // backwards compatibility
+          linesTableUpdate.emcee_id = finalUpdates.speaker_ids[0];
         } else {
           linesTableUpdate.speaker_ids = [];
           linesTableUpdate.emcee_id = null;
@@ -209,8 +218,9 @@ export async function PATCH(request: NextRequest) {
 
       if (selectError) throw selectError;
 
-      if (existing) {
-        const historyRows = existing.map((line) => ({
+      const existingRows = (existing || []) as ExistingLineRow[];
+      if (existingRows.length > 0) {
+        const historyRows = existingRows.map((line) => ({
           line_id: line.id,
           user_id: user.id,
           field_changed: "deleted",

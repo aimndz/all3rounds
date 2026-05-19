@@ -12,6 +12,14 @@ const UpdateBattleSchema = z.object({
   }),
 });
 
+type ParticipantRow = {
+  label: string;
+  emcee:
+    | { id: string; name: string; aka?: string[] | null }
+    | { id: string; name: string; aka?: string[] | null }[]
+    | null;
+};
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
@@ -78,10 +86,13 @@ export async function GET(
     .select("label, emcee:emcees ( id, name, aka )")
     .eq("battle_id", id);
 
-  const normalized = (rawParticipants ?? []).map((p) => ({
-    ...p,
-    emcee: Array.isArray(p.emcee) ? (p.emcee[0] ?? null) : p.emcee,
-  }));
+  const normalized = ((rawParticipants ?? []) as ParticipantRow[]).map((p) => {
+    const emcee = Array.isArray(p.emcee) ? (p.emcee[0] ?? null) : p.emcee;
+    return {
+      ...p,
+      emcee: emcee ? { ...emcee, aka: emcee.aka ?? undefined } : null,
+    };
+  });
 
   const participants = sortParticipantsByTitle(normalized, battle.title ?? "");
 

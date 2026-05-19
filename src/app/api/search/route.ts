@@ -54,8 +54,6 @@ export async function GET(request: NextRequest) {
 
   const supabase = await createClient();
 
-  // --- Hybrid Search with Supabase RPC ---
-  // Using .rpc() is Cloudflare-safe (HTTP-based) and avoids TCP pooling issues.
   let data: SearchRpcRow[] = [];
   let countRows = 0;
 
@@ -80,7 +78,6 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  // ── Construct Initial Result Structure ──
   const formattedData: SearchResult[] = data.map((row) => ({
     id: row.id,
     content: row.content,
@@ -108,7 +105,6 @@ export async function GET(request: NextRequest) {
     emcees: [],
   }));
 
-  // ── Batch Fetch Remaining Data (Emcees, Participants, Context) ──
   try {
     if (formattedData.length > 0) {
       const uniqueBattleIds = Array.from(
