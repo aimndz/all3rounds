@@ -8,6 +8,14 @@
     "directory": ".open-next/assets",
     "binding": "ASSETS"
   },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "all3rounds-dev",
+      "database_id": "ad631ab8-6830-4f81-956b-6d7b068d5a79",
+      "migrations_dir": "migrations"
+    }
+  ],
   "observability": {
     "enabled": true
   },
@@ -17,6 +25,14 @@
       "vars": {
         "APP_ENV": "development"
       },
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "all3rounds-dev",
+          "database_id": "ad631ab8-6830-4f81-956b-6d7b068d5a79",
+          "migrations_dir": "migrations"
+        }
+      ],
       "images": {
         "binding": "IMAGES"
       }
@@ -26,6 +42,14 @@
       "vars": {
         "APP_ENV": "production"
       },
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "all3rounds",
+          "database_id": "replace-with-prod-d1-database-id",
+          "migrations_dir": "migrations"
+        }
+      ],
       "images": {
         "binding": "IMAGES"
       }
