@@ -33,6 +33,12 @@
           "migrations_dir": "migrations"
         }
       ],
+      "kv_namespaces": [
+        {
+          "binding": "SEARCH_CACHE",
+          "id": "19c74e3d6ba949f8be24193f0a134d10"
+        }
+      ],
       "images": {
         "binding": "IMAGES"
       }

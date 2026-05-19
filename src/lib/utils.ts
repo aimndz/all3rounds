@@ -20,6 +20,15 @@ export function formatDate(dateStr: string | null): string {
   });
 }
 
+export function formatDateMedium(dateStr: string | null): string {
+  if (!dateStr) return "";
+  return new Date(dateStr).toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "2-digit",
+  });
+}
+
 export function formatDateLong(dateStr: string | null): string {
   if (!dateStr) return "";
   return new Date(dateStr).toLocaleDateString("en-PH", {

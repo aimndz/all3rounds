@@ -45,6 +45,15 @@ type SearchApiResponse = {
 };
 
 const SEARCH_RESULTS_CACHE_TTL_MS = 30_000;
+const SEARCH_RESULTS_DISPLAY_CAP = 500;
+
+function formatSearchResultsCount(total: number) {
+  if (total === 0) return "No results";
+  if (total >= SEARCH_RESULTS_DISPLAY_CAP) {
+    return `${SEARCH_RESULTS_DISPLAY_CAP}+ results`;
+  }
+  return `${total} results`;
+}
 
 const SearchResultsList = memo(function SearchResultsList({
   results,
@@ -181,7 +190,7 @@ function SearchResults() {
           );
 
           if (res.status === 429) {
-            setError("Too many requests — slow down and try again.");
+            setError("Too many requests - slow down and try again.");
             setLoading(false);
             setIsInitialLoad(false);
             return;
@@ -318,7 +327,7 @@ function SearchResults() {
           {!loading && !isInitialLoad && !error && query && (
             <div className="mb-5 flex flex-col gap-1 sm:flex-row sm:items-baseline sm:gap-2">
               <h1 className="text-foreground text-lg font-semibold whitespace-nowrap">
-                {total === 0 ? "No results" : `${total} results`}
+                {formatSearchResultsCount(total)}
               </h1>
               <p className="text-muted-foreground min-w-0 truncate text-sm">
                 for &ldquo;{query}&rdquo;

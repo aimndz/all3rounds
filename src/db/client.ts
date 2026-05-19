@@ -2,9 +2,19 @@ import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { type AnyD1Database, drizzle } from "drizzle-orm/d1";
 import * as schema from "./schema";
 
+export type SearchCacheNamespace = {
+  get(key: string): Promise<string | null>;
+  put(
+    key: string,
+    value: string,
+    options?: { expirationTtl?: number },
+  ): Promise<void>;
+};
+
 declare global {
   interface CloudflareEnv {
     DB: AnyD1Database;
+    SEARCH_CACHE?: SearchCacheNamespace;
   }
 }
 
@@ -22,6 +32,10 @@ export async function getD1Async() {
     throw new Error("Cloudflare D1 binding `DB` is not configured.");
   }
   return db;
+}
+
+export async function getSearchCache() {
+  return (await getCloudflareContext({ async: true })).env.SEARCH_CACHE ?? null;
 }
 
 export function getDb() {

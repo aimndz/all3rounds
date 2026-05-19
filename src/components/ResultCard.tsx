@@ -8,7 +8,12 @@ import { Button } from "@/components/ui/button";
 import { MessageSquarePlus, SquarePen } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { getBattleHref } from "@/lib/battles";
-import { cn, formatTime, formatSpeakerName } from "@/lib/utils";
+import {
+  cn,
+  formatDateMedium,
+  formatSpeakerName,
+  formatTime,
+} from "@/lib/utils";
 
 const EditLineModal = dynamic(() => import("./EditLineModal"), {
   ssr: false,
@@ -42,6 +47,7 @@ function ResultCard({
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const router = useRouter();
   const battleHref = getBattleHref(result.battle);
+  const battleDate = formatDateMedium(result.battle.event_date);
 
   // Determine the most descriptive speaker label (handles teams for 2v2/3v3)
   const speakerLabel = useMemo(() => {
@@ -177,6 +183,9 @@ function ResultCard({
                     {result.battle.event_name}
                   </span>
                 )}
+                {battleDate && (
+                  <span className="line-clamp-1">{battleDate}</span>
+                )}
               </div>
             </div>
           </div>
@@ -199,8 +208,14 @@ function ResultCard({
                 <span className="truncate">{battleMatchup}</span>
                 {result.battle.event_name && (
                   <>
-                    <span className="shrink-0 opacity-30">·</span>
+                    <span className="shrink-0 opacity-30">/</span>
                     <span className="truncate">{result.battle.event_name}</span>
+                  </>
+                )}
+                {battleDate && (
+                  <>
+                    <span className="shrink-0 opacity-30">/</span>
+                    <span className="shrink-0">{battleDate}</span>
                   </>
                 )}
               </div>

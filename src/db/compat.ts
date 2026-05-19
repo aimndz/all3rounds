@@ -1,4 +1,4 @@
-import { getD1Async } from "@/db/client";
+import { getD1Async, getSearchCache } from "@/db/client";
 import { normalizeEmceeSlug } from "@/lib/emcees";
 
 type Row = Record<string, unknown>;
@@ -11,6 +11,16 @@ type CompatResponse = {
 };
 type MutationResponse = Omit<CompatResponse, "count"> & {
   count?: number | null;
+};
+type SearchCandidate = {
+  id: number;
+  rank: number;
+};
+type SearchCachePayload = {
+  version: 2;
+  query: string;
+  candidates: SearchCandidate[];
+  createdAt: number;
 };
 type Filter =
   | { kind: "eq" | "neq" | "lt" | "lte" | "gt" | "gte"; column: string; value: unknown }
@@ -32,6 +42,11 @@ type Order = {
 type MutationMode = "select" | "insert" | "update" | "delete" | "upsert";
 type SingleMode = "many" | "single" | "maybeSingle";
 const MAX_IN_PARAMS = 100;
+const SEARCH_CACHE_TTL_SECONDS = 60 * 60 * 24;
+const SEARCH_CANDIDATE_LIMIT = 500;
+const SEARCH_BROAD_SENTINEL_LIMIT = SEARCH_CANDIDATE_LIMIT + 1;
+const SEARCH_RANK_POOL_LIMIT = 1000;
+const SEARCH_CACHE_VERSION = 2;
 
 const TABLES = new Set([
   "emcees",
@@ -75,6 +90,221 @@ function quoteIdent(value: string) {
 
 function compatData(value: unknown): CompatData {
   return value as CompatData;
+}
+
+export function normalizeSearchTerm(value: string) {
+  return value
+    .trim()
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9\s]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function buildFtsQuery(value: string) {
+  return value
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((part) => `"${part.replace(/"/g, '""')}"`)
+    .join(" ");
+}
+
+function tokenizeSearchTerm(value: string) {
+  return normalizeSearchTerm(value).split(" ").filter(Boolean);
+}
+
+async function hashSearchTerm(value: string) {
+  const bytes = new TextEncoder().encode(value);
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  return Array.from(new Uint8Array(digest))
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+async function getSearchCacheKey(normalizedTerm: string) {
+  const readable = normalizedTerm
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 80);
+  return `search:v${SEARCH_CACHE_VERSION}:${readable || "query"}:${await hashSearchTerm(normalizedTerm)}`;
+}
+
+function parseSearchCachePayload(raw: string | null, normalizedTerm: string) {
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw) as Partial<SearchCachePayload>;
+    if (
+      parsed.version !== SEARCH_CACHE_VERSION ||
+      parsed.query !== normalizedTerm ||
+      !Array.isArray(parsed.candidates)
+    ) {
+      return null;
+    }
+    const candidates = parsed.candidates
+      .map((candidate) => ({
+        id: Number(candidate.id),
+        rank: Number(candidate.rank),
+      }))
+      .filter(
+        (candidate): candidate is SearchCandidate =>
+          Number.isInteger(candidate.id) && Number.isFinite(candidate.rank),
+      )
+      .slice(0, SEARCH_CANDIDATE_LIMIT);
+    return { ...parsed, candidates } as SearchCachePayload;
+  } catch {
+    return null;
+  }
+}
+
+async function readCachedSearchCandidates(normalizedTerm: string) {
+  const cache = await getSearchCache();
+  if (!cache) return null;
+
+  const key = await getSearchCacheKey(normalizedTerm);
+  const payload = parseSearchCachePayload(await cache.get(key), normalizedTerm);
+  if (process.env.APP_ENV === "development" && payload) {
+    console.info(`[D1] search_cache=hit candidates=${payload.candidates.length}`);
+  }
+  return payload?.candidates ?? null;
+}
+
+async function writeCachedSearchCandidates(
+  normalizedTerm: string,
+  candidates: SearchCandidate[],
+) {
+  const cache = await getSearchCache();
+  if (!cache) return;
+
+  const key = await getSearchCacheKey(normalizedTerm);
+  const payload: SearchCachePayload = {
+    version: SEARCH_CACHE_VERSION,
+    query: normalizedTerm,
+    candidates,
+    createdAt: Date.now(),
+  };
+  await cache.put(key, JSON.stringify(payload), {
+    expirationTtl: SEARCH_CACHE_TTL_SECONDS,
+  });
+}
+
+export function getSearchMode(normalizedTerm: string) {
+  const tokens = tokenizeSearchTerm(normalizedTerm);
+  if (tokens.length !== 1) return "multi_token" as const;
+  return "broad_single" as const;
+}
+
+function normalizedField(row: Row, key: string) {
+  const value = row[key];
+  return typeof value === "string" ? normalizeSearchTerm(value) : "";
+}
+
+function tokenPositions(words: string[], token: string) {
+  const positions: number[] = [];
+  words.forEach((word, index) => {
+    if (word === token) positions.push(index);
+  });
+  return positions;
+}
+
+function hasTokensInOrder(words: string[], tokens: string[]) {
+  let cursor = 0;
+  for (const word of words) {
+    if (word === tokens[cursor]) cursor += 1;
+    if (cursor === tokens.length) return true;
+  }
+  return false;
+}
+
+function proximityScore(words: string[], tokens: string[]) {
+  const firstPositions = tokens
+    .map((token) => tokenPositions(words, token)[0])
+    .filter((position): position is number => typeof position === "number");
+  if (firstPositions.length !== tokens.length) return 0;
+
+  const span = Math.max(...firstPositions) - Math.min(...firstPositions) + 1;
+  if (span <= tokens.length) return 1000;
+  if (span <= tokens.length + 2) return 700;
+  if (span <= tokens.length + 6) return 400;
+  if (span <= tokens.length + 12) return 150;
+  return 0;
+}
+
+function eventDateTieBreaker(value: unknown) {
+  if (typeof value !== "string") return 0;
+  const year = Number(value.slice(0, 4));
+  if (!Number.isFinite(year)) return 0;
+  return Math.max(0, Math.min(25, year - 2000));
+}
+
+export function scoreSearchRow(row: Row, normalizedTerm: string) {
+  const tokens = tokenizeSearchTerm(normalizedTerm);
+  const content = normalizedField(row, "content");
+  const contentWords = content.split(" ").filter(Boolean);
+  const exactPhrase = content.includes(normalizedTerm);
+  const matchedTokens = tokens.filter((token) => contentWords.includes(token));
+  const allTokens = tokens.length > 0 && matchedTokens.length === tokens.length;
+  const orderedTokens = tokens.length > 1 && hasTokensInOrder(contentWords, tokens);
+
+  let score = 0;
+  if (exactPhrase) score += 10_000;
+  if (orderedTokens) score += 4_000;
+  if (allTokens) score += 2_500;
+  score += matchedTokens.length * 300;
+  score += proximityScore(contentWords, tokens);
+
+  const speaker = normalizedField(row, "speaker_label");
+  const emcee = normalizedField(row, "emcee_name");
+  const title = normalizedField(row, "battle_title");
+  const eventName = normalizedField(row, "battle_event_name");
+  const metadata = [speaker, emcee, title, eventName].filter(Boolean).join(" ");
+
+  if (tokens.some((token) => speaker.split(" ").includes(token) || emcee.split(" ").includes(token))) {
+    score += 500;
+  }
+  if (tokens.some((token) => title.split(" ").includes(token) || eventName.split(" ").includes(token))) {
+    score += 300;
+  }
+  if (row.battle_status === "reviewed") score += 100;
+  else if (row.battle_status === "reviewing") score += 50;
+  if (typeof row.emcee_id === "string" && row.emcee_id) score += 25;
+  if (metadata.includes(normalizedTerm)) score += 150;
+  score += eventDateTieBreaker(row.battle_event_date);
+  score -= Math.min(300, Math.max(0, contentWords.length - 18) * 6);
+
+  return score;
+}
+
+export function scoreSingleTokenSearchRow(
+  row: Row,
+  normalizedTerm: string,
+  originalRank = 0,
+) {
+  const content = normalizedField(row, "content");
+  const contentWords = content.split(" ").filter(Boolean);
+  const speaker = normalizedField(row, "speaker_label");
+  const emcee = normalizedField(row, "emcee_name");
+  const title = normalizedField(row, "battle_title");
+  const eventName = normalizedField(row, "battle_event_name");
+
+  let score = 0;
+  if (speaker === normalizedTerm || emcee === normalizedTerm) score += 2_000;
+  if (speaker.split(" ").includes(normalizedTerm) || emcee.split(" ").includes(normalizedTerm)) {
+    score += 1_000;
+  }
+  if (title === normalizedTerm || eventName === normalizedTerm) score += 700;
+  if (title.split(" ").includes(normalizedTerm) || eventName.split(" ").includes(normalizedTerm)) {
+    score += 350;
+  }
+  if (row.battle_status === "reviewed") score += 100;
+  else if (row.battle_status === "reviewing") score += 50;
+  if (typeof row.emcee_id === "string" && row.emcee_id) score += 25;
+  score += eventDateTieBreaker(row.battle_event_date);
+  score -= Math.min(150, Math.max(0, contentWords.length - 18) * 3);
+  score -= originalRank / 10_000;
+
+  return score;
 }
 
 function normalizeDateInput(value: unknown) {
@@ -714,29 +944,152 @@ class D1RpcBuilder implements PromiseLike<CompatResponse | MutationResponse> {
 }
 
 async function searchFast(searchTerm: string, from: number, to?: number, options?: { count?: "exact" }): Promise<CompatResponse> {
-  const query = searchTerm.trim().split(/\s+/).filter(Boolean).map((part) => `"${part.replace(/"/g, '""')}"`).join(" ");
-  const rows = await fetchRows(
-    `WITH matched AS (
-       SELECT l.id, bm25(lines_fts) AS rank
-       FROM lines_fts
-       JOIN lines l ON l.id = lines_fts.rowid
-       WHERE lines_fts MATCH ?
-       ORDER BY rank
-       LIMIT 500
-     )
-     SELECT l.id, l.content, l.start_time, l.end_time, l.round_number, l.speaker_label,
-            l.emcee_id, e.name AS emcee_name, l.battle_id, b.title AS battle_title,
-            b.youtube_id AS battle_youtube_id, b.event_name AS battle_event_name,
-            b.event_date AS battle_event_date, b.status AS battle_status, m.rank
-     FROM matched m
-     JOIN lines l ON l.id = m.id
-     LEFT JOIN emcees e ON e.id = l.emcee_id
-     JOIN battles b ON b.id = l.battle_id
-     ORDER BY m.rank ASC`,
-    [query],
-  );
+  const normalizedTerm = normalizeSearchTerm(searchTerm);
+  if (!normalizedTerm) {
+    return { data: compatData([]), error: null, count: 0 };
+  }
+
+  const mode = getSearchMode(normalizedTerm);
+  const candidates =
+    (await readCachedSearchCandidates(normalizedTerm)) ??
+    (await fetchSearchCandidates(normalizedTerm, mode));
+  if (process.env.APP_ENV === "development") {
+    console.info(`[D1] search_mode=${mode} candidate_count=${candidates.length}`);
+  }
+  const pageCandidates = candidates.slice(from, to == null ? undefined : to + 1);
+  const rows = await hydrateSearchCandidates(pageCandidates);
+
   await hydrateRows("lines", rows, "*");
-  return { data: compatData(rows.slice(from, to == null ? undefined : to + 1)), error: null, count: options?.count === "exact" ? rows.length : null };
+  return {
+    data: compatData(rows),
+    error: null,
+    count: options?.count === "exact" ? candidates.length : null,
+  };
+}
+
+async function fetchSearchCandidates(
+  normalizedTerm: string,
+  mode: ReturnType<typeof getSearchMode>,
+) {
+  if (mode === "broad_single") {
+    return fetchBroadSingleCandidates(normalizedTerm);
+  }
+  return fetchMultiTokenCandidates(normalizedTerm);
+}
+
+async function fetchBroadSingleCandidates(normalizedTerm: string) {
+  const query = buildFtsQuery(normalizedTerm);
+  const rawCandidates = await fetchUnrankedFtsCandidates(
+    query,
+    SEARCH_BROAD_SENTINEL_LIMIT,
+  );
+
+  const isBroad = rawCandidates.length > SEARCH_CANDIDATE_LIMIT;
+  const candidates = isBroad
+    ? rawCandidates.slice(0, SEARCH_CANDIDATE_LIMIT)
+    : await rankSingleTokenCandidates(normalizedTerm, rawCandidates);
+
+  if (process.env.APP_ENV === "development" && !isBroad) {
+    console.info(`[D1] single_token_ranked_count=${candidates.length}`);
+  }
+  await writeCachedSearchCandidates(normalizedTerm, candidates);
+  return candidates;
+}
+
+async function rankSingleTokenCandidates(
+  normalizedTerm: string,
+  candidates: SearchCandidate[],
+) {
+  const rows = await hydrateSearchCandidates(candidates);
+  const originalRanks = new Map(candidates.map((candidate) => [candidate.id, candidate.rank]));
+  return rows
+    .map((row) => {
+      const id = Number(row.id);
+      return {
+        id,
+        rank: scoreSingleTokenSearchRow(row, normalizedTerm, originalRanks.get(id) ?? 0),
+      };
+    })
+    .filter(
+      (candidate): candidate is SearchCandidate =>
+        Number.isInteger(candidate.id) && Number.isFinite(candidate.rank),
+    )
+    .sort((left, right) => right.rank - left.rank || left.id - right.id);
+}
+
+async function fetchMultiTokenCandidates(normalizedTerm: string) {
+  const pool = await fetchUnrankedFtsCandidates(
+    buildFtsQuery(normalizedTerm),
+    SEARCH_RANK_POOL_LIMIT,
+  );
+  const rows = await hydrateSearchCandidates(pool);
+  if (process.env.APP_ENV === "development") {
+    console.info(`[D1] rank_pool_count=${rows.length}`);
+  }
+
+  const scored = rows
+    .map((row) => ({
+      id: Number(row.id),
+      rank: scoreSearchRow(row, normalizedTerm),
+    }))
+    .filter(
+      (candidate): candidate is SearchCandidate =>
+        Number.isInteger(candidate.id) && Number.isFinite(candidate.rank),
+    )
+    .sort((left, right) => right.rank - left.rank || left.id - right.id)
+    .slice(0, SEARCH_CANDIDATE_LIMIT);
+  await writeCachedSearchCandidates(normalizedTerm, scored);
+  return scored;
+}
+
+async function fetchUnrankedFtsCandidates(query: string, limit: number) {
+  const rows = await fetchRows(
+    `SELECT lines_fts.rowid AS id
+     FROM lines_fts
+     WHERE lines_fts MATCH ?
+     LIMIT ?`,
+    [query, limit],
+  );
+  return rows
+    .map((row, index) => ({
+      id: Number(row.id),
+      rank: index,
+    }))
+    .filter(
+      (candidate): candidate is SearchCandidate =>
+        Number.isInteger(candidate.id) && Number.isFinite(candidate.rank),
+    );
+}
+
+async function hydrateSearchCandidates(candidates: SearchCandidate[]) {
+  if (!candidates.length) return [];
+
+  const ids = candidates.map((candidate) => candidate.id);
+  const rows: Row[] = [];
+  for (let index = 0; index < ids.length; index += MAX_IN_PARAMS) {
+    const chunk = ids.slice(index, index + MAX_IN_PARAMS);
+    const placeholders = chunk.map(() => "?").join(", ");
+    rows.push(
+      ...(await fetchRows(
+        `SELECT l.id, l.content, l.start_time, l.end_time, l.round_number, l.speaker_label,
+                l.emcee_id, e.name AS emcee_name, l.battle_id, b.title AS battle_title,
+                b.youtube_id AS battle_youtube_id, b.event_name AS battle_event_name,
+                b.event_date AS battle_event_date, b.status AS battle_status
+         FROM lines l
+         LEFT JOIN emcees e ON e.id = l.emcee_id
+         JOIN battles b ON b.id = l.battle_id
+         WHERE l.id IN (${placeholders})`,
+        chunk,
+      )),
+    );
+  }
+  const byId = new Map(rows.map((row) => [Number(row.id), row]));
+  return candidates.flatMap((candidate) => {
+    const row = byId.get(candidate.id);
+    if (!row) return [];
+    row.rank = candidate.rank;
+    return [row];
+  });
 }
 
 async function randomValidLineIds(sampleSize: number, statuses: string[]): Promise<MutationResponse> {
