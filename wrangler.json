@@ -52,7 +52,7 @@
         {
           "binding": "DB",
           "database_name": "all3rounds",
-          "database_id": "replace-with-prod-d1-database-id",
+          "database_id": "32e50e6a-4344-4591-98d3-dd26e6c35aff",
           "migrations_dir": "migrations"
         }
       ],
