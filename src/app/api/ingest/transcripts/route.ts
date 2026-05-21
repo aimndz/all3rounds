@@ -23,6 +23,7 @@ const SegmentSchema = z.object({
 });
 
 const TranscriptSchema = z.object({
+  league: z.string().min(1).max(80).default("fliptop"),
   youtube_id: z.string().min(1).max(64),
   title: z.string().min(1).max(300),
   event_name: z.string().max(200).nullable().optional(),
@@ -68,7 +69,7 @@ export async function POST(request: NextRequest) {
   }
 
   const battleId = crypto.randomUUID();
-  const league = normalizeBattleLeague("fliptop");
+  const league = normalizeBattleLeague(payload.league);
   const slugBase = normalizeBattleSlug(payload.title);
   const existingSlugs = await db
     .select({ slug: battles.slug })
