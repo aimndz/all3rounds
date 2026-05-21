@@ -90,92 +90,90 @@ export async function POST(request: NextRequest) {
     };
   });
 
-  await db.transaction(async (tx) => {
-    for (const participant of participantRows) {
-      await tx
-        .insert(emcees)
-        .values(participant)
-        .onConflictDoNothing();
+  for (const participant of participantRows) {
+    await db
+      .insert(emcees)
+      .values(participant)
+      .onConflictDoNothing();
 
-      const existingEmcee = await tx
-        .select({ id: emcees.id })
-        .from(emcees)
-        .where(eq(emcees.slug, participant.slug))
-        .limit(1);
-      const emceeId = existingEmcee[0]?.id ?? participant.id;
-      speakerToEmcee.set(participant.name.toLowerCase(), emceeId);
+    const existingEmcee = await db
+      .select({ id: emcees.id })
+      .from(emcees)
+      .where(eq(emcees.slug, participant.slug))
+      .limit(1);
+    const emceeId = existingEmcee[0]?.id ?? participant.id;
+    speakerToEmcee.set(participant.name.toLowerCase(), emceeId);
 
-      await tx
-        .insert(emceeAliases)
-        .values({
-          emceeId,
-          alias: participant.name,
-          aliasNormalized: normalizeEmceeSlug(participant.name),
-        })
-        .onConflictDoNothing();
-    }
-
-    await tx.insert(battles).values({
-      id: battleId,
-      league,
-      slug,
-      title: payload.title,
-      youtubeId: payload.youtube_id,
-      eventName: payload.event_name ?? null,
-      eventDate: payload.event_date ?? null,
-      status: "raw",
-      createdAt: now,
-    });
-
-    for (const [index, participant] of participantRows.entries()) {
-      const emceeId = speakerToEmcee.get(participant.name.toLowerCase());
-      if (!emceeId) continue;
-      await tx.insert(battleParticipants).values({
-        id: crypto.randomUUID(),
-        battleId,
-        emceeId,
-        label: `MC${index + 1}`,
-      });
-    }
-
-    for (const segment of payload.segments) {
-      const emceeId = speakerToEmcee.get(segment.speaker.toLowerCase()) ?? null;
-      const inserted = await tx.insert(lines).values({
-        battleId,
-        emceeId,
-        roundNumber: null,
-        speakerLabel: segment.speaker,
-        content: segment.text,
-        startTime: segment.start,
-        endTime: segment.end,
-        createdAt: now,
-      }).returning({ id: lines.id });
-
-      if (emceeId && inserted[0]) {
-        await tx.insert(lineSpeakers).values({
-          lineId: inserted[0].id,
-          emceeId,
-        }).onConflictDoNothing();
-      }
-    }
-
-    await tx
-      .insert(videoProcessingStatus)
+    await db
+      .insert(emceeAliases)
       .values({
-        youtubeId: payload.youtube_id,
-        status: "completed",
-        workerId: null,
-        startedAt: now,
-        updatedAt: now,
+        emceeId,
+        alias: participant.name,
+        aliasNormalized: normalizeEmceeSlug(participant.name),
       })
-      .onConflictDoUpdate({
-        target: videoProcessingStatus.youtubeId,
-        set: {
-          status: "completed",
-          updatedAt: now,
-        },
-      });
+      .onConflictDoNothing();
+  }
+
+  await db.insert(battles).values({
+    id: battleId,
+    league,
+    slug,
+    title: payload.title,
+    youtubeId: payload.youtube_id,
+    eventName: payload.event_name ?? null,
+    eventDate: payload.event_date ?? null,
+    status: "raw",
+    createdAt: now,
   });
+
+  for (const [index, participant] of participantRows.entries()) {
+    const emceeId = speakerToEmcee.get(participant.name.toLowerCase());
+    if (!emceeId) continue;
+    await db.insert(battleParticipants).values({
+      id: crypto.randomUUID(),
+      battleId,
+      emceeId,
+      label: `MC${index + 1}`,
+    });
+  }
+
+  for (const segment of payload.segments) {
+    const emceeId = speakerToEmcee.get(segment.speaker.toLowerCase()) ?? null;
+    const inserted = await db.insert(lines).values({
+      battleId,
+      emceeId,
+      roundNumber: null,
+      speakerLabel: segment.speaker,
+      content: segment.text,
+      startTime: segment.start,
+      endTime: segment.end,
+      createdAt: now,
+    }).returning({ id: lines.id });
+
+    if (emceeId && inserted[0]) {
+      await db.insert(lineSpeakers).values({
+        lineId: inserted[0].id,
+        emceeId,
+      }).onConflictDoNothing();
+    }
+  }
+
+  await db
+    .insert(videoProcessingStatus)
+    .values({
+      youtubeId: payload.youtube_id,
+      status: "completed",
+      workerId: null,
+      startedAt: now,
+      updatedAt: now,
+    })
+    .onConflictDoUpdate({
+      target: videoProcessingStatus.youtubeId,
+      set: {
+        status: "completed",
+        updatedAt: now,
+      },
+    });
 
   return NextResponse.json({
     battle_id: battleId,

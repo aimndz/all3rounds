@@ -71,7 +71,7 @@ export async function POST(request: NextRequest) {
     })
     .onConflictDoNothing();
 
-  const lock = await db
+  let lock = await db
     .select({
       status: videoProcessingStatus.status,
       workerId: videoProcessingStatus.workerId,
@@ -79,6 +79,27 @@ export async function POST(request: NextRequest) {
     .from(videoProcessingStatus)
     .where(eq(videoProcessingStatus.youtubeId, youtubeId))
     .limit(1);
+
+  if (lock[0]?.status === "failed") {
+    await db
+      .update(videoProcessingStatus)
+      .set({
+        status: "processing",
+        workerId,
+        startedAt: new Date(now),
+        updatedAt: new Date(now),
+      })
+      .where(eq(videoProcessingStatus.youtubeId, youtubeId));
+
+    lock = await db
+      .select({
+        status: videoProcessingStatus.status,
+        workerId: videoProcessingStatus.workerId,
+      })
+      .from(videoProcessingStatus)
+      .where(eq(videoProcessingStatus.youtubeId, youtubeId))
+      .limit(1);
+  }
 
   return NextResponse.json({
     claimed: lock[0]?.status === "processing" && lock[0]?.workerId === workerId,
