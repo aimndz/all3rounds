@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams, usePathname } from "next/navigation";
+import { getUniqueBattleLeagues } from "@/lib/battles";
 
 // ============================================================================
 // Types
@@ -25,6 +26,7 @@ export type Battle = {
 export type EventGroup = {
   name: string;
   date: string | null;
+  leagues: string[];
   battles: Battle[];
   maxScore: number;
 };
@@ -48,12 +50,14 @@ export function groupByEvent(
       groups.set(key, {
         name: key,
         date: battle.event_date,
+        leagues: [],
         battles: [],
         maxScore: 0,
       });
     }
     const group = groups.get(key)!;
     group.battles.push(battle);
+    group.leagues = getUniqueBattleLeagues(group.battles);
 
     if (battle.score && battle.score > group.maxScore) {
       group.maxScore = battle.score;
@@ -95,6 +99,7 @@ export function useBattlesData(
   const filter = searchParams.get("q") || "";
   const statusFilter = searchParams.get("status") || "all";
   const yearFilter = searchParams.get("year") || "all";
+  const leagueFilter = searchParams.get("league") || "all";
   const sortBy = searchParams.get("sort") || "latest";
   const page = parseInt(searchParams.get("page") || "1", 10);
 
@@ -125,6 +130,7 @@ export function useBattlesData(
         q: string;
         status: string;
         year: string;
+        league: string;
         sort: string;
       },
     ) => {
@@ -138,6 +144,8 @@ export function useBattlesData(
           params.set("status", currentFilters.status);
         if (currentFilters.year && currentFilters.year !== "all")
           params.set("year", currentFilters.year);
+        if (currentFilters.league && currentFilters.league !== "all")
+          params.set("league", currentFilters.league);
         if (currentFilters.sort && currentFilters.sort !== "latest")
           params.set("sort", currentFilters.sort);
         params.set("page", String(Math.max(1, currentPage)));
@@ -185,6 +193,7 @@ export function useBattlesData(
         filter ||
         statusFilter !== "all" ||
         yearFilter !== "all" ||
+        leagueFilter !== "all" ||
         sortBy !== "latest";
       if (!isFiltered && page === 1 && initialBattles.length > 0) {
         return; // Use initial server data for default first-page load
@@ -195,12 +204,14 @@ export function useBattlesData(
       q: filter,
       status: statusFilter,
       year: yearFilter,
+      league: leagueFilter,
       sort: sortBy,
     });
   }, [
     filter,
     statusFilter,
     yearFilter,
+    leagueFilter,
     sortBy,
     page,
     fetchBattles,
@@ -273,7 +284,10 @@ export function useBattlesData(
 
   const handlePageChange = useCallback(
     (newPage: number) => {
-      updateSearch({ page: newPage > 1 ? newPage.toString() : null }, { replace: false });
+      updateSearch(
+        { page: newPage > 1 ? newPage.toString() : null },
+        { replace: false },
+      );
       window.scrollTo({ top: 0, behavior: "smooth" });
     },
     [updateSearch],
@@ -328,6 +342,7 @@ export function useBattlesData(
     filter ||
     statusFilter !== "all" ||
     yearFilter !== "all" ||
+    leagueFilter !== "all" ||
     sortBy !== "latest";
 
   return {
@@ -345,6 +360,7 @@ export function useBattlesData(
     filter,
     statusFilter,
     yearFilter,
+    leagueFilter,
     sortBy,
     searchInput,
     setSearchInput,

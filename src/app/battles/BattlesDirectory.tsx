@@ -23,6 +23,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { formatBattleLeagueLabel } from "@/lib/battles";
 import { cn } from "@/lib/utils";
 import { STATUS_CONFIG } from "@/components/StatusBadge";
 import {
@@ -54,12 +55,14 @@ export default function BattlesDirectory({
   initialTotalEvents,
   initialYears,
   initialEventNames = [],
+  initialAvailableLeagues = [],
 }: {
   initialBattles: Battle[];
   initialCount: number;
   initialTotalEvents: number;
   initialYears: string[];
   initialEventNames?: string[];
+  initialAvailableLeagues?: string[];
 }) {
   const { canEditBattleStatus, isSuperAdmin } = useAuthStore();
 
@@ -76,6 +79,7 @@ export default function BattlesDirectory({
     filter,
     statusFilter,
     yearFilter,
+    leagueFilter,
     sortBy,
     searchInput,
     setSearchInput,
@@ -123,9 +127,19 @@ export default function BattlesDirectory({
 
   const showLoadingSkeleton = loading && battles.length === 0;
   const showEmptyState = !loading && battles.length === 0;
+  const visibleLeagueCount = new Set(battles.map((b) => b.league)).size;
+  const leagueOptions =
+    leagueFilter !== "all" && !initialAvailableLeagues.includes(leagueFilter)
+      ? [leagueFilter, ...initialAvailableLeagues]
+      : initialAvailableLeagues;
 
   const renderFilterContent = (mobile = false) => (
-    <div className={cn("filter-grid", !mobile && "lg:flex-row lg:flex-wrap lg:justify-end")}>
+    <div
+      className={cn(
+        "filter-grid",
+        !mobile && "lg:flex-row lg:flex-wrap lg:justify-end",
+      )}
+    >
       {/* Status Filter */}
       <div className="flex-1 space-y-2">
         {mobile && <label className="filter-label">Status</label>}
@@ -182,6 +196,27 @@ export default function BattlesDirectory({
         </Select>
       </div>
 
+      {/* League Filter */}
+      <div className="flex-1 space-y-2">
+        {mobile && <label className="filter-label">League</label>}
+        <Select
+          value={leagueFilter}
+          onValueChange={(v) => updateSearch({ league: v })}
+        >
+          <SelectTrigger size="lg" className="sm:w-40">
+            <SelectValue placeholder="All Leagues" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Leagues</SelectItem>
+            {leagueOptions.map((league) => (
+              <SelectItem key={league} value={league}>
+                {formatBattleLeagueLabel(league)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
       <div className="flex-1 space-y-2">
         {mobile && <label className="filter-label">Sort By</label>}
         <Select value={sortBy} onValueChange={(v) => updateSearch({ sort: v })}>
@@ -221,7 +256,8 @@ export default function BattlesDirectory({
               <p className="page-meta">
                 {totalCount !== null ? totalCount : battles.length} battles •{" "}
                 {new Set(battles.map((b) => b.event_name).filter(Boolean)).size}{" "}
-                events
+                events • {visibleLeagueCount} league
+                {visibleLeagueCount === 1 ? "" : "s"}
               </p>
             </div>
 

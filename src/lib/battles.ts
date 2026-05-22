@@ -18,6 +18,39 @@ export function normalizeBattleLeague(value: string): string {
   return normalizeBattleRouteSegment(value, "fliptop");
 }
 
+export function formatBattleLeagueLabel(value?: string | null): string {
+  if (!value) return "Unknown League";
+
+  const normalized = normalizeBattleLeague(value);
+  const knownLabels: Record<string, string> = {
+    fliptop: "FlipTop",
+  };
+
+  if (knownLabels[normalized]) {
+    return knownLabels[normalized];
+  }
+
+  return normalized
+    .split("-")
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
+export function getUniqueBattleLeagues(
+  battles: { league?: string | null }[],
+): string[] {
+  return Array.from(
+    new Set(
+      battles
+        .map((battle) => battle.league)
+        .filter((league): league is string => Boolean(league)),
+    ),
+  ).sort((a, b) =>
+    formatBattleLeagueLabel(a).localeCompare(formatBattleLeagueLabel(b)),
+  );
+}
+
 export function normalizeBattleSlug(value: string): string {
   return normalizeBattleRouteSegment(value, "battle");
 }

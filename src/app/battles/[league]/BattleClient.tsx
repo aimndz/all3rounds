@@ -15,6 +15,7 @@ import { useToast } from "@/hooks/use-toast";
 import Link from "next/link";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -33,6 +34,7 @@ import {
 } from "lucide-react";
 import Footer from "@/components/Footer";
 import { cn, formatDate, formatSpeakerName } from "@/lib/utils";
+import { formatBattleLeagueLabel } from "@/lib/battles";
 import { getSpeakerColor } from "@/lib/constants";
 import { StatusBadge } from "@/components/StatusBadge";
 import BatchActionBar from "@/features/battles/components/BatchActionBar";
@@ -1058,6 +1060,13 @@ export default function BattleClient({
 
                   {/* Second Row: Metadata */}
                   <div className="text-muted-foreground/60 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] font-medium sm:gap-x-3 sm:text-xs">
+                    <Badge
+                      variant="secondary"
+                      className="border-primary/15 bg-primary/10 text-primary px-2 py-0.5 text-[10px] font-bold uppercase"
+                    >
+                      {formatBattleLeagueLabel(battle.league)}
+                    </Badge>
+
                     {battle.event_name && (
                       <span className="text-foreground/70 max-w-40 truncate sm:max-w-none">
                         {battle.event_name}

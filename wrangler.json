@@ -43,6 +43,30 @@
         "binding": "IMAGES"
       }
     },
+    "development_remote": {
+      "name": "all3rounds-dev",
+      "vars": {
+        "APP_ENV": "development"
+      },
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "all3rounds-dev",
+          "database_id": "ad631ab8-6830-4f81-956b-6d7b068d5a79",
+          "migrations_dir": "migrations",
+          "remote": true
+        }
+      ],
+      "kv_namespaces": [
+        {
+          "binding": "SEARCH_CACHE",
+          "id": "19c74e3d6ba949f8be24193f0a134d10"
+        }
+      ],
+      "images": {
+        "binding": "IMAGES"
+      }
+    },
     "production": {
       "name": "all3rounds",
       "vars": {

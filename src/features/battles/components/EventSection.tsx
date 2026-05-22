@@ -12,8 +12,10 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { cn, formatEventDate } from "@/lib/utils";
+import { formatBattleLeagueLabel } from "@/lib/battles";
 import { BattleCard } from "@/features/battles/components/BattleCard";
 import type { EventGroup } from "@/features/battles/hooks/use-battles-data";
 
@@ -38,7 +40,10 @@ export const EventSection = memo(function EventSection({
   isSuperadmin?: boolean;
   onRenameGroup?: (oldName: string, newName: string) => void;
   onUpdateGroupDate?: (eventName: string, newDate: string) => void;
-  onBattleStatusUpdated?: (battleId: string, status: EventGroup["battles"][number]["status"]) => void;
+  onBattleStatusUpdated?: (
+    battleId: string,
+    status: EventGroup["battles"][number]["status"],
+  ) => void;
   allEventNames?: string[];
   selectionMode?: boolean;
   selectedIds?: Set<string>;
@@ -140,7 +145,7 @@ export const EventSection = memo(function EventSection({
           isOpen ? "mb-6" : "mb-2",
         )}
       >
-        <div className="flex flex-1 items-center gap-4">
+        <div className="flex min-w-0 flex-1 items-center gap-4">
           <div className="flex items-center gap-3">
             <div
               className={cn(
@@ -163,11 +168,11 @@ export const EventSection = memo(function EventSection({
             </div>
           </div>
 
-          <div className="flex flex-col gap-0.5">
-            <div className="flex items-center gap-3">
+          <div className="flex min-w-0 flex-col gap-1.5">
+            <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2">
               <h2
                 className={cn(
-                  "text-lg font-bold tracking-tight transition-colors duration-300",
+                  "max-w-full min-w-0 text-lg font-bold tracking-tight transition-colors duration-300",
                   isOpen ? "text-foreground" : "text-foreground/80",
                 )}
               >
@@ -218,11 +223,22 @@ export const EventSection = memo(function EventSection({
                 </span>
               </div>
             </div>
-            {group.date && (
-              <p className="text-muted-foreground/60 text-[10px] font-bold tracking-widest uppercase">
-                {formatEventDate(group.date)}
-              </p>
-            )}
+            <div className="flex flex-wrap items-center gap-1.5">
+              {group.leagues.map((league) => (
+                <Badge
+                  key={league}
+                  variant="secondary"
+                  className="border-primary/15 bg-primary/10 text-primary px-2 py-0.5 text-[10px] font-bold uppercase"
+                >
+                  {formatBattleLeagueLabel(league)}
+                </Badge>
+              ))}
+              {group.date && (
+                <p className="text-muted-foreground/60 text-[10px] font-bold tracking-widest uppercase">
+                  {formatEventDate(group.date)}
+                </p>
+              )}
+            </div>
           </div>
         </div>
       </div>

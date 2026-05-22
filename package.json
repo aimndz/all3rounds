@@ -5,6 +5,7 @@
   "packageManager": "pnpm@9.15.2",
   "scripts": {
     "dev": "next dev",
+    "dev:remote-db": "set NEXT_DEV_WRANGLER_ENV=development_remote&& next dev",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",

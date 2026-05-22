@@ -1,5 +1,6 @@
 import { Metadata } from "next";
 import { createPublicClient } from "@/lib/supabase/server";
+import { getUniqueBattleLeagues, normalizeBattleLeague } from "@/lib/battles";
 import BattlesDirectory from "./BattlesDirectory";
 
 const INITIAL_EVENTS_PER_PAGE = 5;
@@ -26,20 +27,41 @@ export default async function BattlesPage({
 }) {
   const params = await searchParams;
   const sort = params.sort === "oldest" ? "oldest" : "latest";
+  const rawLeague = typeof params.league === "string" ? params.league : "all";
+  const league =
+    rawLeague.toLowerCase() === "all"
+      ? "all"
+      : normalizeBattleLeague(rawLeague);
   const supabase = createPublicClient();
 
-  const [{ count: initialCount }, eventsMetaResponse] = await Promise.all([
-    supabase
-      .from("battles")
-      .select("id", { count: "exact", head: true })
-      .in("status", PUBLIC_BATTLE_STATUSES),
-    supabase
-      .from("battles")
-      .select("event_name, event_date")
-      .in("status", PUBLIC_BATTLE_STATUSES)
-      .order("event_date", { ascending: sort === "oldest" })
-      .limit(5000),
-  ]);
+  let countQuery = supabase
+    .from("battles")
+    .select("id", { count: "exact", head: true })
+    .in("status", PUBLIC_BATTLE_STATUSES);
+  let eventsMetaBaseQuery = supabase
+    .from("battles")
+    .select("event_name, event_date, league")
+    .in("status", PUBLIC_BATTLE_STATUSES);
+
+  if (league !== "all") {
+    countQuery = countQuery.eq("league", league);
+    eventsMetaBaseQuery = eventsMetaBaseQuery.eq("league", league);
+  }
+
+  const eventsMetaQuery = eventsMetaBaseQuery
+    .order("event_date", { ascending: sort === "oldest" })
+    .limit(5000);
+
+  const [{ count: initialCount }, eventsMetaResponse, leaguesResponse] =
+    await Promise.all([
+      countQuery,
+      eventsMetaQuery,
+      supabase
+        .from("battles")
+        .select("league")
+        .in("status", PUBLIC_BATTLE_STATUSES)
+        .limit(10000),
+    ]);
 
   if (eventsMetaResponse.error) {
     console.error(
@@ -87,12 +109,24 @@ export default async function BattlesPage({
     (name) => name !== OTHER_BATTLES_KEY,
   );
 
+  const buildInitialBattlesQuery = () => {
+    let query = supabase
+      .from("battles")
+      .select(
+        "id, league, slug, title, youtube_id, event_name, event_date, status, url",
+      )
+      .in("status", PUBLIC_BATTLE_STATUSES);
+
+    if (league !== "all") {
+      query = query.eq("league", league);
+    }
+
+    return query;
+  };
+
   const [namedEventsResponse, otherBattlesResponse] = await Promise.all([
     namedEvents.length > 0
-      ? supabase
-          .from("battles")
-          .select("id, league, slug, title, youtube_id, event_name, event_date, status, url")
-          .in("status", PUBLIC_BATTLE_STATUSES)
+      ? buildInitialBattlesQuery()
           .in("event_name", namedEvents)
           .order("event_date", {
             ascending: sort === "oldest",
@@ -100,10 +134,7 @@ export default async function BattlesPage({
           })
       : Promise.resolve({ data: [], error: null }),
     includeOtherBattles
-      ? supabase
-          .from("battles")
-          .select("id, league, slug, title, youtube_id, event_name, event_date, status, url")
-          .in("status", PUBLIC_BATTLE_STATUSES)
+      ? buildInitialBattlesQuery()
           .is("event_name", null)
           .order("event_date", {
             ascending: sort === "oldest",
@@ -153,6 +184,9 @@ export default async function BattlesPage({
   )
     .sort((a, b) => a!.localeCompare(b!))
     .filter((n): n is string => n !== null);
+  const initialAvailableLeagues = getUniqueBattleLeagues(
+    leaguesResponse.data || [],
+  );
 
   return (
     <BattlesDirectory
@@ -161,6 +195,7 @@ export default async function BattlesPage({
       initialTotalEvents={initialTotalEvents}
       initialYears={initialYears}
       initialEventNames={initialEventNames}
+      initialAvailableLeagues={initialAvailableLeagues}
     />
   );
 }

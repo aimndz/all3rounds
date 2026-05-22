@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { parseSearchTokens, scoreBattle } from "@/lib/fuzzy-utils";
+import { normalizeBattleLeague } from "@/lib/battles";
 
 const OTHER_BATTLES_KEY = "Other Battles";
 
@@ -55,7 +56,11 @@ function getEffectivePage(
 }
 
 function getOrderedEventKeys(
-  rows: { event_name: string | null; event_date: string | null; score?: number }[],
+  rows: {
+    event_name: string | null;
+    event_date: string | null;
+    score?: number;
+  }[],
   cleanSort: string,
   isSearch: boolean = false,
 ): string[] {
@@ -100,6 +105,7 @@ function applyCommonFilters<T>(
   query: T,
   cleanStatus: string,
   cleanYear: string,
+  cleanLeague: string,
 ): T {
   let next = (query as unknown as FilterableQuery).in(
     "status",
@@ -116,6 +122,10 @@ function applyCommonFilters<T>(
       .lte("event_date", `${cleanYear}-12-31`);
   }
 
+  if (cleanLeague !== "all") {
+    next = next.eq("league", cleanLeague);
+  }
+
   return next as unknown as T;
 }
 
@@ -124,6 +134,7 @@ export async function GET(request: NextRequest) {
 
   const q = searchParams.get("q") || "";
   const year = searchParams.get("year") || "all";
+  const rawLeague = searchParams.get("league") || "all";
   const sort = searchParams.get("sort") || "latest";
 
   const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10));
@@ -154,6 +165,10 @@ export async function GET(request: NextRequest) {
       ? "all"
       : "invalid";
   const cleanYear = /^\d{4}$/.test(year) ? year : "all";
+  const cleanLeague =
+    rawLeague.toLowerCase() === "all"
+      ? "all"
+      : normalizeBattleLeague(rawLeague).slice(0, 64);
   const cleanSort = sort === "oldest" ? "oldest" : "latest";
 
   // --- Early return for invalid status ---
@@ -185,6 +200,7 @@ export async function GET(request: NextRequest) {
             ),
           cleanStatus,
           cleanYear,
+          cleanLeague,
         );
 
         // Combine all tokens into a single OR query for efficiency
@@ -276,6 +292,7 @@ export async function GET(request: NextRequest) {
           supabase.from("battles").select("id", { count: "exact", head: true }),
           cleanStatus,
           cleanYear,
+          cleanLeague,
         ),
         applyCommonFilters(
           supabase
@@ -284,6 +301,7 @@ export async function GET(request: NextRequest) {
             .limit(10000),
           cleanStatus,
           cleanYear,
+          cleanLeague,
         ),
       ]);
 
@@ -335,6 +353,7 @@ export async function GET(request: NextRequest) {
             .or(orConditions.join(",")),
           cleanStatus,
           cleanYear,
+          cleanLeague,
         ).order("event_date", {
           ascending: cleanSort === "oldest",
           nullsFirst: false,
@@ -345,20 +364,22 @@ export async function GET(request: NextRequest) {
         }
 
         const order = new Map(pageEventKeys.map((key, idx) => [key, idx]));
-        data = (battlesResponse.data || []).sort((a: BattleRow, b: BattleRow) => {
-          const keyA = getEventKey(a);
-          const keyB = getEventKey(b);
-          const groupA = order.get(keyA) ?? Number.MAX_SAFE_INTEGER;
-          const groupB = order.get(keyB) ?? Number.MAX_SAFE_INTEGER;
+        data = (battlesResponse.data || []).sort(
+          (a: BattleRow, b: BattleRow) => {
+            const keyA = getEventKey(a);
+            const keyB = getEventKey(b);
+            const groupA = order.get(keyA) ?? Number.MAX_SAFE_INTEGER;
+            const groupB = order.get(keyB) ?? Number.MAX_SAFE_INTEGER;
 
-          if (groupA !== groupB) {
-            return groupA - groupB;
-          }
+            if (groupA !== groupB) {
+              return groupA - groupB;
+            }
 
-          const dateA = a.event_date ? new Date(a.event_date).getTime() : 0;
-          const dateB = b.event_date ? new Date(b.event_date).getTime() : 0;
-          return cleanSort === "oldest" ? dateA - dateB : dateB - dateA;
-        });
+            const dateA = a.event_date ? new Date(a.event_date).getTime() : 0;
+            const dateB = b.event_date ? new Date(b.event_date).getTime() : 0;
+            return cleanSort === "oldest" ? dateA - dateB : dateB - dateA;
+          },
+        );
       }
     }
 

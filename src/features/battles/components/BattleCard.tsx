@@ -1,9 +1,10 @@
 import Link from "next/link";
 import Image from "next/image";
 import { Check, Youtube, Info } from "lucide-react";
-import { getBattleHref } from "@/lib/battles";
+import { formatBattleLeagueLabel, getBattleHref } from "@/lib/battles";
 import { cn, formatDate } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { InlineBattleStatusSelect } from "@/features/battles/components/InlineBattleStatusSelect";
 import type { Battle } from "@/features/battles/hooks/use-battles-data";
 
@@ -93,12 +94,19 @@ export function BattleCard({
       {/* Info */}
       <div className="flex flex-1 flex-col p-3 sm:p-4">
         <div className="flex-1">
+          <Badge
+            variant="secondary"
+            className="border-primary/15 bg-primary/10 text-primary px-2 py-0.5 text-[10px] font-bold uppercase"
+          >
+            {formatBattleLeagueLabel(battle.league)}
+          </Badge>
+
           <Link
             href={battleHref}
             prefetch={false}
             onClick={(e) => selectable && e.preventDefault()}
           >
-            <h3 className="text-foreground decoration-primary/30 group-hover:text-primary line-clamp-2 text-sm leading-snug font-bold decoration-2 underline-offset-4 transition-all hover:underline">
+            <h3 className="text-foreground decoration-primary/30 group-hover:text-primary mt-2 line-clamp-2 text-sm leading-snug font-bold decoration-2 underline-offset-4 transition-all hover:underline">
               {battle.title}
             </h3>
           </Link>

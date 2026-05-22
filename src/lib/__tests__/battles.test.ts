@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  formatBattleLeagueLabel,
   getBattleHref,
   getBattlePath,
+  getUniqueBattleLeagues,
   normalizeBattleLeague,
   normalizeBattleSlug,
 } from "../battles";
@@ -17,6 +19,24 @@ describe("battle route helpers", () => {
     expect(getBattlePath("fliptop", "loonie-vs-abra")).toBe(
       "/battles/fliptop/loonie-vs-abra",
     );
+  });
+
+  it("formats league labels for badges and filters", () => {
+    expect(formatBattleLeagueLabel("fliptop")).toBe("FlipTop");
+    expect(formatBattleLeagueLabel("underground-league")).toBe(
+      "Underground League",
+    );
+  });
+
+  it("deduplicates and sorts league values by display label", () => {
+    expect(
+      getUniqueBattleLeagues([
+        { league: "sunugan" },
+        { league: "fliptop" },
+        { league: "sunugan" },
+        { league: null },
+      ]),
+    ).toEqual(["fliptop", "sunugan"]);
   });
 
   it("falls back to the legacy id route when canonical fields are missing", () => {
