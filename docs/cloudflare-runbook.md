@@ -68,6 +68,7 @@ Record names only, never values.
 - `UPSTASH_REDIS_REST_TOKEN`
 - `NEXT_PUBLIC_SITE_URL`
 - `NEXT_PUBLIC_GA_ID`
+- `TURNSTILE_SECRET_KEY`
 - Any additional Worker secrets: `TODO`
 
 Known development worker secrets observed:
@@ -77,6 +78,7 @@ Known development worker secrets observed:
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `SUPABASE_SERVICE_ROLE_KEY`
+- `TURNSTILE_SECRET_KEY`
 - `UPSTASH_REDIS_REST_TOKEN`
 - `UPSTASH_REDIS_REST_URL`
 
@@ -88,6 +90,7 @@ Known production worker secrets observed:
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `SUPABASE_SERVICE_ROLE_KEY`
+- `TURNSTILE_SECRET_KEY`
 - `UPSTASH_REDIS_REST_TOKEN`
 - `UPSTASH_REDIS_REST_URL`
 
@@ -209,8 +212,11 @@ Rate limiting rules outside the app:
 
 Turnstile usage:
 
-- Not in use
-- No Turnstile widgets currently configured
+- Used by the public feedback dialog.
+- Widget mode: Managed
+- Client env var: `NEXT_PUBLIC_TURNSTILE_SITE_KEY`
+- Worker secret: `TURNSTILE_SECRET_KEY`
+- Required CSP allowlist: `https://challenges.cloudflare.com` in `script-src`, `frame-src`, and `connect-src`
 
 ### Observability
 

@@ -56,6 +56,7 @@ const TABLES = new Set([
   "lines",
   "line_speakers",
   "edit_history",
+  "feedback",
   "suggestions",
   "user_profiles",
   "video_processing_status",
@@ -333,6 +334,7 @@ function publicRow(table: string, row: Row): Row {
     table === "lines" ||
     table === "edit_history" ||
     table === "suggestions" ||
+    table === "feedback" ||
     table === "user_profiles" ||
     table === "video_processing_status"
   ) {
@@ -840,7 +842,7 @@ export class D1QueryBuilder implements PromiseLike<CompatResponse | MutationResp
     const ids: unknown[] = [];
     for (const raw of values) {
       const { data, speakerIds, aka } = this.normalizeMutationValues(raw);
-      if (!data.id && ["emcees", "battle_participants", "edit_history", "suggestions", "battles"].includes(this.table)) data.id = crypto.randomUUID();
+      if (!data.id && ["emcees", "battle_participants", "edit_history", "feedback", "suggestions", "battles"].includes(this.table)) data.id = crypto.randomUUID();
       const columns = Object.keys(data);
       const result = await (await getD1Async()).prepare(`INSERT INTO ${quoteIdent(this.table)} (${columns.map(quoteIdent).join(", ")}) VALUES (${columns.map(() => "?").join(", ")})`).bind(...columns.map((column) => data[column])).run();
       const id = data.id ?? result.meta.last_row_id;

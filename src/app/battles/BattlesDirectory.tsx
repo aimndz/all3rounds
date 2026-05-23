@@ -395,10 +395,11 @@ export default function BattlesDirectory({
           {!sa.selectionMode && (
             <button
               onClick={() => sa.setSelectionMode(true)}
-              className="bg-primary text-primary-foreground hover:bg-primary/90 fixed right-6 bottom-6 z-40 flex items-center gap-2 rounded-full px-4 py-2.5 text-sm font-semibold shadow-lg transition-all"
+              className="bg-primary text-primary-foreground hover:bg-primary/90 fixed right-4 bottom-18 z-40 flex h-12 w-12 items-center justify-center gap-2 rounded-full p-0 px-3 text-sm font-semibold shadow-lg transition-all sm:right-auto sm:bottom-6 sm:left-6 sm:w-auto"
             >
               <MousePointerClick className="h-4 w-4" />
-              Select Battles
+              <span className="hidden sm:inline">Select Battles</span>
+              <span className="sr-only sm:hidden">Select Battles</span>
             </button>
           )}
 

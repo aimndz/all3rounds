@@ -282,6 +282,34 @@ export const suggestions = sqliteTable(
   }),
 );
 
+export const feedback = sqliteTable(
+  "feedback",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id").references(() => userProfiles.id, {
+      onDelete: "set null",
+    }),
+    category: text("category").notNull(),
+    message: text("message").notNull(),
+    contactEmail: text("contact_email"),
+    pageUrl: text("page_url"),
+    userAgent: text("user_agent"),
+    status: text("status").notNull().default("new"),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+    reviewedAt: integer("reviewed_at", { mode: "timestamp_ms" }),
+  },
+  (table) => ({
+    categoryIdx: index("idx_feedback_category").on(table.category),
+    statusCreatedAtIdx: index("idx_feedback_status_created_at").on(
+      table.status,
+      table.createdAt,
+    ),
+    userIdx: index("idx_feedback_user_id").on(table.userId),
+  }),
+);
+
 export const videoProcessingStatus = sqliteTable(
   "video_processing_status",
   {

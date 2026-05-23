@@ -8,6 +8,7 @@ import TopChrome from "@/components/TopChrome";
 import Footer from "@/components/Footer";
 import { AuthProvider } from "@/components/AuthProvider";
 import { ErrorBoundary } from "@/components/shared/ErrorBoundary";
+import FeedbackButton from "@/components/FeedbackButton";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -114,6 +115,7 @@ export default async function RootLayout({
               <ErrorBoundary>{children}</ErrorBoundary>
             </div>
             <Footer />
+            <FeedbackButton />
           </div>
         </AuthProvider>
         <Toaster />

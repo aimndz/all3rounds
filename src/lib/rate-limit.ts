@@ -34,6 +34,7 @@ export const RATE_LIMITS = {
   // Editing / Mutations (admin actions)
   edit: { maxRequests: 100, window: "1 h" },
   add_line: { maxRequests: 50, window: "1 h" },
+  feedback: { maxRequests: 10, window: "1 h" },
 } as const;
 
 // Create limiters for each type if Redis is available
@@ -79,6 +80,13 @@ const limiters = redis
         limiter: Ratelimit.slidingWindow(
           RATE_LIMITS.add_line.maxRequests,
           RATE_LIMITS.add_line.window,
+        ),
+      }),
+      feedback: new Ratelimit({
+        redis,
+        limiter: Ratelimit.slidingWindow(
+          RATE_LIMITS.feedback.maxRequests,
+          RATE_LIMITS.feedback.window,
         ),
       }),
     }
