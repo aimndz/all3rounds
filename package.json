@@ -22,6 +22,8 @@
     "preview:prod": "pnpm build:wp && wrangler dev --env production --remote",
     "deploy:dev": "pnpm build:wp && wrangler deploy --env development",
     "deploy:prod": "pnpm build:wp && wrangler deploy --env production",
+    "db:migrate:dev": "wrangler d1 migrations apply DB --env development_remote --remote",
+    "db:migrate:prod": "wrangler d1 migrations apply DB --env production --remote",
     "migrate:export": "tsx scripts/migration/export-postgres.ts",
     "migrate:transform": "tsx scripts/migration/transform-to-sqlite.ts",
     "migrate:verify": "tsx scripts/migration/verify-parity.ts",
