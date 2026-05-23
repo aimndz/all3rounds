@@ -12,7 +12,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { cn, formatEventDate } from "@/lib/utils";
 import { formatBattleLeagueLabel } from "@/lib/battles";
@@ -223,22 +222,10 @@ export const EventSection = memo(function EventSection({
                 </span>
               </div>
             </div>
-            <div className="flex flex-wrap items-center gap-1.5">
-              {group.leagues.map((league) => (
-                <Badge
-                  key={league}
-                  variant="secondary"
-                  className="border-primary/15 bg-primary/10 text-primary px-2 py-0.5 text-[10px] font-bold uppercase"
-                >
-                  {formatBattleLeagueLabel(league)}
-                </Badge>
-              ))}
-              {group.date && (
-                <p className="text-muted-foreground/60 text-[10px] font-bold tracking-widest uppercase">
-                  {formatEventDate(group.date)}
-                </p>
-              )}
-            </div>
+            <p className="text-muted-foreground/70 text-xs font-semibold">
+              {group.leagues.map(formatBattleLeagueLabel).join(", ")}
+              {group.date && ` | ${formatEventDate(group.date)}`}
+            </p>
           </div>
         </div>
       </div>

@@ -40,9 +40,9 @@ export function formatDateLong(dateStr: string | null): string {
 
 export function formatEventDate(dateStr: string | null): string {
   if (!dateStr) return "";
-  return new Date(dateStr).toLocaleDateString("en-PH", {
+  return new Date(dateStr).toLocaleDateString("en-US", {
     year: "numeric",
-    month: "long",
+    month: "short",
   });
 }
 

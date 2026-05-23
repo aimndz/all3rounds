@@ -55,7 +55,6 @@ export default function BattlesDirectory({
   initialTotalEvents,
   initialYears,
   initialEventNames = [],
-  initialAvailableLeagues = [],
 }: {
   initialBattles: Battle[];
   initialCount: number;
@@ -127,27 +126,27 @@ export default function BattlesDirectory({
 
   const showLoadingSkeleton = loading && battles.length === 0;
   const showEmptyState = !loading && battles.length === 0;
-  const visibleLeagueCount = new Set(battles.map((b) => b.league)).size;
-  const leagueOptions =
-    leagueFilter !== "all" && !initialAvailableLeagues.includes(leagueFilter)
-      ? [leagueFilter, ...initialAvailableLeagues]
-      : initialAvailableLeagues;
+  const leagueOptions = ["fliptop", "motus"];
 
   const renderFilterContent = (mobile = false) => (
     <div
       className={cn(
-        "filter-grid",
-        !mobile && "lg:flex-row lg:flex-wrap lg:justify-end",
+        mobile
+          ? "grid grid-cols-2 gap-3"
+          : "flex flex-col gap-4 sm:flex-row sm:items-center lg:flex-wrap lg:justify-end",
       )}
     >
       {/* Status Filter */}
-      <div className="flex-1 space-y-2">
+      <div className={cn("space-y-1.5", mobile ? "col-span-1" : "flex-1")}>
         {mobile && <label className="filter-label">Status</label>}
         <Select
           value={statusFilter}
           onValueChange={(v) => updateSearch({ status: v })}
         >
-          <SelectTrigger size="lg" className="sm:w-37.5">
+          <SelectTrigger
+            size="lg"
+            className={cn("w-full", !mobile && "sm:w-37.5")}
+          >
             <SelectValue placeholder="All Status" />
           </SelectTrigger>
           <SelectContent>
@@ -162,13 +161,21 @@ export default function BattlesDirectory({
       </div>
 
       {/* Year Filter */}
-      <div className="flex-1 space-y-2 text-white">
+      <div
+        className={cn(
+          "space-y-1.5 text-white",
+          mobile ? "col-span-1" : "flex-1",
+        )}
+      >
         {mobile && <label className="filter-label">Year</label>}
         <Select
           value={yearFilter}
           onValueChange={(v) => updateSearch({ year: v })}
         >
-          <SelectTrigger size="lg" className="sm:w-37.5">
+          <SelectTrigger
+            size="lg"
+            className={cn("w-full", !mobile && "sm:w-37.5")}
+          >
             <SelectValue placeholder="All Years" />
           </SelectTrigger>
           <SelectContent
@@ -197,13 +204,16 @@ export default function BattlesDirectory({
       </div>
 
       {/* League Filter */}
-      <div className="flex-1 space-y-2">
+      <div className={cn("space-y-1.5", mobile ? "col-span-1" : "flex-1")}>
         {mobile && <label className="filter-label">League</label>}
         <Select
           value={leagueFilter}
           onValueChange={(v) => updateSearch({ league: v })}
         >
-          <SelectTrigger size="lg" className="sm:w-40">
+          <SelectTrigger
+            size="lg"
+            className={cn("w-full", !mobile && "sm:w-40")}
+          >
             <SelectValue placeholder="All Leagues" />
           </SelectTrigger>
           <SelectContent>
@@ -217,10 +227,13 @@ export default function BattlesDirectory({
         </Select>
       </div>
 
-      <div className="flex-1 space-y-2">
+      <div className={cn("space-y-1.5", mobile ? "col-span-1" : "flex-1")}>
         {mobile && <label className="filter-label">Sort By</label>}
         <Select value={sortBy} onValueChange={(v) => updateSearch({ sort: v })}>
-          <SelectTrigger size="lg" className="sm:w-35">
+          <SelectTrigger
+            size="lg"
+            className={cn("w-full", !mobile && "sm:w-35")}
+          >
             <div className="flex items-center gap-2">
               <ArrowUpDown className="text-muted-foreground/60 h-3.5 w-3.5" />
               <SelectValue placeholder="Sort" />
@@ -238,9 +251,15 @@ export default function BattlesDirectory({
           variant="ghost"
           size="lg"
           onClick={clearFilters}
-          className="px-4"
+          className={cn(
+            "px-4",
+            mobile
+              ? "border-border hover:bg-muted/50 col-span-2 mt-2 flex h-11 w-full items-center justify-center gap-2 border border-dashed text-sm font-medium"
+              : "",
+          )}
         >
           <X className="h-4 w-4" />
+          {mobile && <span>Clear All Filters</span>}
         </Button>
       )}
     </div>
@@ -250,73 +269,80 @@ export default function BattlesDirectory({
     <>
       <PageShell>
         <StickyPageHeader>
-          <div className="sticky-surface page-toolbar">
-            <div className="space-y-0.5">
+          <div className="sticky-surface flex flex-col gap-4">
+            {/* Header / Title block */}
+            <div className="flex flex-col gap-1">
               <h1 className="page-heading">Battles</h1>
               <p className="page-meta">
-                {totalCount !== null ? totalCount : battles.length} battles •{" "}
-                {new Set(battles.map((b) => b.event_name).filter(Boolean)).size}{" "}
-                events • {visibleLeagueCount} league
-                {visibleLeagueCount === 1 ? "" : "s"}
+                {totalCount !== null ? totalCount : battles.length} battles
               </p>
             </div>
 
-            <div className="page-toolbar__controls">
-              <form
-                className="min-w-0 flex-1 lg:w-[320px]"
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  updateSearch({ q: searchInput });
-                }}
-              >
-                <FilterSearchInput
-                  placeholder="Search battles or events..."
-                  value={searchInput}
-                  onChange={handleSearchChange}
-                  onBlur={() => {
-                    if (debounceTimerRef.current) {
-                      clearTimeout(debounceTimerRef.current);
-                      debounceTimerRef.current = null;
-                    }
+            {/* Controls (Search & Filters) */}
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between lg:gap-6">
+              <div className="flex w-full items-center gap-2 lg:flex-1">
+                <form
+                  className="min-w-0 flex-1"
+                  onSubmit={(e) => {
+                    e.preventDefault();
                     updateSearch({ q: searchInput });
                   }}
-                  onClear={() => {
-                    setSearchInput("");
-                    if (debounceTimerRef.current) {
-                      clearTimeout(debounceTimerRef.current);
-                      debounceTimerRef.current = null;
-                    }
-                    updateSearch({ q: "" });
-                  }}
-                  loading={loading}
-                  resultsLabel={
-                    searchInput && !loading && totalCount !== null
-                      ? `${totalCount} results`
-                      : undefined
-                  }
-                  inputSize="lg"
-                />
-              </form>
-
-              <Sheet>
-                <SheetTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="icon-lg"
-                    className="shrink-0 lg:hidden"
-                  >
-                    <ListFilter className="text-muted-foreground/60 h-5 w-5" />
-                  </Button>
-                </SheetTrigger>
-                <SheetContent
-                  side="bottom"
-                  className="bg-background/95 h-auto max-h-[70vh] p-6 pb-10 backdrop-blur-3xl"
                 >
-                  <SheetTitle className="sr-only">Filters</SheetTitle>
-                  <div className="mt-2">{renderFilterContent(true)}</div>
-                </SheetContent>
-              </Sheet>
+                  <FilterSearchInput
+                    placeholder="Search battles or events..."
+                    value={searchInput}
+                    onChange={handleSearchChange}
+                    onBlur={() => {
+                      if (debounceTimerRef.current) {
+                        clearTimeout(debounceTimerRef.current);
+                        debounceTimerRef.current = null;
+                      }
+                      updateSearch({ q: searchInput });
+                    }}
+                    onClear={() => {
+                      setSearchInput("");
+                      if (debounceTimerRef.current) {
+                        clearTimeout(debounceTimerRef.current);
+                        debounceTimerRef.current = null;
+                      }
+                      updateSearch({ q: "" });
+                    }}
+                    loading={loading}
+                    resultsLabel={
+                      searchInput && !loading && totalCount !== null
+                        ? `${totalCount} results`
+                        : undefined
+                    }
+                    inputSize="lg"
+                  />
+                </form>
 
+                {/* Mobile View: Filter Sheet Trigger Icon */}
+                <div className="shrink-0 lg:hidden">
+                  <Sheet>
+                    <SheetTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="icon-lg"
+                        className="h-11 w-11"
+                      >
+                        <ListFilter className="text-muted-foreground/60 h-5 w-5" />
+                      </Button>
+                    </SheetTrigger>
+                    <SheetContent
+                      side="bottom"
+                      className="bg-background/95 h-auto max-h-[75vh] p-6 pb-10 backdrop-blur-3xl"
+                    >
+                      <SheetTitle className="text-left text-lg font-bold">
+                        Filters
+                      </SheetTitle>
+                      <div className="mt-4">{renderFilterContent(true)}</div>
+                    </SheetContent>
+                  </Sheet>
+                </div>
+              </div>
+
+              {/* Desktop View: Inline Filters */}
               <div className="hidden min-w-0 lg:block">
                 {renderFilterContent()}
               </div>
