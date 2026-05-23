@@ -1,6 +1,6 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { authClient } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
 import {
@@ -15,6 +15,8 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import Link from "next/link";
 import { Separator } from "@/components/ui/separator";
 import { useAuthStore } from "@/stores/auth-store";
+import { adminLinks } from "@/components/admin/admin-links";
+import { ChevronDown } from "lucide-react";
 
 const SHEET_MENU_ITEM_CLASS =
   "focus:bg-muted/70 focus:text-foreground active:bg-muted/70 active:opacity-90 text-foreground relative flex w-auto items-center gap-2 rounded-(--radius-control-sm) mx-2 px-4 py-3 text-[10px] font-medium tracking-[0.18em] uppercase transition-[background-color,color,opacity] duration-200 outline-hidden";
@@ -29,6 +31,7 @@ export default function AuthButton({
   onSheetAction?: () => void;
 }) {
   const { user, isLoading, isUserLoggedIn } = useAuthStore();
+  const [adminOpen, setAdminOpen] = useState(false);
   const isMounted = useSyncExternalStore(
     () => () => {},
     () => true,
@@ -82,14 +85,39 @@ export default function AuthButton({
                   </Link>
 
                   {user.role === "superadmin" && (
-                    <Link
-                      href="/admin/users"
-                      prefetch={false}
-                      onClick={onSheetAction}
-                      className={SHEET_MENU_ITEM_CLASS}
-                    >
-                      Admin Panel
-                    </Link>
+                    <div className="flex flex-col">
+                      <button
+                        type="button"
+                        onClick={() => setAdminOpen((open) => !open)}
+                        className={`${SHEET_MENU_ITEM_CLASS} justify-between text-left`}
+                        aria-expanded={adminOpen}
+                      >
+                        <span className="inline-flex items-center gap-2">
+                          Admin
+                        </span>
+                        <ChevronDown
+                          className={`h-4 w-4 transition-transform ${
+                            adminOpen ? "rotate-180" : ""
+                          }`}
+                          aria-hidden="true"
+                        />
+                      </button>
+                      {adminOpen && (
+                        <div className="ml-6 flex flex-col border-l border-border/40 pl-2">
+                          {adminLinks.map(({ href, label }) => (
+                            <Link
+                              key={href}
+                              href={href}
+                              prefetch={false}
+                              onClick={onSheetAction}
+                              className={`${SHEET_MENU_ITEM_CLASS} py-2.5 text-muted-foreground`}
+                            >
+                              {label}
+                            </Link>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   )}
 
                   <Separator className="my-1" />
@@ -123,7 +151,7 @@ export default function AuthButton({
             </Avatar>
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent className="w-56" align="end" forceMount>
+        <DropdownMenuContent className="w-60" align="end" forceMount>
           {/* User Info Header */}
           <DropdownMenuLabel className="font-normal">
             <div className="flex flex-col space-y-1">
@@ -148,13 +176,36 @@ export default function AuthButton({
             </>
           )}
 
-          {/* Role-based link: Superadmins only */}
+          {/* Role-based links: Superadmins only */}
           {user.role === "superadmin" && (
-            <Link href="/admin/users" passHref prefetch={false}>
-              <DropdownMenuItem className="text-[10px] font-medium tracking-[0.18em] uppercase">
-                Admin Panel
+            <>
+              <DropdownMenuItem
+                onSelect={(e) => {
+                  e.preventDefault();
+                  setAdminOpen((open) => !open);
+                }}
+                className="flex items-center justify-between text-[10px] font-medium tracking-[0.18em] uppercase cursor-pointer"
+              >
+                <span>Admin</span>
+                <ChevronDown
+                  className={`h-4 w-4 transition-transform duration-200 ${
+                    adminOpen ? "rotate-180" : ""
+                  }`}
+                  aria-hidden="true"
+                />
               </DropdownMenuItem>
-            </Link>
+              {adminOpen && (
+                <div className="flex flex-col">
+                  {adminLinks.map(({ href, label }) => (
+                    <Link key={href} href={href} passHref prefetch={false}>
+                      <DropdownMenuItem className="pl-6 text-[10px] font-medium tracking-[0.16em] uppercase cursor-pointer text-muted-foreground hover:text-foreground">
+                        {label}
+                      </DropdownMenuItem>
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </>
           )}
 
           {/* Logout Action */}

@@ -16,12 +16,14 @@ export function AdminPageShell({
 }: AdminPageShellProps) {
   return (
     <PageShell>
-      {!hideNav && <AdminNav />}
+      <div className="relative z-10 flex items-start gap-8">
+        {!hideNav && <AdminNav />}
 
-      <PageStack className="relative z-10">
-        <ErrorAlert message={error || null} />
-        {children}
-      </PageStack>
+        <PageStack className="min-w-0 flex-1">
+          <ErrorAlert message={error || null} />
+          {children}
+        </PageStack>
+      </div>
     </PageShell>
   );
 }

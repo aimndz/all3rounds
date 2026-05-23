@@ -236,7 +236,7 @@
   }
 
   .nav-pill {
-    @apply inline-flex items-center border px-4 py-2.5 text-[10px] font-semibold tracking-[0.2em] uppercase transition-colors sm:px-5 sm:text-xs;
+    @apply inline-flex min-w-0 items-center justify-start gap-2 border px-3 py-2.5 text-[10px] font-semibold tracking-[0.16em] uppercase transition-colors lg:px-4;
     border-radius: var(--radius-control-sm);
   }
 

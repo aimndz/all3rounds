@@ -2,37 +2,37 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { adminLinks } from "@/components/admin/admin-links";
 
 export default function AdminNav() {
   const pathname = usePathname();
 
-  const links = [
-    { href: "/admin/users", label: "Users" },
-    { href: "/admin/emcees", label: "Emcees" },
-    { href: "/admin/battles", label: "Battles" },
-    { href: "/admin/reviews", label: "Audit Log" },
-    { href: "/admin/activity", label: "Activity" },
-  ];
-
   return (
-    <div className="mb-10 flex items-center justify-center sm:justify-start">
-      <nav className="surface-card surface-card--muted flex items-center gap-1 overflow-x-auto rounded-[var(--radius-panel)] p-1 no-scrollbar sm:gap-2">
-        {links.map(({ href, label }) => {
-          const isActive = pathname === href;
+    <aside className="sticky top-[calc(var(--smart-header-height,56px)+1.5rem)] hidden h-fit w-56 shrink-0 lg:block">
+      <nav
+        aria-label="Admin navigation"
+        className="surface-card surface-card--muted flex flex-col gap-1 p-2"
+      >
+        <div className="px-3 py-2 text-[10px] font-semibold tracking-[0.2em] text-white/30 uppercase">
+          Admin
+        </div>
+        {adminLinks.map(({ href, label }) => {
+          const isActive = pathname === href || pathname.startsWith(`${href}/`);
           return (
             <Link
               key={href}
               href={href}
               prefetch={false}
-              className={`nav-pill whitespace-nowrap ${
+              className={`nav-pill w-full ${
                 isActive ? "nav-pill--active" : "nav-pill--inactive"
               }`}
+              aria-current={isActive ? "page" : undefined}
             >
               {label}
             </Link>
           );
         })}
       </nav>
-    </div>
+    </aside>
   );
 }
