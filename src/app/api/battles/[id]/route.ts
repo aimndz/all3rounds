@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { requirePermission } from "@/lib/auth";
 import { verifyCsrf } from "@/lib/csrf";
@@ -7,9 +8,14 @@ import { uuidSchema } from "@/lib/schemas";
 import { z } from "zod";
 
 const UpdateBattleSchema = z.object({
-  status: z.enum(["raw", "arranged", "reviewing", "reviewed", "excluded"], {
-    message: "Invalid status",
-  }),
+  status: z
+    .enum(["raw", "arranged", "reviewing", "reviewed", "excluded"], {
+      message: "Invalid status",
+    })
+    .optional(),
+  public_visible: z.boolean().optional(),
+}).refine((value) => value.status !== undefined || value.public_visible !== undefined, {
+  message: "No battle updates provided",
 });
 
 type ParticipantRow = {
@@ -69,8 +75,9 @@ export async function GET(
   // Fetch battle details
   const { data: battle, error: battleError } = await supabase
     .from("battles")
-    .select("id, league, slug, title, youtube_id, event_name, event_date, url, status")
+    .select("id, league, slug, title, youtube_id, event_name, event_date, url, status, public_visible")
     .eq("id", id)
+    .eq("public_visible", true)
     .single();
 
   if (battleError || !battle) {
@@ -249,15 +256,6 @@ export async function PATCH(
       );
     }
 
-    // 1. Check permission
-    const { error: permError } = await requirePermission("battles:edit_status");
-    if (permError) {
-      return NextResponse.json(
-        { error: permError.message },
-        { status: permError.status },
-      );
-    }
-
     let body;
     try {
       body = await request.json();
@@ -272,13 +270,37 @@ export async function PATCH(
         { status: 400 },
       );
     }
-    const { status } = parsed.data;
+    const { status, public_visible } = parsed.data;
+
+    if (status !== undefined) {
+      const { error: permError } = await requirePermission("battles:edit_status");
+      if (permError) {
+        return NextResponse.json(
+          { error: permError.message },
+          { status: permError.status },
+        );
+      }
+    }
+
+    if (public_visible !== undefined) {
+      const { error: permError } = await requirePermission("battles:edit_visibility");
+      if (permError) {
+        return NextResponse.json(
+          { error: permError.message },
+          { status: permError.status },
+        );
+      }
+    }
+
+    const updates: { status?: string; public_visible?: boolean } = {};
+    if (status !== undefined) updates.status = status;
+    if (public_visible !== undefined) updates.public_visible = public_visible;
 
     // 3. Update status using Admin Client to bypass RLS
     const supabaseAdmin = createAdminClient();
     const { data: updated, error } = await supabaseAdmin
       .from("battles")
-      .update({ status })
+      .update(updates)
       .eq("id", id)
       .select()
       .single();
@@ -289,6 +311,14 @@ export async function PATCH(
         { error: "Failed to update battle status." },
         { status: 500 },
       );
+    }
+
+    if (public_visible !== undefined) {
+      revalidatePath("/battles");
+      revalidatePath("/emcees");
+      if (updated.league && updated.slug) {
+        revalidatePath(`/battles/${updated.league}/${updated.slug}`);
+      }
     }
 
     return NextResponse.json(updated);

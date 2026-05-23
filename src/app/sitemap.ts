@@ -62,7 +62,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     const supabase = createPublicClient();
 
     const [battlesRes, emceesRes] = await Promise.all([
-      supabase.from("battles").select("league, slug").in("status", PUBLIC_BATTLE_STATUSES),
+      supabase
+        .from("battles")
+        .select("league, slug")
+        .in("status", PUBLIC_BATTLE_STATUSES)
+        .eq("public_visible", true),
       supabase.from("emcees").select("slug"),
     ]);
 

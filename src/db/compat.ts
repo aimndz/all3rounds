@@ -17,7 +17,7 @@ type SearchCandidate = {
   rank: number;
 };
 type SearchCachePayload = {
-  version: 2;
+  version: number;
   query: string;
   candidates: SearchCandidate[];
   createdAt: number;
@@ -46,13 +46,21 @@ const SEARCH_CACHE_TTL_SECONDS = 60 * 60 * 24;
 const SEARCH_CANDIDATE_LIMIT = 500;
 const SEARCH_BROAD_SENTINEL_LIMIT = SEARCH_CANDIDATE_LIMIT + 1;
 const SEARCH_RANK_POOL_LIMIT = 1000;
-const SEARCH_CACHE_VERSION = 2;
+const SEARCH_CACHE_VERSION = 3;
 
 const TABLES = new Set([
   "emcees",
   "emcee_aliases",
+  "divisions",
+  "emcee_divisions",
+  "emcee_hometowns",
+  "titles",
+  "emcee_titles",
   "battles",
   "battle_participants",
+  "battle_results",
+  "battle_result_winners",
+  "battle_fan_votes",
   "lines",
   "line_speakers",
   "edit_history",
@@ -309,6 +317,9 @@ export function scoreSingleTokenSearchRow(
 }
 
 function normalizeDateInput(value: unknown) {
+  if (typeof value === "boolean") {
+    return value ? 1 : 0;
+  }
   if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}T/.test(value)) {
     return new Date(value).getTime();
   }
@@ -320,6 +331,7 @@ function publicRow(table: string, row: Row): Row {
     return {
       ...row,
       url: `https://www.youtube.com/watch?v=${String(row.youtube_id)}`,
+      public_visible: row.public_visible === 1 || row.public_visible === true,
       created_at: toIso(row.created_at),
     };
   }
@@ -331,6 +343,14 @@ function publicRow(table: string, row: Row): Row {
     };
   }
   if (
+    table === "divisions" ||
+    table === "emcee_divisions" ||
+    table === "emcee_hometowns" ||
+    table === "titles" ||
+    table === "emcee_titles" ||
+    table === "battle_results" ||
+    table === "battle_result_winners" ||
+    table === "battle_fan_votes" ||
     table === "lines" ||
     table === "edit_history" ||
     table === "suggestions" ||
@@ -901,6 +921,7 @@ export class D1QueryBuilder implements PromiseLike<CompatResponse | MutationResp
     Object.entries(raw).forEach(([key, value]) => {
       if (key === "speaker_ids") speakerIds = Array.isArray(value) ? value.map(String) : [];
       else if (key === "aka") { aka = Array.isArray(value) ? value.map(String) : []; data.aka_json = JSON.stringify(aka); }
+      else if (key === "public_visible") data[key] = value ? 1 : 0;
       else if (["created_at", "updated_at", "reviewed_at", "started_at"].includes(key)) data[key] = normalizeDateInput(value);
       else data[key] = value;
     });
@@ -1048,7 +1069,10 @@ async function fetchUnrankedFtsCandidates(query: string, limit: number) {
   const rows = await fetchRows(
     `SELECT lines_fts.rowid AS id
      FROM lines_fts
+     JOIN lines l ON l.id = lines_fts.rowid
+     JOIN battles b ON b.id = l.battle_id
      WHERE lines_fts MATCH ?
+       AND b.public_visible = 1
      LIMIT ?`,
     [query, limit],
   );
@@ -1080,7 +1104,7 @@ async function hydrateSearchCandidates(candidates: SearchCandidate[]) {
          FROM lines l
          LEFT JOIN emcees e ON e.id = l.emcee_id
          JOIN battles b ON b.id = l.battle_id
-         WHERE l.id IN (${placeholders})`,
+         WHERE l.id IN (${placeholders}) AND b.public_visible = 1`,
         chunk,
       )),
     );
@@ -1098,7 +1122,7 @@ async function randomValidLineIds(sampleSize: number, statuses: string[]): Promi
   const safeSize = Math.min(Math.max(sampleSize, 1), 12);
   const placeholders = statuses.map(() => "?").join(", ");
   const rows = await fetchRows(
-    `SELECT l.id FROM lines l JOIN battles b ON b.id = l.battle_id WHERE b.status IN (${placeholders}) ORDER BY random() LIMIT ?`,
+    `SELECT l.id FROM lines l JOIN battles b ON b.id = l.battle_id WHERE b.public_visible = 1 AND b.status IN (${placeholders}) ORDER BY random() LIMIT ?`,
     [...statuses, safeSize],
   );
   return { data: compatData(rows), error: null };

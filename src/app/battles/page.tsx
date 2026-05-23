@@ -37,11 +37,13 @@ export default async function BattlesPage({
   let countQuery = supabase
     .from("battles")
     .select("id", { count: "exact", head: true })
-    .in("status", PUBLIC_BATTLE_STATUSES);
+    .in("status", PUBLIC_BATTLE_STATUSES)
+    .eq("public_visible", true);
   let eventsMetaBaseQuery = supabase
     .from("battles")
     .select("event_name, event_date, league")
-    .in("status", PUBLIC_BATTLE_STATUSES);
+    .in("status", PUBLIC_BATTLE_STATUSES)
+    .eq("public_visible", true);
 
   if (league !== "all") {
     countQuery = countQuery.eq("league", league);
@@ -60,6 +62,7 @@ export default async function BattlesPage({
         .from("battles")
         .select("league")
         .in("status", PUBLIC_BATTLE_STATUSES)
+        .eq("public_visible", true)
         .limit(10000),
     ]);
 
@@ -115,7 +118,8 @@ export default async function BattlesPage({
       .select(
         "id, league, slug, title, youtube_id, event_name, event_date, status, url",
       )
-      .in("status", PUBLIC_BATTLE_STATUSES);
+      .in("status", PUBLIC_BATTLE_STATUSES)
+      .eq("public_visible", true);
 
     if (league !== "all") {
       query = query.eq("league", league);

@@ -13,6 +13,7 @@ const getBattle = cache(async (id: string) => {
     .from("battles")
     .select("id, league, slug")
     .eq("id", id)
+    .eq("public_visible", true)
     .maybeSingle();
 
   if (error) {

@@ -36,6 +36,7 @@ export async function GET(request: NextRequest) {
         event_name, 
         event_date, 
         status, 
+        public_visible,
         created_at,
         battle_participants(
           id,

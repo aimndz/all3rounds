@@ -22,6 +22,7 @@ const getBattle = cache(async (league: string, slug: string) => {
     .select("id, league, slug, title, event_name, event_date, youtube_id")
     .eq("league", normalizeBattleLeague(league))
     .eq("slug", normalizeBattleSlug(slug))
+    .eq("public_visible", true)
     .maybeSingle();
 
   if (error) {

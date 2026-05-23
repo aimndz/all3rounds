@@ -24,6 +24,7 @@ export type SearchResult = {
     event_date: string | null;
     url: string;
     status: BattleStatus;
+    public_visible?: boolean;
     participants?: {
       label: string;
       emcee: { id: string; name: string } | null;
@@ -60,4 +61,5 @@ export type Battle = {
   event_date: string | null;
   url: string;
   status: BattleStatus;
+  public_visible?: boolean;
 };

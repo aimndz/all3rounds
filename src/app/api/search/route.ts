@@ -157,6 +157,7 @@ export async function GET(request: NextRequest) {
               .from("battles")
               .select("id, league, slug")
               .in("id", uniqueBattleIds)
+              .eq("public_visible", true)
           : Promise.resolve({ data: [] as BattleRouteRow[] | null }),
       ]);
 

@@ -25,7 +25,7 @@ type ScoredBattle = {
 
 type FilterableQuery = {
   neq: (column: string, value: string) => FilterableQuery;
-  eq: (column: string, value: string) => FilterableQuery;
+  eq: (column: string, value: unknown) => FilterableQuery;
   in: (column: string, value: string[]) => FilterableQuery;
   gte: (column: string, value: string) => FilterableQuery;
   lte: (column: string, value: string) => FilterableQuery;
@@ -111,6 +111,7 @@ function applyCommonFilters<T>(
     "status",
     PUBLIC_BATTLE_STATUSES,
   );
+  next = next.eq("public_visible", true);
 
   if (cleanStatus !== "all") {
     next = next.eq("status", cleanStatus);

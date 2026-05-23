@@ -94,7 +94,8 @@ export default async function EmceeProfilePage({
         event_name,
         event_date,
         url,
-        status
+        status,
+        public_visible
       )
     `,
     )
@@ -110,7 +111,8 @@ export default async function EmceeProfilePage({
   const battles = rawBattles
     .map((pb) => pb.battles)
     .filter(
-      (b): b is Battle => b !== null && (b.status as string) !== "excluded",
+      (b): b is Battle =>
+        b !== null && b.public_visible !== false && (b.status as string) !== "excluded",
     );
 
   const profileData = {

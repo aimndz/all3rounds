@@ -81,7 +81,7 @@ async function main() {
   await writeFile(join(outputDir, "line_speakers.json"), JSON.stringify(lineSpeakers, null, 2));
 
   const passthroughColumns: Record<string, string[]> = {
-    battles: ["id", "league", "slug", "title", "youtube_id", "event_name", "event_date", "status", "created_at"],
+    battles: ["id", "league", "slug", "title", "youtube_id", "event_name", "event_date", "status", "public_visible", "created_at"],
     battle_participants: ["id", "battle_id", "emcee_id", "label"],
     edit_history: ["id", "line_id", "user_id", "field_changed", "old_value", "new_value", "created_at"],
     user_profiles: ["id", "role", "trust_level", "display_name", "created_at", "updated_at"],
@@ -99,7 +99,9 @@ async function main() {
       Object.fromEntries(
         columns.map((key) => [
           key,
-          /(?:_at|At)$/.test(key)
+          key === "public_visible"
+            ? row[key] ?? true
+            : /(?:_at|At)$/.test(key)
             ? toEpoch(row[key] as string | null | undefined)
             : row[key],
         ]),

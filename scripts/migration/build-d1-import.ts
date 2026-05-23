@@ -16,7 +16,7 @@ const tableColumns: Record<string, string[]> = {
   user_profiles: ["id", "role", "trust_level", "display_name", "created_at", "updated_at"],
   emcees: ["id", "slug", "name", "aka_json", "battle_count", "created_at"],
   emcee_aliases: ["emcee_id", "alias", "alias_normalized"],
-  battles: ["id", "league", "slug", "title", "youtube_id", "event_name", "event_date", "status", "created_at"],
+  battles: ["id", "league", "slug", "title", "youtube_id", "event_name", "event_date", "status", "public_visible", "created_at"],
   battle_participants: ["id", "battle_id", "emcee_id", "label"],
   lines: ["id", "battle_id", "emcee_id", "round_number", "speaker_label", "content", "start_time", "end_time", "created_at"],
   line_speakers: ["line_id", "emcee_id"],

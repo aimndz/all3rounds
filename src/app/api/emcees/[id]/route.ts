@@ -59,7 +59,8 @@ export async function GET(
         event_name,
         event_date,
         url,
-        status
+        status,
+        public_visible
       )
     `)
     .eq("emcee_id", emcee.id)
@@ -82,7 +83,10 @@ export async function GET(
   const rawBattles = (battlesRes.data as unknown as { battles: Battle | null }[]) || [];
   const battles = rawBattles
     .map((pb) => pb.battles)
-    .filter((b): b is Battle => b !== null && (b.status as string) !== "excluded");
+    .filter(
+      (b): b is Battle =>
+        b !== null && b.public_visible !== false && (b.status as string) !== "excluded",
+    );
   
   const totalBattles = battles.length;
   const totalLines = linesRes.count || 0;

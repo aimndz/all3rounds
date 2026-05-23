@@ -9,7 +9,7 @@ import { TableSkeleton } from "@/components/admin/TableSkeleton";
 import { DataPagination } from "@/components/admin/DataPagination";
 import { usePaginatedFetch } from "@/hooks/use-paginated-fetch";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
-import { Users, ArrowUpDown, X } from "lucide-react";
+import { Users, ArrowUpDown, X, Eye, EyeOff, Loader2 } from "lucide-react";
 import { FilterSearchInput } from "@/components/ui/filter-search-input";
 import {
   Select,
@@ -55,6 +55,7 @@ type BattleAdmin = {
   event_name: string;
   event_date: string;
   status: string;
+  public_visible: boolean;
   created_at: string;
   battle_participants: Participant[];
 };
@@ -69,6 +70,9 @@ export default function BattleAdminPage() {
     new Set(),
   );
   const [isBulkAssignOpen, setIsBulkAssignOpen] = useState(false);
+  const [visibilityUpdatingIds, setVisibilityUpdatingIds] = useState<Set<string>>(
+    new Set(),
+  );
 
   const {
     data: battles,
@@ -151,6 +155,40 @@ export default function BattleAdminPage() {
         title: "Error",
         description: err instanceof Error ? err.message : "An error occurred",
         variant: "destructive",
+      });
+    }
+  };
+
+  const toggleVisibility = async (battle: BattleAdmin) => {
+    const nextVisible = !battle.public_visible;
+    setVisibilityUpdatingIds((current) => new Set(current).add(battle.id));
+
+    try {
+      const res = await fetch(`/api/battles/${battle.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ public_visible: nextVisible }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to update visibility");
+
+      toast({
+        description: nextVisible
+          ? "Battle is now visible to the public."
+          : "Battle is now hidden from public pages.",
+      });
+      refetch();
+    } catch (err: unknown) {
+      toast({
+        title: "Error",
+        description: err instanceof Error ? err.message : "An error occurred",
+        variant: "destructive",
+      });
+    } finally {
+      setVisibilityUpdatingIds((current) => {
+        const next = new Set(current);
+        next.delete(battle.id);
+        return next;
       });
     }
   };
@@ -247,6 +285,9 @@ export default function BattleAdminPage() {
                   <TableHead className="px-6 py-3 text-center text-[10px] font-semibold tracking-widest text-white/40 uppercase">
                     Status
                   </TableHead>
+                  <TableHead className="px-6 py-3 text-center text-[10px] font-semibold tracking-widest text-white/40 uppercase">
+                    Visibility
+                  </TableHead>
                   <TableHead className="px-6 py-3 text-right text-[10px] font-semibold tracking-widest text-white/40 uppercase">
                     Actions
                   </TableHead>
@@ -256,7 +297,7 @@ export default function BattleAdminPage() {
                 {battles.length === 0 ? (
                   <TableRow>
                     <TableCell
-                      colSpan={6}
+                      colSpan={7}
                       className="border-transparent px-6 py-12 text-center text-[10px] font-semibold tracking-widest text-white/40 uppercase"
                     >
                       No battles found
@@ -337,6 +378,28 @@ export default function BattleAdminPage() {
                           {b.status}
                         </Badge>
                       </TableCell>
+                      <TableCell className="px-6 py-4 text-center">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={visibilityUpdatingIds.has(b.id)}
+                          onClick={() => toggleVisibility(b)}
+                          className={`h-8 gap-2 rounded-md border px-2.5 text-[9px] font-semibold tracking-widest uppercase ${
+                            b.public_visible
+                              ? "border-emerald-400/20 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20"
+                              : "border-white/10 bg-white/5 text-white/35 hover:bg-white/10 hover:text-white/70"
+                          }`}
+                        >
+                          {visibilityUpdatingIds.has(b.id) ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          ) : b.public_visible ? (
+                            <Eye className="h-3.5 w-3.5" />
+                          ) : (
+                            <EyeOff className="h-3.5 w-3.5" />
+                          )}
+                          {b.public_visible ? "Published" : "Hidden"}
+                        </Button>
+                      </TableCell>
                       <TableCell className="px-6 py-4 text-right">
                         <Button
                           variant="ghost"
@@ -395,6 +458,30 @@ export default function BattleAdminPage() {
                         >
                           {b.status}
                         </Badge>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          disabled={visibilityUpdatingIds.has(b.id)}
+                          onClick={() => toggleVisibility(b)}
+                          className={`h-6 w-6 ${
+                            b.public_visible
+                              ? "text-emerald-300 hover:bg-emerald-500/10"
+                              : "text-white/35 hover:bg-white/10"
+                          }`}
+                          aria-label={
+                            b.public_visible
+                              ? "Hide battle from public pages"
+                              : "Show battle on public pages"
+                          }
+                        >
+                          {visibilityUpdatingIds.has(b.id) ? (
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                          ) : b.public_visible ? (
+                            <Eye className="h-3 w-3" />
+                          ) : (
+                            <EyeOff className="h-3 w-3" />
+                          )}
+                        </Button>
                       </div>
                     </div>
                   </div>

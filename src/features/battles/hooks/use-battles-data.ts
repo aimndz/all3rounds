@@ -20,6 +20,7 @@ export type Battle = {
   event_date: string | null;
   url: string;
   status: BattleStatus;
+  public_visible?: boolean;
   score?: number;
 };
 

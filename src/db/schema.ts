@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import {
+  foreignKey,
   index,
   integer,
   primaryKey,
@@ -42,6 +43,124 @@ export const emceeAliases = sqliteTable(
   }),
 );
 
+export const divisions = sqliteTable(
+  "divisions",
+  {
+    id: text("id").primaryKey(),
+    league: text("league").notNull().default("fliptop"),
+    slug: text("slug").notNull(),
+    name: text("name").notNull(),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (table) => ({
+    routeKey: uniqueIndex("divisions_league_slug_key").on(table.league, table.slug),
+    leagueNameIdx: index("idx_divisions_league_name").on(table.league, table.name),
+  }),
+);
+
+export const emceeDivisions = sqliteTable(
+  "emcee_divisions",
+  {
+    emceeId: text("emcee_id")
+      .notNull()
+      .references(() => emcees.id, { onDelete: "cascade" }),
+    divisionId: text("division_id")
+      .notNull()
+      .references(() => divisions.id, { onDelete: "cascade" }),
+    isPrimary: integer("is_primary", { mode: "boolean" }).notNull().default(false),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.emceeId, table.divisionId] }),
+    divisionIdx: index("idx_emcee_divisions_division_id").on(table.divisionId),
+    primaryKey: uniqueIndex("emcee_divisions_one_primary")
+      .on(table.emceeId)
+      .where(sql`${table.isPrimary} = 1`),
+  }),
+);
+
+export const emceeHometowns = sqliteTable(
+  "emcee_hometowns",
+  {
+    emceeId: text("emcee_id")
+      .notNull()
+      .references(() => emcees.id, { onDelete: "cascade" }),
+    hometown: text("hometown").notNull(),
+    hometownNormalized: text("hometown_normalized").notNull(),
+    countryCode: text("country_code"),
+    isPrimary: integer("is_primary", { mode: "boolean" }).notNull().default(false),
+    displayOrder: integer("display_order").notNull().default(0),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.emceeId, table.hometownNormalized] }),
+    normalizedIdx: index("idx_emcee_hometowns_normalized").on(table.hometownNormalized),
+    countryIdx: index("idx_emcee_hometowns_country").on(table.countryCode),
+    primaryKey: uniqueIndex("emcee_hometowns_one_primary")
+      .on(table.emceeId)
+      .where(sql`${table.isPrimary} = 1`),
+  }),
+);
+
+export const titles = sqliteTable(
+  "titles",
+  {
+    id: text("id").primaryKey(),
+    league: text("league").notNull().default("fliptop"),
+    slug: text("slug").notNull(),
+    name: text("name").notNull(),
+    divisionId: text("division_id").references(() => divisions.id, {
+      onDelete: "set null",
+    }),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (table) => ({
+    routeKey: uniqueIndex("titles_league_slug_key").on(table.league, table.slug),
+    divisionIdx: index("idx_titles_division_id").on(table.divisionId),
+  }),
+);
+
+export const emceeTitles = sqliteTable(
+  "emcee_titles",
+  {
+    id: text("id").primaryKey(),
+    emceeId: text("emcee_id")
+      .notNull()
+      .references(() => emcees.id, { onDelete: "cascade" }),
+    titleId: text("title_id")
+      .notNull()
+      .references(() => titles.id, { onDelete: "cascade" }),
+    status: text("status").notNull().default("current"),
+    wonOn: text("won_on"),
+    lostOn: text("lost_on"),
+    notes: text("notes"),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (table) => ({
+    emceeIdx: index("idx_emcee_titles_emcee_id").on(table.emceeId),
+    titleIdx: index("idx_emcee_titles_title_id").on(table.titleId),
+    statusIdx: index("idx_emcee_titles_status").on(table.status),
+    uniqueReign: uniqueIndex("emcee_titles_unique_reign").on(
+      table.emceeId,
+      table.titleId,
+      table.wonOn,
+    ),
+    currentHolderKey: uniqueIndex("emcee_titles_one_current_holder")
+      .on(table.titleId)
+      .where(sql`${table.status} = 'current'`),
+  }),
+);
+
 export const battles = sqliteTable(
   "battles",
   {
@@ -53,6 +172,9 @@ export const battles = sqliteTable(
     eventName: text("event_name"),
     eventDate: text("event_date"),
     status: text("status").notNull().default("raw"),
+    publicVisible: integer("public_visible", { mode: "boolean" })
+      .notNull()
+      .default(true),
     createdAt: integer("created_at", { mode: "timestamp_ms" })
       .notNull()
       .default(sql`(unixepoch() * 1000)`),
@@ -63,6 +185,22 @@ export const battles = sqliteTable(
     statusIdx: index("idx_battles_status").on(table.status),
     eventDateIdx: index("idx_battles_event_date").on(table.eventDate),
     statusEventDateIdx: index("idx_battles_status_event_date").on(table.status, table.eventDate),
+    publicStatusEventDateIdx: index("idx_battles_public_status_event_date").on(
+      table.publicVisible,
+      table.status,
+      table.eventDate,
+    ),
+    publicLeagueStatusEventDateIdx: index("idx_battles_public_league_status_event_date").on(
+      table.publicVisible,
+      table.league,
+      table.status,
+      table.eventDate,
+    ),
+    publicEventNameEventDateIdx: index("idx_battles_public_event_name_event_date").on(
+      table.publicVisible,
+      table.eventName,
+      table.eventDate,
+    ),
     eventNameEventDateIdx: index("idx_battles_event_name_event_date").on(table.eventName, table.eventDate),
     statusEventNameEventDateIdx: index("idx_battles_status_event_name_event_date").on(
       table.status,
@@ -89,8 +227,56 @@ export const battleParticipants = sqliteTable(
       table.battleId,
       table.emceeId,
     ),
+    battleIdIdKey: uniqueIndex("battle_participants_battle_id_id_key").on(
+      table.battleId,
+      table.id,
+    ),
     battleIdx: index("idx_battle_participants_battle_id").on(table.battleId),
     emceeIdx: index("idx_battle_participants_emcee_id").on(table.emceeId),
+  }),
+);
+
+export const battleResults = sqliteTable(
+  "battle_results",
+  {
+    battleId: text("battle_id")
+      .primaryKey()
+      .references(() => battles.id, { onDelete: "cascade" }),
+    outcome: text("outcome").notNull(),
+    source: text("source"),
+    notes: text("notes"),
+    decidedAt: integer("decided_at", { mode: "timestamp_ms" }),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (table) => ({
+    outcomeIdx: index("idx_battle_results_outcome").on(table.outcome),
+    decidedAtIdx: index("idx_battle_results_decided_at").on(table.decidedAt),
+  }),
+);
+
+export const battleResultWinners = sqliteTable(
+  "battle_result_winners",
+  {
+    battleId: text("battle_id")
+      .notNull()
+      .references(() => battleResults.battleId, { onDelete: "cascade" }),
+    participantId: text("participant_id").notNull(),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.battleId, table.participantId] }),
+    participantIdx: index("idx_battle_result_winners_participant_id").on(table.participantId),
+    participantFk: foreignKey({
+      columns: [table.battleId, table.participantId],
+      foreignColumns: [battleParticipants.battleId, battleParticipants.id],
+    }).onDelete("cascade"),
   }),
 );
 
@@ -249,6 +435,40 @@ export const userProfiles = sqliteTable(
   (table) => ({
     roleIdx: index("idx_user_profiles_role").on(table.role),
     trustIdx: index("idx_user_profiles_trust").on(table.trustLevel),
+  }),
+);
+
+export const battleFanVotes = sqliteTable(
+  "battle_fan_votes",
+  {
+    id: text("id").primaryKey(),
+    battleId: text("battle_id")
+      .notNull()
+      .references(() => battles.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => userProfiles.id, { onDelete: "cascade" }),
+    voteKind: text("vote_kind").notNull(),
+    participantId: text("participant_id"),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (table) => ({
+    battleUserKey: uniqueIndex("battle_fan_votes_battle_user_key").on(
+      table.battleId,
+      table.userId,
+    ),
+    battleIdx: index("idx_battle_fan_votes_battle_id").on(table.battleId),
+    userIdx: index("idx_battle_fan_votes_user_id").on(table.userId),
+    participantIdx: index("idx_battle_fan_votes_participant_id").on(table.participantId),
+    participantFk: foreignKey({
+      columns: [table.battleId, table.participantId],
+      foreignColumns: [battleParticipants.battleId, battleParticipants.id],
+    }).onDelete("cascade"),
   }),
 );
 

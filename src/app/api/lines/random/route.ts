@@ -31,6 +31,7 @@ type RawRandomLine = {
         event_date: string | null;
         url: string;
         status: string;
+        public_visible?: boolean;
         battle_participants?: {
           label: string;
           emcee:
@@ -49,6 +50,7 @@ type RawRandomLine = {
         event_date: string | null;
         url: string;
         status: string;
+        public_visible?: boolean;
         battle_participants?: {
           label: string;
           emcee:
@@ -76,7 +78,7 @@ function normalizeRandomLine(rawLine: RawRandomLine): SearchResult | null {
     ? rawLine.battle[0]
     : rawLine.battle;
 
-  if (!battle || !ELIGIBLE_STATUS_SET.has(battle.status)) {
+  if (!battle || battle.public_visible === false || !ELIGIBLE_STATUS_SET.has(battle.status)) {
     return null;
   }
 
@@ -179,6 +181,7 @@ export async function GET(request: NextRequest) {
         event_date,
         url,
         status,
+        public_visible,
         battle_participants (
           label,
           emcee:emcees ( id, name )
