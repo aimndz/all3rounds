@@ -16,7 +16,7 @@ export default function TermsPage() {
             Terms of Service
           </h1>
           <p className="text-muted-foreground text-sm font-medium">
-            Last updated: March 2026
+            Last updated: May 2026
           </p>
         </div>
 
@@ -55,6 +55,22 @@ export default function TermsPage() {
               videos from official YouTube sources, including but not limited to
               battle rap leagues. Views and traffic are directed to the original
               content source.
+            </p>
+          </div>
+
+          <div className="space-y-4">
+            <h2 className="text-foreground text-xl font-semibold">
+              Content Removal
+            </h2>
+            <p>
+              If you are a copyright owner, league, or battle artist and want your content, transcripts, or metadata removed from All3Rounds, please contact us at{" "}
+              <a
+                href="mailto:team@all3rounds.com"
+                className="text-foreground underline underline-offset-4 transition-colors hover:text-yellow-400"
+              >
+                team@all3rounds.com
+              </a>
+              . We will review and process your request promptly.
             </p>
           </div>
 
