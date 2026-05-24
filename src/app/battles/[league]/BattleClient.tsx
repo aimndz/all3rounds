@@ -28,7 +28,6 @@ import {
   Plus,
   Maximize2,
   Minimize2,
-  Trash2,
   ArrowUp,
   Youtube,
 } from "lucide-react";
@@ -209,7 +208,6 @@ export default function BattleClient({
     emcee_id?: string | null;
   } | null>(null);
   const [batchSaving, setBatchSaving] = useState(false);
-  const [deletingBattle, setDeletingBattle] = useState(false);
   const [suggestingLine, setSuggestingLine] = useState<BattleLine | null>(null);
   const [collapsedRounds, setCollapsedRounds] = useState<Set<number>>(
     new Set(),
@@ -559,38 +557,6 @@ export default function BattleClient({
     },
     [player, data?.battle.youtube_id, seekTo],
   );
-
-  const handleDeleteBattle = async () => {
-    if (!canDelete) return;
-    if (
-      !window.confirm(
-        "Are you sure you want to delete this entire battle and all its transcriptions? This cannot be undone.",
-      )
-    )
-      return;
-
-    setDeletingBattle(true);
-    try {
-      const res = await fetch(`/api/battles/${battleId}`, { method: "DELETE" });
-      if (!res.ok) {
-        const errData = await res.json();
-        throw new Error(errData.error || "Failed to delete battle");
-      }
-      router.push("/battles");
-    } catch (err: unknown) {
-      console.error(err);
-      const message = err instanceof Error ? err.message : "";
-      const isRateLimit = message.includes("429");
-      toast({
-        variant: isRateLimit ? "default" : "destructive",
-        title: isRateLimit ? "Rate Limit" : "Error",
-        description: isRateLimit
-          ? "Too many requests. Please try again later."
-          : message || "An error occurred while deleting the battle.",
-      });
-      setDeletingBattle(false);
-    }
-  };
 
   const handleSuggestClick = useCallback(
     (line: BattleLine) => {
@@ -1044,18 +1010,6 @@ export default function BattleClient({
                         <span className="hidden sm:inline">YouTube</span>
                         <span className="sm:hidden">Youtube</span>
                       </a>
-                      {canDelete && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          disabled={deletingBattle}
-                          onClick={handleDeleteBattle}
-                          className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive h-7 w-7 border border-transparent p-0 transition-colors sm:h-9 sm:w-9"
-                          title="Delete entire battle"
-                        >
-                          <Trash2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                        </Button>
-                      )}
                     </div>
                   </div>
 

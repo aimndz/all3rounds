@@ -50,6 +50,10 @@ vi.mock("@/lib/rate-limit", () => ({
   getRateLimitHeaders: vi.fn().mockReturnValue({}),
 }));
 
+vi.mock("next/cache", () => ({
+  revalidatePath: vi.fn(),
+}));
+
 import { getUserWithRole, requirePermission } from "@/lib/auth";
 
 const mockGetUserWithRole = vi.mocked(getUserWithRole);
@@ -313,5 +317,73 @@ describe("DELETE /api/battles/[id]", () => {
     });
     const res = await DELETE(req, { params: Promise.resolve({ id: "b1" }) });
     expect(res.status).toBe(403);
+  });
+
+  it("rejects delete when title confirmation does not match", async () => {
+    const { __mocks } = (await import("@/lib/supabase/server")) as unknown as {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      __mocks: { mockChain: any };
+    };
+    __mocks.mockChain.single.mockReset();
+    __mocks.mockChain.single.mockResolvedValueOnce({
+      data: {
+        id: "b1",
+        league: "fliptop",
+        slug: "test-battle",
+        title: "Correct Battle Title",
+        youtube_id: "yt1",
+      },
+      error: null,
+    });
+
+    const { DELETE } = await import("@/app/api/battles/[id]/route");
+    const req = new NextRequest("http://localhost/api/battles/b1", {
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+        origin: "http://localhost",
+        host: "localhost",
+      },
+      body: JSON.stringify({ title: "Wrong Battle Title" }),
+    });
+    const res = await DELETE(req, { params: Promise.resolve({ id: "b1" }) });
+
+    expect(res.status).toBe(400);
+    expect(__mocks.mockChain.delete).not.toHaveBeenCalled();
+  });
+
+  it("deletes only the requested battle after exact title confirmation", async () => {
+    const { __mocks } = (await import("@/lib/supabase/server")) as unknown as {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      __mocks: { mockChain: any };
+    };
+    __mocks.mockChain.single.mockReset();
+    __mocks.mockChain.single.mockResolvedValueOnce({
+      data: {
+        id: "b1",
+        league: "fliptop",
+        slug: "test-battle",
+        title: "Correct Battle Title",
+        youtube_id: "yt1",
+      },
+      error: null,
+    });
+
+    const { DELETE } = await import("@/app/api/battles/[id]/route");
+    const req = new NextRequest("http://localhost/api/battles/b1", {
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+        origin: "http://localhost",
+        host: "localhost",
+      },
+      body: JSON.stringify({ title: "Correct Battle Title" }),
+    });
+    const res = await DELETE(req, { params: Promise.resolve({ id: "b1" }) });
+
+    expect(res.status).toBe(200);
+    expect(__mocks.mockChain.eq).toHaveBeenCalledWith("id", "b1");
+    expect(__mocks.mockChain.eq).toHaveBeenCalledWith("battle_id", "b1");
+    expect(__mocks.mockChain.eq).toHaveBeenCalledWith("youtube_id", "yt1");
   });
 });

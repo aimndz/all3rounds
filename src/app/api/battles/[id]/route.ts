@@ -18,6 +18,10 @@ const UpdateBattleSchema = z.object({
   message: "No battle updates provided",
 });
 
+const DeleteBattleSchema = z.object({
+  title: z.string().min(1),
+});
+
 type ParticipantRow = {
   label: string;
   emcee:
@@ -352,7 +356,6 @@ export async function DELETE(
       );
     }
 
-    // 1. Check permission
     const { error: permError } = await requirePermission("battles:delete");
     if (permError) {
       return NextResponse.json(
@@ -361,41 +364,93 @@ export async function DELETE(
       );
     }
 
-    // 2. Mark as excluded and wipe heavy data using Admin Client
-    const supabaseAdmin = createAdminClient();
+    let body;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+    }
 
-    // First, clear the lines and participants (the heavy data)
+    const parsed = DeleteBattleSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: parsed.error.issues[0].message },
+        { status: 400 },
+      );
+    }
+
+    const supabaseAdmin = createAdminClient();
+    const { data: battle, error: fetchError } = await supabaseAdmin
+      .from("battles")
+      .select("id, league, slug, title, youtube_id")
+      .eq("id", id)
+      .single();
+
+    if (fetchError || !battle) {
+      return NextResponse.json(
+        { error: "Battle not found." },
+        { status: 404 },
+      );
+    }
+
+    if (parsed.data.title !== battle.title) {
+      return NextResponse.json(
+        { error: "Battle title confirmation does not match." },
+        { status: 400 },
+      );
+    }
+
     const { error: deleteLinesError } = await supabaseAdmin
       .from("lines")
       .delete()
       .eq("battle_id", id);
-    if (deleteLinesError)
+    if (deleteLinesError) {
       console.error("Line deletion failed:", deleteLinesError);
+      return NextResponse.json(
+        { error: "Failed to delete battle lines." },
+        { status: 500 },
+      );
+    }
 
     const { error: deletePartsError } = await supabaseAdmin
       .from("battle_participants")
       .delete()
       .eq("battle_id", id);
-    if (deletePartsError)
+    if (deletePartsError) {
       console.error("Participants deletion failed:", deletePartsError);
-
-    // Then, update the status to 'excluded' so the pipeline skips it in the future
-    const { error } = await supabaseAdmin
-      .from("battles")
-      .update({ status: "excluded" })
-      .eq("id", id);
-
-    if (error) {
-      console.error("Battle exclusion failed:", error);
       return NextResponse.json(
-        { error: "Failed to delete/exclude battle data." },
+        { error: "Failed to delete battle participants." },
         { status: 500 },
       );
     }
 
+    const { error } = await supabaseAdmin
+      .from("battles")
+      .delete()
+      .eq("id", id);
+
+    if (error) {
+      console.error("Battle deletion failed:", error);
+      return NextResponse.json(
+        { error: "Failed to delete battle." },
+        { status: 500 },
+      );
+    }
+
+    await supabaseAdmin
+      .from("video_processing_status")
+      .delete()
+      .eq("youtube_id", battle.youtube_id);
+
+    revalidatePath("/battles");
+    revalidatePath("/emcees");
+    if (battle.league && battle.slug) {
+      revalidatePath(`/battles/${battle.league}/${battle.slug}`);
+    }
+
     return NextResponse.json({
       success: true,
-      message: "Battle excluded and space cleared.",
+      message: "Battle permanently deleted.",
     });
   } catch (err: unknown) {
     console.error("DELETE /api/battles/[id] error:", err);

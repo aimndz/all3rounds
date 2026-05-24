@@ -9,8 +9,25 @@ import { TableSkeleton } from "@/components/admin/TableSkeleton";
 import { DataPagination } from "@/components/admin/DataPagination";
 import { usePaginatedFetch } from "@/hooks/use-paginated-fetch";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
-import { Users, ArrowUpDown, X, Eye, EyeOff, Loader2 } from "lucide-react";
+import {
+  Users,
+  ArrowUpDown,
+  X,
+  Eye,
+  EyeOff,
+  Loader2,
+  Trash2,
+  AlertTriangle,
+} from "lucide-react";
 import { FilterSearchInput } from "@/components/ui/filter-search-input";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
@@ -29,6 +46,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
 import { getBattleHref } from "@/lib/battles";
 
 import { BulkAssignDialog } from "@/components/admin/BulkAssignDialog";
@@ -70,9 +88,14 @@ export default function BattleAdminPage() {
     new Set(),
   );
   const [isBulkAssignOpen, setIsBulkAssignOpen] = useState(false);
-  const [visibilityUpdatingIds, setVisibilityUpdatingIds] = useState<Set<string>>(
-    new Set(),
+  const [visibilityUpdatingIds, setVisibilityUpdatingIds] = useState<
+    Set<string>
+  >(new Set());
+  const [battleToDelete, setBattleToDelete] = useState<BattleAdmin | null>(
+    null,
   );
+  const [deleteConfirmTitle, setDeleteConfirmTitle] = useState("");
+  const [isDeletingBattle, setIsDeletingBattle] = useState(false);
 
   const {
     data: battles,
@@ -193,6 +216,54 @@ export default function BattleAdminPage() {
     }
   };
 
+  const openDeleteDialog = (battle: BattleAdmin) => {
+    setBattleToDelete(battle);
+    setDeleteConfirmTitle("");
+  };
+
+  const closeDeleteDialog = () => {
+    if (isDeletingBattle) return;
+    setBattleToDelete(null);
+    setDeleteConfirmTitle("");
+  };
+
+  const deleteConfirmMatches = Boolean(
+    battleToDelete && deleteConfirmTitle === battleToDelete.title,
+  );
+
+  const handleDeleteBattle = async () => {
+    if (!battleToDelete || !deleteConfirmMatches) return;
+    setIsDeletingBattle(true);
+
+    try {
+      const res = await fetch(`/api/battles/${battleToDelete.id}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: deleteConfirmTitle }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to delete battle");
+
+      toast({ description: "Battle and associated lines were deleted." });
+      setSelectedBattleIds((current) => {
+        const next = new Set(current);
+        next.delete(battleToDelete.id);
+        return next;
+      });
+      setBattleToDelete(null);
+      setDeleteConfirmTitle("");
+      refetch();
+    } catch (err: unknown) {
+      toast({
+        title: "Error",
+        description: err instanceof Error ? err.message : "An error occurred",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDeletingBattle(false);
+    }
+  };
+
   return (
     <AdminPageShell error={error}>
       <PageHeader title="Battles" itemCount={loading ? undefined : total}>
@@ -222,7 +293,10 @@ export default function BattleAdminPage() {
                 setPage(1);
               }}
             >
-              <SelectTrigger size="lg" className="w-[140px] text-[10px] tracking-[0.18em] text-white/60 uppercase">
+              <SelectTrigger
+                size="lg"
+                className="w-[140px] text-[10px] tracking-[0.18em] text-white/60 uppercase"
+              >
                 <div className="flex items-center gap-2">
                   <ArrowUpDown className="h-3 w-3" />
                   <SelectValue placeholder="Sort" />
@@ -401,16 +475,26 @@ export default function BattleAdminPage() {
                         </Button>
                       </TableCell>
                       <TableCell className="px-6 py-4 text-right">
-                        <Button
-                          variant="ghost"
-                          onClick={() => {
-                            setSelectedBattleIds(new Set([b.id]));
-                            setIsBulkAssignOpen(true);
-                          }}
-                          className="text-primary hover:text-primary-foreground hover:bg-primary h-7 px-2.5 text-[9px] font-semibold tracking-widest uppercase transition-colors"
-                        >
-                          Assign
-                        </Button>
+                        <div className="flex justify-end gap-2">
+                          <Button
+                            variant="ghost"
+                            onClick={() => {
+                              setSelectedBattleIds(new Set([b.id]));
+                              setIsBulkAssignOpen(true);
+                            }}
+                            className="text-primary hover:text-primary-foreground hover:bg-primary h-7 px-2.5 text-[9px] font-semibold tracking-widest uppercase transition-colors"
+                          >
+                            Assign
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            onClick={() => openDeleteDialog(b)}
+                            className="text-destructive hover:bg-destructive/10 hover:text-destructive h-7 px-2.5 text-[9px] font-semibold tracking-widest uppercase transition-colors"
+                          >
+                            <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+                            Delete
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))
@@ -509,6 +593,14 @@ export default function BattleAdminPage() {
                   >
                     + Assign
                   </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => openDeleteDialog(b)}
+                    className="border-destructive/20 bg-destructive/5 text-destructive hover:bg-destructive/10 h-5 rounded-md px-2 text-[8px] font-semibold uppercase"
+                  >
+                    <Trash2 className="mr-1 h-2.5 w-2.5" />
+                    Delete
+                  </Button>
                 </div>
 
                 <div className="mt-4 flex items-center justify-between border-t border-white/5 pt-3">
@@ -548,6 +640,65 @@ export default function BattleAdminPage() {
         onClose={() => setIsBulkAssignOpen(false)}
         onAssign={handleBulkAssign}
       />
+      <Dialog
+        open={!!battleToDelete}
+        onOpenChange={(open) => !open && closeDeleteDialog()}
+      >
+        <DialogContent className="border-destructive/20 bg-[#141417] p-8 sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="text-destructive flex items-center gap-2 text-2xl font-semibold tracking-tighter uppercase">
+              <AlertTriangle className="h-6 w-6" />
+              Delete Battle
+            </DialogTitle>
+            <DialogDescription className="mt-2 text-base font-medium text-white/60">
+              This permanently deletes the battle and its associated transcript
+              lines. Type the full title to confirm.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="bg-destructive/10 border-destructive/20 mt-4 rounded-2xl border p-5">
+            <p className="text-destructive mb-2 text-[10px] font-semibold tracking-[0.2em] uppercase">
+              Exact title required
+            </p>
+            <p className="text-sm font-semibold wrap-break-word text-white">
+              {battleToDelete?.title}
+            </p>
+          </div>
+
+          <Input
+            value={deleteConfirmTitle}
+            onChange={(event) => setDeleteConfirmTitle(event.target.value)}
+            placeholder="Type the full battle title"
+            disabled={isDeletingBattle}
+            className="mt-4"
+            aria-invalid={
+              deleteConfirmTitle.length > 0 && !deleteConfirmMatches
+            }
+          />
+
+          <DialogFooter className="mt-8 gap-2">
+            <Button
+              variant="ghost"
+              onClick={closeDeleteDialog}
+              disabled={isDeletingBattle}
+              className="h-11 rounded-xl px-8 text-[10px] font-semibold tracking-widest text-white/40 uppercase transition-all hover:bg-white/5 hover:text-white"
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteBattle}
+              disabled={!deleteConfirmMatches || isDeletingBattle}
+              className="h-11 rounded-xl px-8 text-[10px] font-semibold tracking-widest uppercase transition-all active:scale-95"
+            >
+              {isDeletingBattle && (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              )}
+              Delete Battle
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AdminPageShell>
   );
 }
