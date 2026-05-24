@@ -1,20 +1,28 @@
 import { cache } from "react";
 import { notFound, permanentRedirect } from "next/navigation";
-import { createPublicClient } from "@/lib/supabase/server";
+import { createAdminClient, createPublicClient } from "@/lib/supabase/server";
+import { getUserWithRole, hasPermission } from "@/lib/auth";
 import { getBattleHref } from "@/lib/battles";
 import { uuidSchema } from "@/lib/schemas";
 
 export const revalidate = 86400; // 24 hours (1 day)
+export const dynamic = "force-dynamic";
 
 const getBattle = cache(async (id: string) => {
   if (!uuidSchema.safeParse(id).success) return null;
-  const supabase = createPublicClient();
-  const { data, error } = await supabase
+  const { role } = await getUserWithRole();
+  const canViewHiddenBattles = hasPermission(role, "battles:manage");
+  const supabase = canViewHiddenBattles ? createAdminClient() : createPublicClient();
+  let query = supabase
     .from("battles")
     .select("id, league, slug")
-    .eq("id", id)
-    .eq("public_visible", true)
-    .maybeSingle();
+    .eq("id", id);
+
+  if (!canViewHiddenBattles) {
+    query = query.eq("public_visible", true);
+  }
+
+  const { data, error } = await query.maybeSingle();
 
   if (error) {
     console.error("[getBattle] Supabase error:", error.message, "for ID:", id);

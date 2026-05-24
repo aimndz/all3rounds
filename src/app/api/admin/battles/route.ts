@@ -4,7 +4,7 @@ import { requirePermission } from "@/lib/auth";
 
 export async function GET(request: NextRequest) {
   // Auth & Permission Check
-  const auth = await requirePermission("emcees:manage");
+  const auth = await requirePermission("battles:manage");
   if (auth.error) {
     return NextResponse.json(
       { error: auth.error.message },

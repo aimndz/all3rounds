@@ -1,7 +1,8 @@
 import { cache } from "react";
 import { notFound, permanentRedirect } from "next/navigation";
 import { Metadata } from "next";
-import { createPublicClient } from "@/lib/supabase/server";
+import { createAdminClient, createPublicClient } from "@/lib/supabase/server";
+import { getUserWithRole, hasPermission } from "@/lib/auth";
 import {
   getBattlePath,
   normalizeBattleLeague,
@@ -12,18 +13,25 @@ import BattleClient from "../BattleClient";
 import JsonLd from "@/components/shared/JsonLd";
 
 export const revalidate = 86400; // 24 hours (1 day)
+export const dynamic = "force-dynamic";
 
 const siteUrl = getSiteUrl();
 
 const getBattle = cache(async (league: string, slug: string) => {
-  const supabase = createPublicClient();
-  const { data, error } = await supabase
+  const { role } = await getUserWithRole();
+  const canViewHiddenBattles = hasPermission(role, "battles:manage");
+  const supabase = canViewHiddenBattles ? createAdminClient() : createPublicClient();
+  let query = supabase
     .from("battles")
-    .select("id, league, slug, title, event_name, event_date, youtube_id")
+    .select("id, league, slug, title, event_name, event_date, youtube_id, public_visible")
     .eq("league", normalizeBattleLeague(league))
-    .eq("slug", normalizeBattleSlug(slug))
-    .eq("public_visible", true)
-    .maybeSingle();
+    .eq("slug", normalizeBattleSlug(slug));
+
+  if (!canViewHiddenBattles) {
+    query = query.eq("public_visible", true);
+  }
+
+  const { data, error } = await query.maybeSingle();
 
   if (error) {
     console.error(

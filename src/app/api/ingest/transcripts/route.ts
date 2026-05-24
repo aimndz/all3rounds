@@ -134,6 +134,7 @@ export async function POST(request: NextRequest) {
     eventName: payload.event_name ?? null,
     eventDate: payload.event_date ?? null,
     status: "raw",
+    publicVisible: false,
     createdAt: now,
   });
 

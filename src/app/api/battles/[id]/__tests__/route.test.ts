@@ -33,6 +33,10 @@ vi.mock("@/lib/supabase/server", () => {
 });
 
 vi.mock("@/lib/auth", () => ({
+  getUserWithRole: vi.fn().mockResolvedValue({ user: null, role: "viewer" }),
+  hasPermission: vi.fn((role: string, action: string) =>
+    action === "battles:manage" && ["superadmin", "admin"].includes(role),
+  ),
   requirePermission: vi.fn(),
 }));
 
@@ -46,13 +50,15 @@ vi.mock("@/lib/rate-limit", () => ({
   getRateLimitHeaders: vi.fn().mockReturnValue({}),
 }));
 
-import { requirePermission } from "@/lib/auth";
+import { getUserWithRole, requirePermission } from "@/lib/auth";
 
+const mockGetUserWithRole = vi.mocked(getUserWithRole);
 const mockRequirePermission = vi.mocked(requirePermission);
 
 describe("GET /api/battles/[id]", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockGetUserWithRole.mockResolvedValue({ user: null, role: "viewer" });
   });
 
   it("returns 404 when battle is not found", async () => {
@@ -100,6 +106,54 @@ describe("GET /api/battles/[id]", () => {
     });
     expect(res.status).toBe(200);
     expect(res.headers.get("Cache-Control")).toContain("s-maxage=3600");
+    expect(__mocks.mockChain.eq).toHaveBeenCalledWith("public_visible", true);
+  });
+
+  it("allows admins to fetch hidden battles", async () => {
+    mockGetUserWithRole.mockResolvedValueOnce({
+      user: {
+        id: "u1",
+        email: "admin@test.com",
+        role: "admin",
+        displayName: "Admin",
+      },
+      role: "admin",
+    });
+    const { __mocks } = await import("@/lib/supabase/server") as unknown as {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      __mocks: { mockChain: any };
+    };
+    __mocks.mockChain.single
+      .mockResolvedValueOnce({
+        data: {
+          id: "550e8400-e29b-41d4-a716-446655440000",
+          title: "Hidden Test",
+          youtube_id: "yt1",
+          event_name: "Event",
+          event_date: "2025-01-01",
+          url: "https://example.com",
+          status: "raw",
+          public_visible: false,
+        },
+        error: null,
+      })
+      .mockResolvedValueOnce({ data: [], error: null });
+    __mocks.mockChain.range.mockResolvedValueOnce({
+      data: [],
+      error: null,
+      count: 0,
+    });
+
+    const { GET } = await import("@/app/api/battles/[id]/route");
+    const req = new NextRequest(
+      "http://localhost/api/battles/550e8400-e29b-41d4-a716-446655440000",
+    );
+    const res = await GET(req, {
+      params: Promise.resolve({ id: "550e8400-e29b-41d4-a716-446655440000" }),
+    });
+
+    expect(res.status).toBe(200);
+    expect(__mocks.mockChain.eq).not.toHaveBeenCalledWith("public_visible", true);
   });
 
   it("marks deep-linked transcript pages as having previous lines", async () => {

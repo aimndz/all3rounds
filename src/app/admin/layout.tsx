@@ -7,7 +7,7 @@ export default async function AdminLayout({
 }: {
   children: ReactNode;
 }) {
-  const auth = await requirePermission("users:manage");
+  const auth = await requirePermission("battles:manage");
 
   if (auth.error) {
     redirect("/"); // Or redirect to a 403 page

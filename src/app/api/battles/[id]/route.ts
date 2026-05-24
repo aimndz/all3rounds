@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
-import { requirePermission } from "@/lib/auth";
+import { getUserWithRole, hasPermission, requirePermission } from "@/lib/auth";
 import { verifyCsrf } from "@/lib/csrf";
 import { sortParticipantsByTitle } from "@/features/battles/utils/participant-grouping";
 import { uuidSchema } from "@/lib/schemas";
@@ -48,7 +48,9 @@ export async function GET(
     return NextResponse.json({ error: "Invalid battle ID" }, { status: 400 });
   }
 
-  const supabase = await createClient();
+  const { role } = await getUserWithRole();
+  const canViewHiddenBattles = hasPermission(role, "battles:manage");
+  const supabase = canViewHiddenBattles ? createAdminClient() : await createClient();
 
   // If a deep-link line is provided, start from the page that contains it.
   let effectiveOffset = offset;
@@ -73,12 +75,16 @@ export async function GET(
   }
 
   // Fetch battle details
-  const { data: battle, error: battleError } = await supabase
+  let battleQuery = supabase
     .from("battles")
     .select("id, league, slug, title, youtube_id, event_name, event_date, url, status, public_visible")
-    .eq("id", id)
-    .eq("public_visible", true)
-    .single();
+    .eq("id", id);
+
+  if (!canViewHiddenBattles) {
+    battleQuery = battleQuery.eq("public_visible", true);
+  }
+
+  const { data: battle, error: battleError } = await battleQuery.single();
 
   if (battleError || !battle) {
     console.error("Battle fetch error:", battleError, "for ID:", id);
