@@ -1,4 +1,4 @@
-import { getD1Async, getSearchCache } from "@/db/client";
+import { getD1Async } from "@/db/client";
 import { normalizeEmceeSlug } from "@/lib/emcees";
 
 type Row = Record<string, unknown>;
@@ -15,12 +15,6 @@ type MutationResponse = Omit<CompatResponse, "count"> & {
 type SearchCandidate = {
   id: number;
   rank: number;
-};
-type SearchCachePayload = {
-  version: number;
-  query: string;
-  candidates: SearchCandidate[];
-  createdAt: number;
 };
 type Filter =
   | { kind: "eq" | "neq" | "lt" | "lte" | "gt" | "gte"; column: string; value: unknown }
@@ -42,11 +36,9 @@ type Order = {
 type MutationMode = "select" | "insert" | "update" | "delete" | "upsert";
 type SingleMode = "many" | "single" | "maybeSingle";
 const MAX_IN_PARAMS = 100;
-const SEARCH_CACHE_TTL_SECONDS = 60 * 60 * 24;
 const SEARCH_CANDIDATE_LIMIT = 500;
 const SEARCH_BROAD_SENTINEL_LIMIT = SEARCH_CANDIDATE_LIMIT + 1;
 const SEARCH_RANK_POOL_LIMIT = 1000;
-const SEARCH_CACHE_VERSION = 3;
 
 const TABLES = new Set([
   "emcees",
@@ -122,80 +114,6 @@ function buildFtsQuery(value: string) {
 
 function tokenizeSearchTerm(value: string) {
   return normalizeSearchTerm(value).split(" ").filter(Boolean);
-}
-
-async function hashSearchTerm(value: string) {
-  const bytes = new TextEncoder().encode(value);
-  const digest = await crypto.subtle.digest("SHA-256", bytes);
-  return Array.from(new Uint8Array(digest))
-    .map((byte) => byte.toString(16).padStart(2, "0"))
-    .join("");
-}
-
-async function getSearchCacheKey(normalizedTerm: string) {
-  const readable = normalizedTerm
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 80);
-  return `search:v${SEARCH_CACHE_VERSION}:${readable || "query"}:${await hashSearchTerm(normalizedTerm)}`;
-}
-
-function parseSearchCachePayload(raw: string | null, normalizedTerm: string) {
-  if (!raw) return null;
-  try {
-    const parsed = JSON.parse(raw) as Partial<SearchCachePayload>;
-    if (
-      parsed.version !== SEARCH_CACHE_VERSION ||
-      parsed.query !== normalizedTerm ||
-      !Array.isArray(parsed.candidates)
-    ) {
-      return null;
-    }
-    const candidates = parsed.candidates
-      .map((candidate) => ({
-        id: Number(candidate.id),
-        rank: Number(candidate.rank),
-      }))
-      .filter(
-        (candidate): candidate is SearchCandidate =>
-          Number.isInteger(candidate.id) && Number.isFinite(candidate.rank),
-      )
-      .slice(0, SEARCH_CANDIDATE_LIMIT);
-    return { ...parsed, candidates } as SearchCachePayload;
-  } catch {
-    return null;
-  }
-}
-
-async function readCachedSearchCandidates(normalizedTerm: string) {
-  const cache = await getSearchCache();
-  if (!cache) return null;
-
-  const key = await getSearchCacheKey(normalizedTerm);
-  const payload = parseSearchCachePayload(await cache.get(key), normalizedTerm);
-  if (process.env.APP_ENV === "development" && payload) {
-    console.info(`[D1] search_cache=hit candidates=${payload.candidates.length}`);
-  }
-  return payload?.candidates ?? null;
-}
-
-async function writeCachedSearchCandidates(
-  normalizedTerm: string,
-  candidates: SearchCandidate[],
-) {
-  const cache = await getSearchCache();
-  if (!cache) return;
-
-  const key = await getSearchCacheKey(normalizedTerm);
-  const payload: SearchCachePayload = {
-    version: SEARCH_CACHE_VERSION,
-    query: normalizedTerm,
-    candidates,
-    createdAt: Date.now(),
-  };
-  await cache.put(key, JSON.stringify(payload), {
-    expirationTtl: SEARCH_CACHE_TTL_SECONDS,
-  });
 }
 
 export function getSearchMode(normalizedTerm: string) {
@@ -973,9 +891,7 @@ async function searchFast(searchTerm: string, from: number, to?: number, options
   }
 
   const mode = getSearchMode(normalizedTerm);
-  const candidates =
-    (await readCachedSearchCandidates(normalizedTerm)) ??
-    (await fetchSearchCandidates(normalizedTerm, mode));
+  const candidates = await fetchSearchCandidates(normalizedTerm, mode);
   if (process.env.APP_ENV === "development") {
     console.info(`[D1] search_mode=${mode} candidate_count=${candidates.length}`);
   }
@@ -1015,7 +931,6 @@ async function fetchBroadSingleCandidates(normalizedTerm: string) {
   if (process.env.APP_ENV === "development" && !isBroad) {
     console.info(`[D1] single_token_ranked_count=${candidates.length}`);
   }
-  await writeCachedSearchCandidates(normalizedTerm, candidates);
   return candidates;
 }
 
@@ -1061,7 +976,6 @@ async function fetchMultiTokenCandidates(normalizedTerm: string) {
     )
     .sort((left, right) => right.rank - left.rank || left.id - right.id)
     .slice(0, SEARCH_CANDIDATE_LIMIT);
-  await writeCachedSearchCandidates(normalizedTerm, scored);
   return scored;
 }
 

@@ -71,6 +71,12 @@ function buildCsp(isDev: boolean) {
 const IS_DEV = process.env.NODE_ENV !== "production";
 const CSP_HEADER = buildCsp(IS_DEV);
 
+function hasPrivateRequestHeaders(request: NextRequest): boolean {
+  return (
+    request.headers.has("cookie") || request.headers.has("authorization")
+  );
+}
+
 export default async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
@@ -104,11 +110,12 @@ export default async function middleware(request: NextRequest) {
   const cacheConfig = PUBLIC_CACHE_CONFIGS.find((config) =>
     config.pattern.test(pathname),
   );
+  const isPrivateRequest = hasPrivateRequestHeaders(request);
 
   let response: NextResponse;
   if (cacheConfig || isApiRequest) {
     response = NextResponse.next();
-    if (cacheConfig) {
+    if (cacheConfig && !isPrivateRequest) {
       response.headers.set("Cache-Control", cacheConfig.cache);
     }
   } else {

@@ -22,7 +22,7 @@ interface SearchRpcRow {
   rank: number;
 }
 
-const SEARCH_CACHE_HEADERS = {
+const SEARCH_RESPONSE_CACHE_HEADERS = {
   "Cache-Control": "public, s-maxage=7200, stale-while-revalidate=59",
 };
 
@@ -274,6 +274,6 @@ export async function GET(request: NextRequest) {
   };
 
   return NextResponse.json(result, {
-    headers: SEARCH_CACHE_HEADERS,
+    headers: SEARCH_RESPONSE_CACHE_HEADERS,
   });
 }

@@ -25,6 +25,11 @@ Known bindings from `wrangler.json`:
 
 - `ASSETS`: static asset directory `.open-next/assets`
 - `IMAGES`: Cloudflare Images binding in both `development` and `production`
+- `NEXT_INC_CACHE_R2_BUCKET`: OpenNext incremental cache bucket
+  - Production bucket: `all3rounds-opennext-cache`
+  - Development bucket: `all3rounds-dev-opennext-cache`
+- `WORKER_SELF_REFERENCE`: self-service binding used by OpenNext cache revalidation
+- `NEXT_CACHE_DO_QUEUE`: Durable Object queue used by OpenNext time-based revalidation
 
 ## Dashboard-Only Settings To Record
 
@@ -173,6 +178,15 @@ Cache response rules:
 
 Bypass rules for auth/admin/API paths are covered by rules 1 through 4 above.
 
+OpenNext cache implementation:
+
+- `open-next.config.ts` uses R2 incremental cache with `long-lived` regional cache.
+- Deploy and preview scripts use `opennextjs-cloudflare deploy/preview` so the OpenNext cache can be populated during deployment.
+- Before deploying a new environment, ensure the matching R2 bucket exists:
+  - `wrangler r2 bucket create all3rounds-opennext-cache`
+  - `wrangler r2 bucket create all3rounds-dev-opennext-cache`
+- Authenticated requests should not receive public page cache headers from middleware.
+
 ### Security
 
 - Security settings toggled on:
@@ -234,6 +248,7 @@ Turnstile usage:
 - Treat middleware, search, battle detail routes, and list APIs as CPU-sensitive.
 - Avoid adding cookie reads or auth/session refresh to public paths unless necessary.
 - Favor cache headers, ISR, SQL-side filtering, and RPCs over extra request-time JS work.
+- Workers KV search candidate caching has been removed to avoid high-cardinality write pressure on the free KV tier.
 
 ## Change Checklist
 
