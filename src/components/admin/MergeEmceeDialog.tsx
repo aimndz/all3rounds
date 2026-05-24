@@ -44,6 +44,7 @@ export function MergeEmceeDialog({ sourceEmcee, emcees, onClose, onMerge }: Merg
 
   useEffect(() => {
     if (!debouncedSearch.trim()) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- Empty search clears stale async results.
       setSearchResults([]);
       return;
     }

@@ -262,6 +262,7 @@ export default function BattleClient({
   }, [fetchBattle]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- Reset scroll loading state when the deep-link target changes.
     setCanLoadPreviousOnScroll(!deepLinkLineId);
     pendingPrependScrollRef.current = null;
     previousScrollTopRef.current = 0;

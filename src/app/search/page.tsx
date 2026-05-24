@@ -132,6 +132,7 @@ function SearchResults() {
     if (query !== prevQueryRef.current) {
       prevQueryRef.current = query;
       if (query) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- Show immediate loading feedback for URL query changes.
         setLoading(true);
       }
     }
@@ -248,6 +249,7 @@ function SearchResults() {
 
   useEffect(() => {
     const controller = new AbortController();
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- Fetching on URL state changes is the intended synchronization point.
     fetchResults(query, page, controller.signal);
     return () => controller.abort();
   }, [query, page, fetchResults]);

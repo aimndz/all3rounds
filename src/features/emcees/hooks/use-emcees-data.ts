@@ -22,8 +22,11 @@ export function useEmceesData(initialEmcees: Emcee[], initialCount: number) {
 
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
   const filtersRef = useRef({ search, sort, countRange });
-  filtersRef.current = { search, sort, countRange };
   const lastFetchedPage = useRef(1);
+
+  useEffect(() => {
+    filtersRef.current = { search, sort, countRange };
+  }, [search, sort, countRange]);
 
   const fetchEmcees = useCallback(
     async (

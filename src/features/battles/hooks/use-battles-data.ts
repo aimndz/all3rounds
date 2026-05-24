@@ -119,6 +119,7 @@ export function useBattlesData(
   useEffect(() => {
     const saved = localStorage.getItem("a3r_expanded_groups");
     if (saved) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- Hydrate persisted UI expansion state from localStorage after mount.
       setExpandedGroups(new Set(saved.split("|")));
     }
   }, []);

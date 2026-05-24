@@ -67,6 +67,7 @@ export function usePaginatedFetch<T>(url: string, options: FetchOptions = {}) {
   );
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- Fetching on pagination/filter changes is the hook's synchronization point.
     fetchData(page);
   }, [fetchData, page]);
 

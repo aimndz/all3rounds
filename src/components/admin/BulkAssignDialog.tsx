@@ -35,6 +35,7 @@ export function BulkAssignDialog({ isOpen, battleIds, onClose, onAssign }: BulkA
   // Reset state when opened
   useEffect(() => {
     if (isOpen) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- Opening the dialog intentionally resets transient form state.
       setSearch("");
       setSearchResults([]);
       setSelectedEmcees(new Map());
@@ -43,6 +44,7 @@ export function BulkAssignDialog({ isOpen, battleIds, onClose, onAssign }: BulkA
 
   useEffect(() => {
     if (!debouncedSearch.trim()) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- Empty search clears stale async results.
       setSearchResults([]);
       return;
     }

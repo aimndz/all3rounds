@@ -32,7 +32,7 @@ export function useInlineEdit(
         setTimeout(() => startInlineEdit(nextLine), 10);
       }
     },
-    [data?.lines, startInlineEdit],
+    [data, startInlineEdit],
   );
 
   const handleInlineSave = useCallback(
