@@ -15,7 +15,7 @@ export function AdminPageShell({
   hideNav = false,
 }: AdminPageShellProps) {
   return (
-    <PageShell>
+    <PageShell width="full">
       <div className="relative z-10 flex items-start gap-8">
         {!hideNav && <AdminNav />}
 

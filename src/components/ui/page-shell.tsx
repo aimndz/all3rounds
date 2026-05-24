@@ -9,6 +9,7 @@ const pageShellVariants = cva("app-shell", {
       default: "",
       narrow: "app-shell--narrow",
       prose: "app-shell--prose",
+      full: "max-w-none",
     },
     spacing: {
       default: "",
