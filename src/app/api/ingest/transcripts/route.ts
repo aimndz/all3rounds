@@ -32,6 +32,14 @@ const TranscriptSchema = z.object({
   segments: z.array(SegmentSchema).min(1).max(5000),
 });
 
+function chunks<T>(items: T[], size: number) {
+  const result: T[][] = [];
+  for (let index = 0; index < items.length; index += size) {
+    result.push(items.slice(index, index + size));
+  }
+  return result;
+}
+
 function uniqueSlug(base: string, taken: Set<string>) {
   let slug = base;
   let suffix = 2;
@@ -140,9 +148,9 @@ export async function POST(request: NextRequest) {
     });
   }
 
-  for (const segment of payload.segments) {
+  const lineRows = payload.segments.map((segment) => {
     const emceeId = speakerToEmcee.get(segment.speaker.toLowerCase()) ?? null;
-    const inserted = await db.insert(lines).values({
+    return {
       battleId,
       emceeId,
       roundNumber: null,
@@ -151,13 +159,28 @@ export async function POST(request: NextRequest) {
       startTime: segment.start,
       endTime: segment.end,
       createdAt: now,
-    }).returning({ id: lines.id });
+    };
+  });
 
-    if (emceeId && inserted[0]) {
-      await db.insert(lineSpeakers).values({
-        lineId: inserted[0].id,
-        emceeId,
-      }).onConflictDoNothing();
+  const insertedLines: Array<{ id: number; emceeId: string | null }> = [];
+  for (const lineChunk of chunks(lineRows, 100)) {
+    const insertedChunk = await db
+      .insert(lines)
+      .values(lineChunk)
+      .returning({ id: lines.id, emceeId: lines.emceeId });
+    insertedLines.push(...insertedChunk);
+  }
+
+  const lineSpeakerRows = insertedLines
+    .filter((line): line is { id: number; emceeId: string } => Boolean(line.emceeId))
+    .map((line) => ({
+      lineId: line.id,
+      emceeId: line.emceeId,
+    }));
+
+  if (lineSpeakerRows.length > 0) {
+    for (const lineSpeakerChunk of chunks(lineSpeakerRows, 400)) {
+      await db.insert(lineSpeakers).values(lineSpeakerChunk).onConflictDoNothing();
     }
   }
 
