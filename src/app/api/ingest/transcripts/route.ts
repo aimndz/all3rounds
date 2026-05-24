@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { eq } from "drizzle-orm";
+import { count, eq } from "drizzle-orm";
 import { getDb } from "@/db/client";
 import {
   battleParticipants,
@@ -51,6 +51,10 @@ function uniqueSlug(base: string, taken: Set<string>) {
   return slug;
 }
 
+function getErrorMessage(error: unknown) {
+  return error instanceof Error ? error.message : String(error);
+}
+
 export async function POST(request: NextRequest) {
   const unauthorized = requireIngestToken(request);
   if (unauthorized) return unauthorized;
@@ -62,148 +66,179 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
   }
 
-  const payload = parsed.data;
-  const db = getDb();
-  const existing = await db
-    .select({ id: battles.id })
-    .from(battles)
-    .where(eq(battles.youtubeId, payload.youtube_id))
-    .limit(1);
-
-  if (existing[0]) {
-    return NextResponse.json({
-      battle_id: existing[0].id,
-      line_count: 0,
-      skipped: true,
-    });
-  }
-
-  const battleId = crypto.randomUUID();
-  const league = normalizeBattleLeague(payload.league);
-  const slugBase = normalizeBattleSlug(payload.title);
-  const existingSlugs = await db
-    .select({ slug: battles.slug })
-    .from(battles)
-    .where(eq(battles.league, league));
-  const slug = uniqueSlug(slugBase, new Set(existingSlugs.map((row) => row.slug)));
-  const now = new Date();
-
-  const speakerToEmcee = new Map<string, string>();
-  const participantRows = payload.participants.map((name) => {
-    const id = crypto.randomUUID();
-    return {
-      id,
-      slug: normalizeEmceeSlug(name),
-      name,
-      akaJson: "[]",
-      battleCount: 0,
-      createdAt: now,
-    };
-  });
-
-  for (const participant of participantRows) {
-    await db
-      .insert(emcees)
-      .values(participant)
-      .onConflictDoNothing();
-
-    const existingEmcee = await db
-      .select({ id: emcees.id })
-      .from(emcees)
-      .where(eq(emcees.slug, participant.slug))
+  try {
+    const payload = parsed.data;
+    const db = getDb();
+    const now = new Date();
+    const existing = await db
+      .select({ id: battles.id })
+      .from(battles)
+      .where(eq(battles.youtubeId, payload.youtube_id))
       .limit(1);
-    const emceeId = existingEmcee[0]?.id ?? participant.id;
-    speakerToEmcee.set(participant.name.toLowerCase(), emceeId);
+
+    let battleId = existing[0]?.id;
+    if (existing[0]) {
+      const existingLineCount = await db
+        .select({ value: count() })
+        .from(lines)
+        .where(eq(lines.battleId, existing[0].id));
+
+      const currentLineCount = existingLineCount[0]?.value ?? 0;
+      if (currentLineCount >= payload.segments.length) {
+        return NextResponse.json({
+          battle_id: existing[0].id,
+          line_count: 0,
+          skipped: true,
+        });
+      }
+      if (currentLineCount > 0) {
+        await db.delete(lines).where(eq(lines.battleId, existing[0].id));
+      }
+    } else {
+      battleId = crypto.randomUUID();
+    }
+
+    if (!battleId) {
+      throw new Error("Unable to resolve battle id for ingest upload.");
+    }
+
+    const league = normalizeBattleLeague(payload.league);
+    const slugBase = normalizeBattleSlug(payload.title);
+
+    const speakerToEmcee = new Map<string, string>();
+    const participantRows = payload.participants.map((name) => {
+      const id = crypto.randomUUID();
+      return {
+        id,
+        slug: normalizeEmceeSlug(name),
+        name,
+        akaJson: "[]",
+        battleCount: 0,
+        createdAt: now,
+      };
+    });
+
+    for (const participant of participantRows) {
+      await db
+        .insert(emcees)
+        .values(participant)
+        .onConflictDoNothing();
+
+      const existingEmcee = await db
+        .select({ id: emcees.id })
+        .from(emcees)
+        .where(eq(emcees.slug, participant.slug))
+        .limit(1);
+      const emceeId = existingEmcee[0]?.id ?? participant.id;
+      speakerToEmcee.set(participant.name.toLowerCase(), emceeId);
+
+      await db
+        .insert(emceeAliases)
+        .values({
+          emceeId,
+          alias: participant.name,
+          aliasNormalized: normalizeEmceeSlug(participant.name),
+        })
+        .onConflictDoNothing();
+    }
+
+    if (!existing[0]) {
+      const existingSlugs = await db
+        .select({ slug: battles.slug })
+        .from(battles)
+        .where(eq(battles.league, league));
+      const slug = uniqueSlug(slugBase, new Set(existingSlugs.map((row) => row.slug)));
+
+      await db.insert(battles).values({
+        id: battleId,
+        league,
+        slug,
+        title: payload.title,
+        youtubeId: payload.youtube_id,
+        eventName: payload.event_name ?? null,
+        eventDate: payload.event_date ?? null,
+        status: "raw",
+        publicVisible: false,
+        createdAt: now,
+      });
+    }
+
+    for (const [index, participant] of participantRows.entries()) {
+      const emceeId = speakerToEmcee.get(participant.name.toLowerCase());
+      if (!emceeId) continue;
+      await db.insert(battleParticipants).values({
+        id: crypto.randomUUID(),
+        battleId,
+        emceeId,
+        label: `MC${index + 1}`,
+      }).onConflictDoNothing();
+    }
+
+    const lineRows = payload.segments.map((segment) => {
+      const emceeId = speakerToEmcee.get(segment.speaker.toLowerCase()) ?? null;
+      return {
+        battleId,
+        emceeId,
+        roundNumber: null,
+        speakerLabel: segment.speaker,
+        content: segment.text,
+        startTime: segment.start,
+        endTime: segment.end,
+        createdAt: now,
+      };
+    });
+
+    for (const lineChunk of chunks(lineRows, 10)) {
+      await db.insert(lines).values(lineChunk);
+    }
+
+    const insertedLines = await db
+      .select({ id: lines.id, emceeId: lines.emceeId })
+      .from(lines)
+      .where(eq(lines.battleId, battleId));
+
+    const lineSpeakerRows = insertedLines
+      .filter((line): line is { id: number; emceeId: string } => Boolean(line.emceeId))
+      .map((line) => ({
+        lineId: line.id,
+        emceeId: line.emceeId,
+      }));
+
+    if (lineSpeakerRows.length > 0) {
+      for (const lineSpeakerChunk of chunks(lineSpeakerRows, 40)) {
+        await db.insert(lineSpeakers).values(lineSpeakerChunk).onConflictDoNothing();
+      }
+    }
 
     await db
-      .insert(emceeAliases)
+      .insert(videoProcessingStatus)
       .values({
-        emceeId,
-        alias: participant.name,
-        aliasNormalized: normalizeEmceeSlug(participant.name),
-      })
-      .onConflictDoNothing();
-  }
-
-  await db.insert(battles).values({
-    id: battleId,
-    league,
-    slug,
-    title: payload.title,
-    youtubeId: payload.youtube_id,
-    eventName: payload.event_name ?? null,
-    eventDate: payload.event_date ?? null,
-    status: "raw",
-    publicVisible: false,
-    createdAt: now,
-  });
-
-  for (const [index, participant] of participantRows.entries()) {
-    const emceeId = speakerToEmcee.get(participant.name.toLowerCase());
-    if (!emceeId) continue;
-    await db.insert(battleParticipants).values({
-      id: crypto.randomUUID(),
-      battleId,
-      emceeId,
-      label: `MC${index + 1}`,
-    });
-  }
-
-  const lineRows = payload.segments.map((segment) => {
-    const emceeId = speakerToEmcee.get(segment.speaker.toLowerCase()) ?? null;
-    return {
-      battleId,
-      emceeId,
-      roundNumber: null,
-      speakerLabel: segment.speaker,
-      content: segment.text,
-      startTime: segment.start,
-      endTime: segment.end,
-      createdAt: now,
-    };
-  });
-
-  const insertedLines: Array<{ id: number; emceeId: string | null }> = [];
-  for (const lineChunk of chunks(lineRows, 100)) {
-    const insertedChunk = await db
-      .insert(lines)
-      .values(lineChunk)
-      .returning({ id: lines.id, emceeId: lines.emceeId });
-    insertedLines.push(...insertedChunk);
-  }
-
-  const lineSpeakerRows = insertedLines
-    .filter((line): line is { id: number; emceeId: string } => Boolean(line.emceeId))
-    .map((line) => ({
-      lineId: line.id,
-      emceeId: line.emceeId,
-    }));
-
-  if (lineSpeakerRows.length > 0) {
-    for (const lineSpeakerChunk of chunks(lineSpeakerRows, 400)) {
-      await db.insert(lineSpeakers).values(lineSpeakerChunk).onConflictDoNothing();
-    }
-  }
-
-  await db
-    .insert(videoProcessingStatus)
-    .values({
-      youtubeId: payload.youtube_id,
-      status: "completed",
-      workerId: null,
-      startedAt: now,
-      updatedAt: now,
-    })
-    .onConflictDoUpdate({
-      target: videoProcessingStatus.youtubeId,
-      set: {
+        youtubeId: payload.youtube_id,
         status: "completed",
+        workerId: null,
+        startedAt: now,
         updatedAt: now,
-      },
-    });
+      })
+      .onConflictDoUpdate({
+        target: videoProcessingStatus.youtubeId,
+        set: {
+          status: "completed",
+          updatedAt: now,
+        },
+      });
 
-  return NextResponse.json({
-    battle_id: battleId,
-    line_count: payload.segments.length,
-  });
+    return NextResponse.json({
+      battle_id: battleId,
+      line_count: payload.segments.length,
+      repaired: Boolean(existing[0]),
+    });
+  } catch (error) {
+    console.error("Ingest transcript upload failed:", error);
+    return NextResponse.json({
+      error: "Failed to ingest transcript.",
+      details: getErrorMessage(error),
+    }, {
+      status: 500,
+    });
+  }
 }
