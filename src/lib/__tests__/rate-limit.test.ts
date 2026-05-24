@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { afterEach, describe, it, expect, vi } from "vitest";
 
 // Ensure no Redis env vars so we test the local fallback path
 vi.stubEnv("UPSTASH_REDIS_REST_URL", "");
@@ -51,5 +51,25 @@ describe("getRateLimitHeaders", () => {
     expect(headers["X-RateLimit-Limit"]).toBe("20");
     expect(headers["X-RateLimit-Remaining"]).toBe("15");
     expect(headers["X-RateLimit-Reset"]).toBe("1700000000");
+  });
+});
+
+describe("checkRateLimit (production safety)", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.resetModules();
+  });
+
+  it("fails closed when production Redis env vars are missing", async () => {
+    vi.resetModules();
+    vi.stubEnv("APP_ENV", "production");
+    vi.stubEnv("UPSTASH_REDIS_REST_URL", "");
+    vi.stubEnv("UPSTASH_REDIS_REST_TOKEN", "");
+
+    const { checkRateLimit } = await import("../rate-limit");
+    const result = await checkRateLimit("prod-user", "anonymous");
+
+    expect(result.allowed).toBe(false);
+    expect(result.remaining).toBe(0);
   });
 });

@@ -1,5 +1,5 @@
 import { Ratelimit } from "@upstash/ratelimit";
-import { Redis } from "@upstash/redis";
+import { Redis } from "@upstash/redis/cloudflare";
 
 /**
  * PRODUCTION RATE LIMITER (Upstash Redis)
@@ -12,6 +12,8 @@ import { Redis } from "@upstash/redis";
 
 const redisUrl = process.env.UPSTASH_REDIS_REST_URL;
 const redisToken = process.env.UPSTASH_REDIS_REST_TOKEN;
+const isProductionRuntime =
+  process.env.NODE_ENV === "production" || process.env.APP_ENV === "production";
 
 // Initialize Redis only if keys exist
 const redis =
@@ -118,7 +120,25 @@ export async function checkRateLimit(
       return { allowed: success, remaining, limit, reset };
     } catch (error) {
       console.error("Upstash Redis error:", error);
+      if (isProductionRuntime) {
+        return {
+          allowed: false,
+          remaining: 0,
+          limit: config.maxRequests,
+          reset: Date.now() + windowMs,
+        };
+      }
     }
+  }
+
+  if (isProductionRuntime) {
+    console.error("Production rate limiter is not configured.");
+    return {
+      allowed: false,
+      remaining: 0,
+      limit: config.maxRequests,
+      reset: Date.now() + windowMs,
+    };
   }
 
   // USE LOCAL MEMORY FALLBACK

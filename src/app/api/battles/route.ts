@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { hasOnlySearchParams } from "@/lib/api-utils";
 import { parseSearchTokens, scoreBattle } from "@/lib/fuzzy-utils";
 import { normalizeBattleLeague } from "@/lib/battles";
 
@@ -132,6 +133,23 @@ function applyCommonFilters<T>(
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
+  if (
+    !hasOnlySearchParams(searchParams, [
+      "q",
+      "year",
+      "league",
+      "sort",
+      "page",
+      "eventLimit",
+      "limit",
+      "status",
+    ])
+  ) {
+    return NextResponse.json(
+      { error: "Unsupported query parameter." },
+      { status: 400 },
+    );
+  }
 
   const q = searchParams.get("q") || "";
   const year = searchParams.get("year") || "all";

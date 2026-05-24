@@ -21,6 +21,8 @@ describe("GET /api/me", () => {
     });
     const res = await GET();
     const body = await res.json();
+    expect(res.headers.get("Cache-Control")).toContain("no-store");
+    expect(res.headers.get("Vary")).toContain("Cookie");
     expect(body.user).toBeNull();
     expect(body.role).toBe("viewer");
   });
@@ -37,6 +39,8 @@ describe("GET /api/me", () => {
     });
     const res = await GET();
     const body = await res.json();
+    expect(res.headers.get("Cache-Control")).toContain("no-store");
+    expect(res.headers.get("Vary")).toContain("Authorization");
     expect(body.user.id).toBe("u1");
     expect(body.user.email).toBe("admin@test.com");
     expect(body.user.displayName).toBe("Admin User");

@@ -2,6 +2,26 @@ import { NextRequest, NextResponse } from "next/server";
 import { requirePermission } from "@/lib/auth";
 import { verifyCsrf } from "@/lib/csrf";
 
+export const PRIVATE_CACHE_HEADERS = {
+  "Cache-Control": "no-store, max-age=0, must-revalidate",
+  Vary: "Cookie, Authorization",
+} as const;
+
+export function privateJson<T>(data: T, status = 200): NextResponse {
+  return NextResponse.json(data, {
+    status,
+    headers: PRIVATE_CACHE_HEADERS,
+  });
+}
+
+export function hasOnlySearchParams(
+  searchParams: URLSearchParams,
+  allowed: readonly string[],
+): boolean {
+  const allowedSet = new Set(allowed);
+  return Array.from(searchParams.keys()).every((key) => allowedSet.has(key));
+}
+
 /**
  * Parse and return JSON body from a request, or an error response.
  * Replaces the repeated try/catch JSON parsing boilerplate in every route.

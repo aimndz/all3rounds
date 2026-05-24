@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { requirePermission } from "@/lib/auth";
 import { verifyCsrf } from "@/lib/csrf";
+import { PRIVATE_CACHE_HEADERS } from "@/lib/api-utils";
 import { z } from "zod";
 
 export const dynamic = "force-dynamic";
@@ -169,9 +170,7 @@ export async function GET(request: NextRequest) {
       limit,
     },
     {
-      headers: {
-        "Cache-Control": "no-store, max-age=0, must-revalidate",
-      },
+      headers: PRIVATE_CACHE_HEADERS,
     },
   );
 }

@@ -4,6 +4,7 @@ import { and, count, desc, eq } from "drizzle-orm";
 import { getDb } from "@/db/client";
 import { feedback, userProfiles } from "@/db/schema";
 import { requirePermission } from "@/lib/auth";
+import { PRIVATE_CACHE_HEADERS } from "@/lib/api-utils";
 
 const VALID_STATUSES = new Set(["new", "reviewed", "archived"]);
 const VALID_CATEGORIES = new Set([
@@ -73,12 +74,15 @@ export async function GET(request: NextRequest) {
       db.select({ value: count() }).from(feedback).where(whereClause),
     ]);
 
-    return NextResponse.json({
-      data: rows,
-      total: totalRows[0]?.value ?? 0,
-      page,
-      limit,
-    });
+    return NextResponse.json(
+      {
+        data: rows,
+        total: totalRows[0]?.value ?? 0,
+        page,
+        limit,
+      },
+      { headers: PRIVATE_CACHE_HEADERS },
+    );
   } catch (error) {
     console.error("Fetch admin feedback error:", error);
     return NextResponse.json(

@@ -164,6 +164,21 @@ describe("POST /api/feedback", () => {
     expect(mockFetch).not.toHaveBeenCalled();
   });
 
+  it("rejects non-http page URLs", async () => {
+    const { POST } = await import("@/app/api/feedback/route");
+    const res = await POST(
+      makePostRequest({
+        category: "bug",
+        message: "This link should not become clickable.",
+        page_url: "javascript:alert(1)",
+      }),
+    );
+
+    expect(res.status).toBe(400);
+    expect(mockValues).not.toHaveBeenCalled();
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+
   it("returns 400 when Turnstile verification fails", async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,

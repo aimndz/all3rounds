@@ -32,6 +32,13 @@ const optionalUrlSchema = z.preprocess(
     .string()
     .trim()
     .url("Invalid page URL.")
+    .refine((value) => {
+      try {
+        return ["http:", "https:"].includes(new URL(value).protocol);
+      } catch {
+        return false;
+      }
+    }, "Page URL must use http or https.")
     .max(2048)
     .nullable()
     .optional(),

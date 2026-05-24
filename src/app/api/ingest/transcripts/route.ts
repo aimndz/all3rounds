@@ -12,12 +12,12 @@ import {
 } from "@/db/schema";
 import { normalizeBattleLeague, normalizeBattleSlug } from "@/lib/battles";
 import { normalizeEmceeSlug } from "@/lib/emcees";
-import { requireIngestToken } from "../_auth";
+import { enforceIngestBodyLimit, requireIngestToken } from "../_auth";
 import { z } from "zod";
 
 const SegmentSchema = z.object({
   speaker: z.string().min(1).max(80),
-  text: z.string().min(1),
+  text: z.string().min(1).max(5000),
   start: z.number().finite().nonnegative(),
   end: z.number().finite().nonnegative(),
 });
@@ -29,7 +29,7 @@ const TranscriptSchema = z.object({
   event_name: z.string().max(200).nullable().optional(),
   event_date: z.string().max(30).nullable().optional(),
   participants: z.array(z.string().min(1).max(120)).max(20).default([]),
-  segments: z.array(SegmentSchema).min(1),
+  segments: z.array(SegmentSchema).min(1).max(5000),
 });
 
 function uniqueSlug(base: string, taken: Set<string>) {
@@ -46,6 +46,8 @@ function uniqueSlug(base: string, taken: Set<string>) {
 export async function POST(request: NextRequest) {
   const unauthorized = requireIngestToken(request);
   if (unauthorized) return unauthorized;
+  const oversized = enforceIngestBodyLimit(request);
+  if (oversized) return oversized;
 
   const parsed = TranscriptSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) {

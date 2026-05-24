@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { hasOnlySearchParams } from "@/lib/api-utils";
 import type { SearchResult, BattleStatus } from "@/lib/types";
 
 interface SearchRpcRow {
@@ -31,6 +32,13 @@ const NO_STORE_HEADERS = {
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
+  if (!hasOnlySearchParams(searchParams, ["q", "page"])) {
+    return NextResponse.json(
+      { error: "Unsupported query parameter." },
+      { status: 400, headers: NO_STORE_HEADERS },
+    );
+  }
+
   const query = searchParams.get("q")?.trim();
   const rawPage = parseInt(searchParams.get("page") || "1", 10);
   const page = Number.isFinite(rawPage) && rawPage >= 1 ? rawPage : 1;

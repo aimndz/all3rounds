@@ -134,7 +134,7 @@ function FeedbackCard({ feedback }: { feedback: FeedbackItem }) {
           <a
             href={feedback.pageUrl}
             target="_blank"
-            rel="noreferrer"
+            rel="noopener noreferrer"
             className="flex min-w-0 items-center gap-2 rounded-(--radius-panel) border border-white/5 bg-white/3 px-3 py-2 transition-colors hover:bg-white/7 hover:text-white"
           >
             <ExternalLink className="h-3.5 w-3.5 shrink-0" />

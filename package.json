@@ -39,7 +39,7 @@
     "date-fns": "^4.1.0",
     "drizzle-orm": "^0.45.2",
     "lucide-react": "^0.563.0",
-    "next": "16.1.6",
+    "next": "16.2.6",
     "radix-ui": "^1.4.3",
     "react": "19.2.3",
     "react-dom": "19.2.3",
@@ -62,7 +62,7 @@
     "babel-plugin-react-compiler": "1.0.0",
     "drizzle-kit": "^0.31.10",
     "eslint": "^9",
-    "eslint-config-next": "16.1.6",
+    "eslint-config-next": "16.2.6",
     "jsdom": "^26.1.0",
     "msw": "^2.8.4",
     "pg": "^8.21.0",
@@ -75,5 +75,14 @@
     "typescript": "^5",
     "vitest": "^3.2.1",
     "wrangler": "^4.76.0"
+  },
+  "pnpm": {
+    "overrides": {
+      "esbuild": "0.25.12",
+      "picomatch": "4.0.4",
+      "postcss": "8.5.15",
+      "vite": "7.3.3",
+      "ws": "8.21.0"
+    }
   }
 }

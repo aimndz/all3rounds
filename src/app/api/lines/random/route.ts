@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createPublicClient } from "@/lib/supabase/server";
+import { hasOnlySearchParams } from "@/lib/api-utils";
 import type { SearchResult } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -113,6 +114,18 @@ function normalizeRandomLine(rawLine: RawRandomLine): SearchResult | null {
 }
 
 export async function GET(request: NextRequest) {
+  if (!hasOnlySearchParams(new URL(request.url).searchParams, ["limit"])) {
+    return NextResponse.json(
+      { error: "Unsupported query parameter." },
+      {
+        status: 400,
+        headers: {
+          "Cache-Control": "no-store",
+        },
+      },
+    );
+  }
+
   const supabase = createPublicClient();
   const limit = parseLimit(request);
 

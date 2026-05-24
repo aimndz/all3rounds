@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { requirePermission } from "@/lib/auth";
+import { PRIVATE_CACHE_HEADERS } from "@/lib/api-utils";
 
 type AdminStatsRpcRow = {
   reviewed_by: string | null;
@@ -32,17 +33,13 @@ type AdminStatsResponse = {
   }[];
 };
 
-const NO_STORE_HEADERS = {
-  "Cache-Control": "no-store, max-age=0, must-revalidate",
-};
-
 export async function GET(_request: NextRequest) {
   // ── Auth & Permission Check ──
   const auth = await requirePermission("users:manage");
   if (auth.error) {
     return NextResponse.json(
       { error: auth.error.message },
-      { status: auth.error.status, headers: NO_STORE_HEADERS },
+      { status: auth.error.status, headers: PRIVATE_CACHE_HEADERS },
     );
   }
 
@@ -56,7 +53,7 @@ export async function GET(_request: NextRequest) {
     console.error("Stats rpcError:", rpcError);
     return NextResponse.json(
       { error: "Failed to fetch stats." },
-      { status: 500, headers: NO_STORE_HEADERS },
+      { status: 500, headers: PRIVATE_CACHE_HEADERS },
     );
   }
 
@@ -84,5 +81,5 @@ export async function GET(_request: NextRequest) {
     moderators: moderatorArray,
   };
 
-  return NextResponse.json(response, { headers: NO_STORE_HEADERS });
+  return NextResponse.json(response, { headers: PRIVATE_CACHE_HEADERS });
 }

@@ -55,6 +55,14 @@ describe("GET /api/search (Cloudflare Migration)", () => {
     expect(body.error).toContain("Search query must be between 2 and 200");
   });
 
+  it("rejects unknown query params to avoid cache key amplification", async () => {
+    const res = await GET(makeRequest({ q: "loonie", cacheBust: "1" }));
+    expect(res.status).toBe(400);
+    expect(res.headers.get("Cache-Control")).toContain("no-store");
+    const body = await res.json();
+    expect(body.error).toBe("Unsupported query parameter.");
+  });
+
   it("returns 400 when page exceeds maxPage (50)", async () => {
     const res = await GET(makeRequest({ q: "loonie", page: "51" }));
     expect(res.status).toBe(400);

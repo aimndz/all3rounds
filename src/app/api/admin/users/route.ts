@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { requirePermission } from "@/lib/auth";
+import { PRIVATE_CACHE_HEADERS } from "@/lib/api-utils";
 
 type UserProfileRow = {
   id: string;
@@ -78,10 +79,13 @@ export async function GET(request: NextRequest) {
     email: emailById.get(profile.id) || "N/A",
   }));
 
-  return NextResponse.json({
-    data: profilesWithEmail,
-    total: count || 0,
-    page,
-    limit,
-  });
+  return NextResponse.json(
+    {
+      data: profilesWithEmail,
+      total: count || 0,
+      page,
+      limit,
+    },
+    { headers: PRIVATE_CACHE_HEADERS },
+  );
 }

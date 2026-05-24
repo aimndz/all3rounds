@@ -1,8 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { hasOnlySearchParams } from "@/lib/api-utils";
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
+  if (
+    !hasOnlySearchParams(searchParams, [
+      "q",
+      "sort",
+      "minBattles",
+      "page",
+      "limit",
+    ])
+  ) {
+    return NextResponse.json(
+      { error: "Unsupported query parameter." },
+      { status: 400 },
+    );
+  }
+
   const query = searchParams.get("q")?.trim();
   const sort = searchParams.get("sort") || "name_asc";
   const minBattles = parseInt(searchParams.get("minBattles") || "0");

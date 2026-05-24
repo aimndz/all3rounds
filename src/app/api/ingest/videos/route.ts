@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { eq, inArray, sql } from "drizzle-orm";
 import { getDb } from "@/db/client";
 import { battles, videoProcessingStatus } from "@/db/schema";
-import { requireIngestToken } from "../_auth";
+import { enforceIngestBodyLimit, requireIngestToken } from "../_auth";
 import { z } from "zod";
 
 const ClaimVideoSchema = z.object({
@@ -41,6 +41,8 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const unauthorized = requireIngestToken(request);
   if (unauthorized) return unauthorized;
+  const oversized = enforceIngestBodyLimit(request);
+  if (oversized) return oversized;
 
   const parsed = ClaimVideoSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) {
@@ -109,6 +111,8 @@ export async function POST(request: NextRequest) {
 export async function PATCH(request: NextRequest) {
   const unauthorized = requireIngestToken(request);
   if (unauthorized) return unauthorized;
+  const oversized = enforceIngestBodyLimit(request);
+  if (oversized) return oversized;
 
   const parsed = MarkVideoSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) {

@@ -72,6 +72,9 @@ Thumbs.db
 *.swo
 
 # Project specific
+backup/
+backup/**/*.sql
+backup/**/*_rows.csv
 audio_downloads/
 output.json
 *.wav
