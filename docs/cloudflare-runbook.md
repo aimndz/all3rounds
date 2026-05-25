@@ -186,6 +186,9 @@ OpenNext cache implementation:
   - `wrangler r2 bucket create all3rounds-opennext-cache`
   - `wrangler r2 bucket create all3rounds-dev-opennext-cache`
 - Authenticated requests should not receive public page cache headers from middleware.
+- `/api/battles` and `/api/emcees` use Workers Cache API response caching for public, unauthenticated GET requests.
+  - Check `X-A3R-Cache: MISS` on first regional request and `X-A3R-Cache: HIT` on subsequent matching requests.
+  - Requests with `Cookie` or `Authorization` bypass this cache.
 
 ### Security
 

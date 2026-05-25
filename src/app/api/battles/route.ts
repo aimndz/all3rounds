@@ -3,6 +3,11 @@ import { createClient } from "@/lib/supabase/server";
 import { hasOnlySearchParams } from "@/lib/api-utils";
 import { parseSearchTokens, scoreBattle } from "@/lib/fuzzy-utils";
 import { normalizeBattleLeague } from "@/lib/battles";
+import {
+  buildPublicApiCacheKey,
+  matchPublicApiCache,
+  storePublicApiCache,
+} from "@/lib/public-api-cache";
 
 const OTHER_BATTLES_KEY = "Other Battles";
 
@@ -194,6 +199,24 @@ export async function GET(request: NextRequest) {
   if (cleanStatus === "invalid") {
     return NextResponse.json({ battles: [], count: 0, totalEvents: 0 });
   }
+
+  const cacheParams = new URLSearchParams({
+    page: String(page),
+    eventLimit: String(eventLimit),
+    sort: cleanSort,
+    status: cleanStatus,
+  });
+  if (cleanQ) cacheParams.set("q", cleanQ);
+  if (cleanYear !== "all") cacheParams.set("year", cleanYear);
+  if (cleanLeague !== "all") cacheParams.set("league", cleanLeague);
+
+  const cacheKey = buildPublicApiCacheKey(
+    request,
+    "/api/battles",
+    cacheParams,
+  );
+  const cachedResponse = await matchPublicApiCache(request, cacheKey);
+  if (cachedResponse) return cachedResponse;
 
   // --- Database Fetch ---
   try {
@@ -413,11 +436,12 @@ export async function GET(request: NextRequest) {
       totalEvents,
     };
 
-    return NextResponse.json(payload, {
+    const response = NextResponse.json(payload, {
       headers: {
         "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=59",
       },
     });
+    return storePublicApiCache(request, cacheKey, response);
   } catch (error) {
     console.error("Battles fetch route error:", error);
     return NextResponse.json(

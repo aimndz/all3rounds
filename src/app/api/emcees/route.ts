@@ -1,6 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { hasOnlySearchParams } from "@/lib/api-utils";
+import {
+  buildPublicApiCacheKey,
+  matchPublicApiCache,
+  storePublicApiCache,
+} from "@/lib/public-api-cache";
+
+const VALID_SORTS = new Set([
+  "name_asc",
+  "name_desc",
+  "battles_desc",
+  "battles_asc",
+]);
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -20,11 +32,31 @@ export async function GET(request: NextRequest) {
   }
 
   const query = searchParams.get("q")?.trim();
-  const sort = searchParams.get("sort") || "name_asc";
-  const minBattles = parseInt(searchParams.get("minBattles") || "0");
-  const page = parseInt(searchParams.get("page") || "1");
-  const limit = Math.min(parseInt(searchParams.get("limit") || "48", 10), 50);
+  const rawSort = searchParams.get("sort") || "name_asc";
+  const sort = VALID_SORTS.has(rawSort) ? rawSort : "name_asc";
+  const rawMinBattles = parseInt(searchParams.get("minBattles") || "0", 10);
+  const minBattles =
+    Number.isFinite(rawMinBattles) && rawMinBattles > 0 ? rawMinBattles : 0;
+  const rawPage = parseInt(searchParams.get("page") || "1", 10);
+  const page = Number.isFinite(rawPage) && rawPage >= 1 ? rawPage : 1;
+  const rawLimit = parseInt(searchParams.get("limit") || "48", 10);
+  const limit = Math.min(
+    Math.max(Number.isFinite(rawLimit) ? rawLimit : 48, 1),
+    50,
+  );
   const offset = (page - 1) * limit;
+
+  const cacheParams = new URLSearchParams({
+    sort,
+    minBattles: String(minBattles),
+    page: String(page),
+    limit: String(limit),
+  });
+  if (query) cacheParams.set("q", query);
+
+  const cacheKey = buildPublicApiCacheKey(request, "/api/emcees", cacheParams);
+  const cachedResponse = await matchPublicApiCache(request, cacheKey);
+  if (cachedResponse) return cachedResponse;
 
   const supabase = await createClient();
 
@@ -71,12 +103,13 @@ export async function GET(request: NextRequest) {
   const response = {
     emcees: data || [],
     totalCount: count || 0,
-    hasMore: (count || 0) > offset + limit
+    hasMore: (count || 0) > offset + limit,
   };
 
-  return NextResponse.json(response, {
-      headers: {
-        "Cache-Control": "public, s-maxage=600, stale-while-revalidate=59",
+  const jsonResponse = NextResponse.json(response, {
+    headers: {
+      "Cache-Control": "public, s-maxage=600, stale-while-revalidate=59",
     },
   });
+  return storePublicApiCache(request, cacheKey, jsonResponse);
 }
