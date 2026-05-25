@@ -210,6 +210,46 @@ describe("PATCH /api/lines/batch", () => {
     );
   });
 
+  it("chunks large batch updates and history inserts for D1", async () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { __mocks } = (await import("@/lib/supabase/server")) as any;
+    const { mockChain } = __mocks;
+    const ids = Array.from({ length: 200 }, (_, i) => i + 1);
+
+    let inCall = 0;
+    mockChain.in.mockImplementation(
+      (_column: string, chunk: number[]) => {
+        inCall += 1;
+        if (inCall <= 3) {
+          return Promise.resolve({
+            data: chunk.map((id) => ({
+              id,
+              round_number: 1,
+              emcee_id: "e1",
+              battle_id: "b1",
+            })),
+            error: null,
+          });
+        }
+
+        return Promise.resolve({ data: null, error: null });
+      },
+    );
+
+    const res = await PATCH(
+      makeRequest({ lineIds: ids, action: "set_round", value: 2 }),
+    );
+
+    expect(res.status).toBe(200);
+    expect(mockChain.update).toHaveBeenCalledTimes(3);
+    expect(mockChain.insert).toHaveBeenCalledTimes(3);
+    expect(mockChain.in).toHaveBeenCalledTimes(6);
+    for (const call of mockChain.in.mock.calls) {
+      const chunk = call[1] as unknown[];
+      expect(chunk.length).toBeLessThanOrEqual(75);
+    }
+  });
+
   it("deletes lines successfully", async () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { __mocks } = (await import("@/lib/supabase/server")) as any;

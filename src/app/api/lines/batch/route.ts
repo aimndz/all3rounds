@@ -23,6 +23,8 @@ const BatchLinesSchema = z.object({
     .optional(),
 });
 
+const D1_BATCH_CHUNK_SIZE = 75;
+
 type ExistingLineRow = {
   id: number;
   round_number?: number | null;
@@ -30,6 +32,78 @@ type ExistingLineRow = {
   battle_id: string;
   content?: string;
 };
+
+type AdminClient = ReturnType<typeof createAdminClient>;
+type HistoryRow = {
+  line_id: number;
+  user_id: string;
+  field_changed: string;
+  old_value: string;
+  new_value: string;
+};
+type LinesTableUpdate = {
+  round_number?: number | null;
+  emcee_id?: string | null;
+  speaker_ids?: string[] | null;
+};
+
+function chunkArray<T>(items: T[], size: number) {
+  const chunks: T[][] = [];
+  for (let index = 0; index < items.length; index += size) {
+    chunks.push(items.slice(index, index + size));
+  }
+  return chunks;
+}
+
+async function fetchExistingLines(
+  adminClient: AdminClient,
+  lineIds: number[],
+  columns: string,
+) {
+  const rows: ExistingLineRow[] = [];
+  for (const chunk of chunkArray(lineIds, D1_BATCH_CHUNK_SIZE)) {
+    const { data, error } = await adminClient
+      .from("lines")
+      .select(columns)
+      .in("id", chunk);
+
+    if (error) throw error;
+    rows.push(...((data || []) as ExistingLineRow[]));
+  }
+  return rows;
+}
+
+async function insertHistoryRows(
+  adminClient: AdminClient,
+  historyRows: HistoryRow[],
+) {
+  for (const chunk of chunkArray(historyRows, D1_BATCH_CHUNK_SIZE)) {
+    const { error } = await adminClient.from("edit_history").insert(chunk);
+    if (error) throw error;
+  }
+}
+
+async function updateLinesById(
+  adminClient: AdminClient,
+  lineIds: number[],
+  values: LinesTableUpdate,
+) {
+  for (const chunk of chunkArray(lineIds, D1_BATCH_CHUNK_SIZE)) {
+    const { error } = await adminClient
+      .from("lines")
+      .update(values)
+      .in("id", chunk);
+
+    if (error) throw error;
+  }
+}
+
+async function deleteLinesById(adminClient: AdminClient, lineIds: number[]) {
+  for (const chunk of chunkArray(lineIds, D1_BATCH_CHUNK_SIZE)) {
+    const { error } = await adminClient.from("lines").delete().in("id", chunk);
+    if (error) throw error;
+  }
+}
 
 /**
  * PATCH /api/lines/batch
@@ -133,22 +207,13 @@ export async function PATCH(request: NextRequest) {
       }
 
       // ── Record History & Fetch Battle IDs for Cache Invalidation ──
-      const { data: existing, error: selectError } = await adminClient
-        .from("lines")
-        .select("id, round_number, emcee_id, battle_id")
-        .in("id", lineIds);
-
-      if (selectError) throw selectError;
-
-      const existingRows = (existing || []) as ExistingLineRow[];
+      const existingRows = await fetchExistingLines(
+        adminClient,
+        lineIds,
+        "id, round_number, emcee_id, battle_id",
+      );
       if (existingRows.length > 0) {
-        const historyRows: {
-          line_id: number;
-          user_id: string;
-          field_changed: string;
-          old_value: string;
-          new_value: string;
-        }[] = [];
+        const historyRows: HistoryRow[] = [];
 
         existingRows.forEach((line) => {
           // Track round changes
@@ -174,16 +239,12 @@ export async function PATCH(request: NextRequest) {
         });
 
         if (historyRows.length > 0) {
-          await adminClient.from("edit_history").insert(historyRows);
+          await insertHistoryRows(adminClient, historyRows);
         }
       }
 
       // ── Apply Round / Legacy Emcee Updates ──
-      const linesTableUpdate: {
-        round_number?: number | null;
-        emcee_id?: string | null;
-        speaker_ids?: string[] | null;
-      } = {};
+      const linesTableUpdate: LinesTableUpdate = {};
 
       if ("round_number" in finalUpdates)
         linesTableUpdate.round_number = finalUpdates.round_number;
@@ -202,40 +263,28 @@ export async function PATCH(request: NextRequest) {
       }
 
       if (Object.keys(linesTableUpdate).length > 0) {
-        const { error: updateError } = await adminClient
-          .from("lines")
-          .update(linesTableUpdate)
-          .in("id", lineIds);
-        if (updateError) throw updateError;
+        await updateLinesById(adminClient, lineIds, linesTableUpdate);
       }
     }
     // Case 2: Deletion
     else if (action === "delete") {
-      const { data: existing, error: selectError } = await adminClient
-        .from("lines")
-        .select("id, content, battle_id")
-        .in("id", lineIds);
-
-      if (selectError) throw selectError;
-
-      const existingRows = (existing || []) as ExistingLineRow[];
+      const existingRows = await fetchExistingLines(
+        adminClient,
+        lineIds,
+        "id, content, battle_id",
+      );
       if (existingRows.length > 0) {
-        const historyRows = existingRows.map((line) => ({
+        const historyRows: HistoryRow[] = existingRows.map((line) => ({
           line_id: line.id,
           user_id: user.id,
           field_changed: "deleted",
-          old_value: line.content,
+          old_value: line.content ?? "",
           new_value: "",
         }));
-        await adminClient.from("edit_history").insert(historyRows);
+        await insertHistoryRows(adminClient, historyRows);
       }
 
-      const { error: deleteError } = await adminClient
-        .from("lines")
-        .delete()
-        .in("id", lineIds);
-
-      if (deleteError) throw deleteError;
+      await deleteLinesById(adminClient, lineIds);
     }
 
     // ── Cache Invalidation ──
