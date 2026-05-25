@@ -41,8 +41,8 @@
 	"d1_databases": [
 		{
 			"binding": "DB",
-			"database_name": "all3rounds-dev",
-			"database_id": "ad631ab8-6830-4f81-956b-6d7b068d5a79",
+			"database_name": "all3rounds",
+			"database_id": "32e50e6a-4344-4591-98d3-dd26e6c35aff",
 			"migrations_dir": "migrations"
 		}
 	],
