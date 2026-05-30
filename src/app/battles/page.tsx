@@ -1,5 +1,5 @@
 import { Metadata } from "next";
-import { createPublicClient } from "@/lib/supabase/server";
+import { createPublicClient } from "@/db/d1-client";
 import { getUniqueBattleLeagues, normalizeBattleLeague } from "@/lib/battles";
 import BattlesDirectory from "./BattlesDirectory";
 
@@ -32,14 +32,14 @@ export default async function BattlesPage({
     rawLeague.toLowerCase() === "all"
       ? "all"
       : normalizeBattleLeague(rawLeague);
-  const supabase = createPublicClient();
+  const dbClient = createPublicClient();
 
-  let countQuery = supabase
+  let countQuery = dbClient
     .from("battles")
     .select("id", { count: "exact", head: true })
     .in("status", PUBLIC_BATTLE_STATUSES)
     .eq("public_visible", true);
-  let eventsMetaBaseQuery = supabase
+  let eventsMetaBaseQuery = dbClient
     .from("battles")
     .select("event_name, event_date, league")
     .in("status", PUBLIC_BATTLE_STATUSES)
@@ -58,7 +58,7 @@ export default async function BattlesPage({
     await Promise.all([
       countQuery,
       eventsMetaQuery,
-      supabase
+      dbClient
         .from("battles")
         .select("league")
         .in("status", PUBLIC_BATTLE_STATUSES)
@@ -113,7 +113,7 @@ export default async function BattlesPage({
   );
 
   const buildInitialBattlesQuery = () => {
-    let query = supabase
+    let query = dbClient
       .from("battles")
       .select(
         "id, league, slug, title, youtube_id, event_name, event_date, status, url",

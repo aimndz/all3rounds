@@ -1,10 +1,10 @@
 import { Metadata } from "next";
 import { Suspense } from "react";
-import { createPublicClient } from "@/lib/supabase/server";
+import { createPublicClient } from "@/db/d1-client";
 import EmceesDirectory from "./EmceesDirectory";
 import { EmceesSkeleton } from "@/components/PageSkeletons";
 
-export const revalidate = 86400; // 24 hours (1 day)
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Emcees",
@@ -18,13 +18,13 @@ export const metadata: Metadata = {
 };
 
 export default async function EmceesPage() {
-  const supabase = createPublicClient();
+  const dbClient = createPublicClient();
 
   const {
     data: initialEmcees,
     error,
     count,
-  } = await supabase
+  } = await dbClient
     .from("emcees")
     .select("id, slug, name, battle_count", { count: "exact" })
     .order("name")

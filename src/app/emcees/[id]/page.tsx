@@ -1,7 +1,7 @@
 import { Metadata } from "next";
 import { Suspense, cache } from "react";
 import { notFound, permanentRedirect } from "next/navigation";
-import { createPublicClient } from "@/lib/supabase/server";
+import { createPublicClient } from "@/db/d1-client";
 import { uuidSchema } from "@/lib/schemas";
 import EmceeProfile from "./EmceeProfile";
 import { Battle } from "@/features/battles/hooks/use-battles-data";
@@ -9,15 +9,15 @@ import { getEmceePath, normalizeEmceeSlug } from "@/lib/emcees";
 import { getSiteUrl } from "@/lib/utils";
 import JsonLd from "@/components/shared/JsonLd";
 
-export const revalidate = 86400; // 24 hours (1 day)
+export const dynamic = "force-dynamic";
 
 const siteUrl = getSiteUrl();
 
 const getEmcee = cache(async (identifier: string) => {
-  const supabase = createPublicClient();
+  const dbClient = createPublicClient();
 
   if (uuidSchema.safeParse(identifier).success) {
-    const { data } = await supabase
+    const { data } = await dbClient
       .from("emcees")
       .select("id, slug, name, aka")
       .eq("id", identifier)
@@ -26,7 +26,7 @@ const getEmcee = cache(async (identifier: string) => {
     if (data) return data;
   }
 
-  const { data } = await supabase
+  const { data } = await dbClient
     .from("emcees")
     .select("id, slug, name, aka")
     .eq("slug", normalizeEmceeSlug(identifier))
@@ -78,10 +78,10 @@ export default async function EmceeProfilePage({
     permanentRedirect(getEmceePath(emcee.slug));
   }
 
-  const supabase = createPublicClient();
+  const dbClient = createPublicClient();
 
   // 2. Fetch battles where emcee is a participant
-  const { data: rawBattlesResponse, error: battlesError } = await supabase
+  const { data: rawBattlesResponse, error: battlesError } = await dbClient
     .from("battle_participants")
     .select(
       `
