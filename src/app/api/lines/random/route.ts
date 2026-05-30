@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createPublicClient } from "@/lib/supabase/server";
+import { createPublicClient } from "@/db/d1-client";
 import { hasOnlySearchParams } from "@/lib/api-utils";
 import type { SearchResult } from "@/lib/types";
 
@@ -126,10 +126,10 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const supabase = createPublicClient();
+  const dbClient = createPublicClient();
   const limit = parseLimit(request);
 
-  const { data: randomRows, error: randomError } = await supabase.rpc(
+  const { data: randomRows, error: randomError } = await dbClient.rpc(
     "get_random_valid_line_ids",
     {
       sample_size: limit,
@@ -170,7 +170,7 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const { data, error } = await supabase
+  const { data, error } = await dbClient
     .from("lines")
     .select(
       `

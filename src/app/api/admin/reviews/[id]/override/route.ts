@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createAdminClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/db/d1-client";
 import { requirePermission } from "@/lib/auth";
 import { verifyCsrf } from "@/lib/csrf";
+import { revalidateContributorLeaderboard } from "@/lib/leaderboard-cache";
+import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
 const OverrideSchema = z.object({
@@ -130,6 +132,9 @@ export async function POST(
       .eq("id", id);
 
     if (updateError) throw updateError;
+
+    await revalidateContributorLeaderboard(request);
+    revalidatePath("/reviews");
 
     return NextResponse.json({ success: true, newStatus: targetStatus });
   } catch (error) {

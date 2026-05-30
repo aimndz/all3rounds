@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createAdminClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/db/d1-client";
 import { requirePermission } from "@/lib/auth";
 import { verifyCsrf } from "@/lib/csrf";
 import { z } from "zod";
@@ -55,17 +55,17 @@ export async function PATCH(request: NextRequest) {
 
     const { battleIds, status } = parsed.data;
 
-    const supabaseAdmin = createAdminClient();
+    const adminClient = createAdminClient();
 
     // If excluding, wipe the heavy data (lines/participants) first
     if (status === "excluded") {
-      const { error: linesErr } = await supabaseAdmin
+      const { error: linesErr } = await adminClient
         .from("lines")
         .delete()
         .in("battle_id", battleIds);
       if (linesErr) console.error("Batch lines deletion failed:", linesErr);
 
-      const { error: partsErr } = await supabaseAdmin
+      const { error: partsErr } = await adminClient
         .from("battle_participants")
         .delete()
         .in("battle_id", battleIds);
@@ -73,7 +73,7 @@ export async function PATCH(request: NextRequest) {
         console.error("Batch participants deletion failed:", partsErr);
     }
 
-    const { data: updated, error } = await supabaseAdmin
+    const { data: updated, error } = await adminClient
       .from("battles")
       .update({ status })
       .in("id", battleIds)

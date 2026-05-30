@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createClient } from "@/db/d1-client";
 import { apiError, apiSuccess } from "@/lib/api-utils";
 import { uuidSchema } from "@/lib/schemas";
 import { Battle } from "@/features/battles/hooks/use-battles-data";
@@ -15,11 +15,11 @@ export async function GET(
 ) {
   const { id: identifier } = await params;
 
-  const supabase = await createClient();
+  const dbClient = await createClient();
 
   const emceeById =
     uuidSchema.safeParse(identifier).success
-      ? await supabase
+      ? await dbClient
           .from("emcees")
           .select("id, slug, name, aka")
           .eq("id", identifier)
@@ -29,7 +29,7 @@ export async function GET(
   const emceeRes =
     emceeById?.data
       ? emceeById
-      : await supabase
+      : await dbClient
           .from("emcees")
           .select("id, slug, name, aka")
           .eq("slug", normalizeEmceeSlug(identifier))
@@ -47,7 +47,7 @@ export async function GET(
 
   // Fetch battles where emcee is a participant
   // We join with battles to filter by status and get battle details
-  const battlesPromise = supabase
+  const battlesPromise = dbClient
     .from("battle_participants")
     .select(`
       battles (
@@ -67,7 +67,7 @@ export async function GET(
     .order("event_date", { foreignTable: "battles", ascending: false });
 
   // Fetch total lines
-  const linesCountPromise = supabase
+  const linesCountPromise = dbClient
     .from("lines")
     .select("*", { count: "exact", head: true })
     .eq("emcee_id", emcee.id);
@@ -78,7 +78,7 @@ export async function GET(
   ]);
 
   // Flatten battles and filter out excluded ones
-  // Note: the .neq filter in Supabase on joined tables can be tricky, 
+  // Keep this filter local because joined table inequality support is limited.
   // so we filter in JS to be safe and clear.
   const rawBattles = (battlesRes.data as unknown as { battles: Battle | null }[]) || [];
   const battles = rawBattles

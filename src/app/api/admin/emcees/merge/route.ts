@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createAdminClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/db/d1-client";
 import { requirePermission } from "@/lib/auth";
 import { verifyCsrf } from "@/lib/csrf";
 import { z } from "zod";
@@ -97,7 +97,7 @@ export async function POST(request: NextRequest) {
 
     // 2b. Update speaker_ids arrays: replace sourceId with targetId
     // speaker_ids is a UUID[] column used for multi-speaker lines (2v2, 3v3).
-    // We use raw SQL because Supabase JS client cannot do array element replacement.
+    // Use the merge RPC for line speaker remapping.
     const { error: speakerIdsError } = await adminClient.rpc(
       "merge_speaker_ids",
       { old_emcee_id: sourceId, new_emcee_id: targetId },

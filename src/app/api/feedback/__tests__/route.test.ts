@@ -123,6 +123,8 @@ describe("POST /api/feedback", () => {
         email: "user@example.com",
         role: "viewer",
         displayName: "User",
+        username: "user",
+        rep: 0,
       },
       role: "viewer",
     });

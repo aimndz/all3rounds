@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createAdminClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/db/d1-client";
 import { requirePermission } from "@/lib/auth";
+import { revalidateContributorLeaderboard } from "@/lib/leaderboard-cache";
 import { revalidatePath } from "next/cache";
 import { verifyCsrf } from "@/lib/csrf";
 import { uuidSchema } from "@/lib/schemas";
@@ -139,6 +140,7 @@ export async function PATCH(
 
     // Clear Next.js Data Cache for the suggestions list and the reviews page
     revalidatePath("/api/suggestions");
+    await revalidateContributorLeaderboard(request);
     revalidatePath("/reviews");
 
     return NextResponse.json({ success: true });

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NextRequest } from "next/server";
 
-vi.mock("@/lib/supabase/server", () => {
+vi.mock("@/db/d1-client", () => {
   const mockChain = {
     select: vi.fn().mockReturnThis(),
     insert: vi.fn().mockReturnThis(),
@@ -70,6 +70,8 @@ describe("PATCH /api/lines/batch", () => {
         email: "admin@test.com",
         role: "admin",
         displayName: "Admin",
+        username: "admin",
+        rep: 0,
       },
       role: "admin",
       error: null,
@@ -125,7 +127,7 @@ describe("PATCH /api/lines/batch", () => {
 
   it("updates round_number only successfully", async () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { __mocks } = (await import("@/lib/supabase/server")) as any;
+    const { __mocks } = (await import("@/db/d1-client")) as any;
     const { mockChain } = __mocks;
     mockChain.in.mockResolvedValueOnce({
       data: [{ id: 1, round_number: 1, emcee_id: "e1", battle_id: "b1" }],
@@ -152,7 +154,7 @@ describe("PATCH /api/lines/batch", () => {
 
   it("updates emcee_id only successfully", async () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { __mocks } = (await import("@/lib/supabase/server")) as any;
+    const { __mocks } = (await import("@/db/d1-client")) as any;
     const { mockChain } = __mocks;
     mockChain.in.mockResolvedValueOnce({
       data: [{ id: 1, round_number: 1, emcee_id: "e1", battle_id: "b1" }],
@@ -176,7 +178,7 @@ describe("PATCH /api/lines/batch", () => {
 
   it("updates both round and emcee using 'update' action", async () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { __mocks } = (await import("@/lib/supabase/server")) as any;
+    const { __mocks } = (await import("@/db/d1-client")) as any;
     const { mockChain } = __mocks;
     mockChain.in.mockResolvedValueOnce({
       data: [{ id: 1, round_number: 1, emcee_id: "e1", battle_id: "b1" }],
@@ -212,29 +214,27 @@ describe("PATCH /api/lines/batch", () => {
 
   it("chunks large batch updates and history inserts for D1", async () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { __mocks } = (await import("@/lib/supabase/server")) as any;
+    const { __mocks } = (await import("@/db/d1-client")) as any;
     const { mockChain } = __mocks;
     const ids = Array.from({ length: 200 }, (_, i) => i + 1);
 
     let inCall = 0;
-    mockChain.in.mockImplementation(
-      (_column: string, chunk: number[]) => {
-        inCall += 1;
-        if (inCall <= 3) {
-          return Promise.resolve({
-            data: chunk.map((id) => ({
-              id,
-              round_number: 1,
-              emcee_id: "e1",
-              battle_id: "b1",
-            })),
-            error: null,
-          });
-        }
+    mockChain.in.mockImplementation((_column: string, chunk: number[]) => {
+      inCall += 1;
+      if (inCall <= 3) {
+        return Promise.resolve({
+          data: chunk.map((id) => ({
+            id,
+            round_number: 1,
+            emcee_id: "e1",
+            battle_id: "b1",
+          })),
+          error: null,
+        });
+      }
 
-        return Promise.resolve({ data: null, error: null });
-      },
-    );
+      return Promise.resolve({ data: null, error: null });
+    });
 
     const res = await PATCH(
       makeRequest({ lineIds: ids, action: "set_round", value: 2 }),
@@ -252,7 +252,7 @@ describe("PATCH /api/lines/batch", () => {
 
   it("deletes lines successfully", async () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { __mocks } = (await import("@/lib/supabase/server")) as any;
+    const { __mocks } = (await import("@/db/d1-client")) as any;
     const { mockChain } = __mocks;
     mockChain.in.mockResolvedValueOnce({
       data: [{ id: 1, content: "test", battle_id: "b1" }],

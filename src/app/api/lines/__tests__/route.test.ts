@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NextRequest } from "next/server";
 
-vi.mock("@/lib/supabase/server", () => {
+vi.mock("@/db/d1-client", () => {
   const mockChain = {
     select: vi.fn().mockReturnThis(),
     insert: vi.fn().mockReturnThis(),
@@ -47,7 +47,7 @@ vi.mock("@/lib/rate-limit", () => ({
 
 import { POST, PATCH } from "@/app/api/lines/route";
 import { requirePermission } from "@/lib/auth";
-import { createAdminClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/db/d1-client";
 
 const mockRequirePermission = vi.mocked(requirePermission);
 
@@ -75,6 +75,8 @@ describe("POST /api/lines", () => {
         email: "test@test.com",
         role: "admin",
         displayName: "Admin",
+        username: "admin",
+        rep: 0,
       },
       role: "admin",
       error: null,
@@ -189,6 +191,8 @@ describe("PATCH /api/lines", () => {
         email: "test@test.com",
         role: "admin",
         displayName: "Admin",
+        username: "admin",
+        rep: 0,
       },
       role: "admin",
       error: null,

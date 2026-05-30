@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NextRequest } from "next/server";
 
-vi.mock("@/lib/supabase/server", () => {
+vi.mock("@/db/d1-client", () => {
   const mockChain = {
     select: vi.fn().mockReturnThis(),
     insert: vi.fn().mockReturnThis(),
@@ -34,8 +34,9 @@ vi.mock("@/lib/supabase/server", () => {
 
 vi.mock("@/lib/auth", () => ({
   getUserWithRole: vi.fn().mockResolvedValue({ user: null, role: "viewer" }),
-  hasPermission: vi.fn((role: string, action: string) =>
-    action === "battles:manage" && ["superadmin", "admin"].includes(role),
+  hasPermission: vi.fn(
+    (role: string, action: string) =>
+      action === "battles:manage" && ["superadmin", "admin"].includes(role),
   ),
   requirePermission: vi.fn(),
 }));
@@ -77,7 +78,7 @@ describe("GET /api/battles/[id]", () => {
   });
 
   it("returns battle data with public cache headers", async () => {
-    const { __mocks } = await import("@/lib/supabase/server") as unknown as {
+    const { __mocks } = (await import("@/db/d1-client")) as unknown as {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       __mocks: { mockChain: any };
     };
@@ -120,10 +121,12 @@ describe("GET /api/battles/[id]", () => {
         email: "admin@test.com",
         role: "admin",
         displayName: "Admin",
+        username: "admin",
+        rep: 0,
       },
       role: "admin",
     });
-    const { __mocks } = await import("@/lib/supabase/server") as unknown as {
+    const { __mocks } = (await import("@/db/d1-client")) as unknown as {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       __mocks: { mockChain: any };
     };
@@ -157,11 +160,14 @@ describe("GET /api/battles/[id]", () => {
     });
 
     expect(res.status).toBe(200);
-    expect(__mocks.mockChain.eq).not.toHaveBeenCalledWith("public_visible", true);
+    expect(__mocks.mockChain.eq).not.toHaveBeenCalledWith(
+      "public_visible",
+      true,
+    );
   });
 
   it("marks deep-linked transcript pages as having previous lines", async () => {
-    const { __mocks } = (await import("@/lib/supabase/server")) as unknown as {
+    const { __mocks } = (await import("@/db/d1-client")) as unknown as {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       __mocks: { mockChain: any };
     };
@@ -222,6 +228,8 @@ describe("PATCH /api/battles/[id]", () => {
         email: "admin@test.com",
         role: "admin",
         displayName: "Admin",
+        username: "admin",
+        rep: 0,
       },
       role: "admin",
       error: null,
@@ -284,6 +292,8 @@ describe("DELETE /api/battles/[id]", () => {
         email: "admin@test.com",
         role: "superadmin",
         displayName: "Admin",
+        username: "admin",
+        rep: 0,
       },
       role: "superadmin",
       error: null,
@@ -320,7 +330,7 @@ describe("DELETE /api/battles/[id]", () => {
   });
 
   it("rejects delete when title confirmation does not match", async () => {
-    const { __mocks } = (await import("@/lib/supabase/server")) as unknown as {
+    const { __mocks } = (await import("@/db/d1-client")) as unknown as {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       __mocks: { mockChain: any };
     };
@@ -353,7 +363,7 @@ describe("DELETE /api/battles/[id]", () => {
   });
 
   it("deletes only the requested battle after exact title confirmation", async () => {
-    const { __mocks } = (await import("@/lib/supabase/server")) as unknown as {
+    const { __mocks } = (await import("@/db/d1-client")) as unknown as {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       __mocks: { mockChain: any };
     };

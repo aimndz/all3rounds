@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NextRequest } from "next/server";
 
-vi.mock("@/lib/supabase/server", () => {
+vi.mock("@/db/d1-client", () => {
   const mockChain = {
     select: vi.fn().mockReturnThis(),
     insert: vi.fn().mockReturnThis(),
@@ -58,6 +58,8 @@ describe("POST /api/suggestions", () => {
         email: "user@test.com",
         role: "viewer",
         displayName: "User",
+        username: "user",
+        rep: 0,
       },
       role: "viewer",
       error: null,

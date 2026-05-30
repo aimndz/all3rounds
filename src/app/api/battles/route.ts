@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createClient } from "@/db/d1-client";
 import { hasOnlySearchParams } from "@/lib/api-utils";
 import { parseSearchTokens, scoreBattle } from "@/lib/fuzzy-utils";
 import { normalizeBattleLeague } from "@/lib/battles";
@@ -220,7 +220,7 @@ export async function GET(request: NextRequest) {
 
   // --- Database Fetch ---
   try {
-    const supabase = await createClient();
+    const dbClient = await createClient();
 
     let data, error, count;
     let totalEvents = 0;
@@ -235,7 +235,7 @@ export async function GET(request: NextRequest) {
       } else {
         // 2. Broad Candidate Fetch
         let query = applyCommonFilters(
-          supabase
+          dbClient
             .from("battles")
             .select(
               "id, league, slug, title, youtube_id, event_name, event_date, status, url",
@@ -331,13 +331,13 @@ export async function GET(request: NextRequest) {
       // across all battles, bypassing PostgREST pagination defaults.
       const [countResponse, eventsMetaResponse] = await Promise.all([
         applyCommonFilters(
-          supabase.from("battles").select("id", { count: "exact", head: true }),
+          dbClient.from("battles").select("id", { count: "exact", head: true }),
           cleanStatus,
           cleanYear,
           cleanLeague,
         ),
         applyCommonFilters(
-          supabase
+          dbClient
             .from("battles")
             .select("event_name, event_date")
             .limit(10000),
@@ -376,7 +376,7 @@ export async function GET(request: NextRequest) {
       } else {
         const orConditions = [];
         if (namedEvents.length > 0) {
-          // Wrap event names in parentheses and quote them for Supabase .in() equivalent in .or()
+          // Quote event names for the .or() expression parser.
           const inList = namedEvents
             .map((name) => `"${name.replace(/"/g, '""')}"`)
             .join(",");
@@ -387,7 +387,7 @@ export async function GET(request: NextRequest) {
         }
 
         const battlesResponse = await applyCommonFilters(
-          supabase
+          dbClient
             .from("battles")
             .select(
               "id, league, slug, title, youtube_id, event_name, event_date, status, url",

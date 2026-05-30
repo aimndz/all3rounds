@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createClient } from "@/db/d1-client";
 import { hasOnlySearchParams } from "@/lib/api-utils";
 import {
   buildPublicApiCacheKey,
@@ -58,10 +58,10 @@ export async function GET(request: NextRequest) {
   const cachedResponse = await matchPublicApiCache(request, cacheKey);
   if (cachedResponse) return cachedResponse;
 
-  const supabase = await createClient();
+  const dbClient = await createClient();
 
   // Now querying the 'emcees' table directly since battle_count is denormalized
-  let dbQuery = supabase
+  let dbQuery = dbClient
     .from("emcees")
     .select("id, slug, name, aka, battle_count", { count: "exact" });
 

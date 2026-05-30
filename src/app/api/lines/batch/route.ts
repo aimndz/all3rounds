@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createAdminClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/db/d1-client";
 import { requirePermission, hasPermission } from "@/lib/auth";
 import { verifyCsrf } from "@/lib/csrf";
 import { checkRateLimit, getRateLimitHeaders } from "@/lib/rate-limit";
