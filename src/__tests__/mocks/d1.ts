@@ -1,6 +1,5 @@
 import { vi } from "vitest";
 
-// Default mock: no authenticated user
 const mockGetUser = vi.fn().mockResolvedValue({ data: { user: null } });
 
 const mockFrom = vi.fn().mockReturnValue({
@@ -26,21 +25,17 @@ const mockRpc = vi.fn().mockReturnValue({
   range: vi.fn().mockResolvedValue({ data: [], error: null, count: 0 }),
 });
 
-const mockSupabaseClient = {
+const mockD1Client = {
   auth: { getUser: mockGetUser },
   from: mockFrom,
   rpc: mockRpc,
 };
 
-// Server-side createClient (async)
-export const createClient = vi.fn().mockResolvedValue(mockSupabaseClient);
+export const createClient = vi.fn().mockResolvedValue(mockD1Client);
+export const createAdminClient = vi.fn().mockReturnValue(mockD1Client);
 
-// Admin client (sync)
-export const createAdminClient = vi.fn().mockReturnValue(mockSupabaseClient);
-
-// Expose internals for test manipulation
 export const __mocks = {
-  supabaseClient: mockSupabaseClient,
+  D1Client: mockD1Client,
   getUser: mockGetUser,
   from: mockFrom,
   rpc: mockRpc,
