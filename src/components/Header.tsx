@@ -10,7 +10,7 @@ import { Separator } from "@/components/ui/separator";
 import { useAuthStore } from "@/stores/auth-store";
 import Image from "next/image";
 import Link from "next/link";
-import { Menu, X } from "lucide-react";
+import { Menu, X, Zap } from "lucide-react";
 
 const MOBILE_NAV_ITEM_CLASS =
   "focus:bg-muted/70 focus:text-foreground active:bg-muted/70 active:opacity-90 text-foreground relative flex w-auto items-center gap-2 rounded-(--radius-control-sm) mx-2 px-4 py-3 text-[10px] font-medium tracking-[0.18em] uppercase transition-[background-color,color,opacity] duration-200 outline-hidden";
@@ -32,6 +32,12 @@ function MobileNavDrawer({
   user,
   navLinks,
 }: MobileDrawerProps) {
+  const profileName = user?.username || user?.displayName || "";
+  const profileLabel =
+    user?.username && !user.username.startsWith("@")
+      ? `@${user.username}`
+      : profileName;
+
   if (!mounted || typeof document === "undefined") {
     return null;
   }
@@ -65,7 +71,7 @@ function MobileNavDrawer({
                 <Avatar className="border-border/50 h-10 w-10 border">
                   <AvatarFallback className="bg-primary/10 text-primary text-sm font-bold">
                     {(
-                      user.displayName?.substring(0, 2) ||
+                      profileName.substring(0, 2) ||
                       user.email?.substring(0, 2) ||
                       "??"
                     ).toUpperCase()}
@@ -74,13 +80,19 @@ function MobileNavDrawer({
                 <div className="min-w-0">
                   <h2
                     id="mobile-nav-title"
-                    className="truncate text-sm font-semibold leading-none"
+                    className="truncate text-sm leading-none font-semibold"
                   >
-                    {user.displayName}
+                    {profileLabel}
                   </h2>
-                  <p className="text-muted-foreground mt-1 truncate text-xs leading-none">
-                    {user.email}
-                  </p>
+                  <div className="mt-1 flex min-w-0 items-center gap-2">
+                    <p className="text-muted-foreground truncate text-xs leading-none">
+                      {user.email}
+                    </p>
+                    <span className="text-foreground inline-flex shrink-0 items-center gap-1 text-[10px] font-semibold">
+                      <Zap className="text-primary size-3" aria-hidden="true" />
+                      {user.rep} REP
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -93,7 +105,7 @@ function MobileNavDrawer({
           <button
             type="button"
             onClick={onClose}
-            className="ring-offset-background focus:ring-ring absolute top-4 right-4 rounded-(--radius-control-sm) p-2 opacity-70 transition-[background-color,color,opacity] hover:bg-muted/70 hover:text-foreground focus:ring-2 focus:ring-offset-2 focus:outline-hidden"
+            className="ring-offset-background focus:ring-ring hover:bg-muted/70 hover:text-foreground absolute top-4 right-4 rounded-(--radius-control-sm) p-2 opacity-70 transition-[background-color,color,opacity] focus:ring-2 focus:ring-offset-2 focus:outline-hidden"
             aria-label="Close menu"
           >
             <X className="size-4" />
@@ -137,6 +149,7 @@ export default function Header() {
     { href: "/random", label: "Discover" },
     { href: "/battles", label: "Battles" },
     { href: "/emcees", label: "Emcees" },
+    { href: "/contributors", label: "Contributors" },
   ];
 
   useEffect(() => {
@@ -199,10 +212,10 @@ export default function Header() {
   };
 
   return (
-    <div className="bg-card/80 relative border-b border-border/60 backdrop-blur-md">
+    <div className="bg-card/80 border-border/60 relative border-b backdrop-blur-md">
       <header className="px-4">
         <div className="mx-auto flex h-14 max-w-5xl items-center justify-between">
-          <div className="flex w-1/4 items-center gap-2">
+          <div className="flex shrink-0 items-center gap-2">
             <Link
               href="/"
               className="text-foreground text-xl font-black tracking-tighter uppercase transition-transform hover:scale-105"
@@ -217,8 +230,8 @@ export default function Header() {
             </Link>
           </div>
 
-          <nav className="hidden w-2/4 justify-center md:flex">
-            <div className="flex items-center gap-8">
+          <nav className="hidden flex-1 justify-center md:flex">
+            <div className="flex items-center gap-5 lg:gap-8">
               {navLinks.map((link) => (
                 <Link
                   key={link.href}
@@ -232,12 +245,18 @@ export default function Header() {
             </div>
           </nav>
 
-          <div className="flex w-1/4 items-center justify-end gap-2 md:gap-4">
+          <div className="flex shrink-0 items-center justify-end gap-2 md:gap-4">
             <div className="hidden md:block">
               <AuthButton />
             </div>
 
-            <div className="md:hidden">
+            <div className="flex items-center gap-2 md:hidden">
+              {isUserLoggedIn && user ? (
+                <span className="text-foreground inline-flex items-center gap-1 text-xs font-semibold">
+                  <Zap className="text-primary size-3" aria-hidden="true" />
+                  {user.rep} REP
+                </span>
+              ) : null}
               <Button
                 variant="ghost"
                 size="icon"

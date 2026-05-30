@@ -1,166 +1,124 @@
 {
-	"$schema": "node_modules/wrangler/config-schema.json",
-	"name": "all3rounds",
-	"main": ".open-next/worker.js",
-	"compatibility_date": "2024-09-23",
-	"compatibility_flags": [
-		"nodejs_compat"
-	],
-	"assets": {
-		"directory": ".open-next/assets",
-		"binding": "ASSETS"
-	},
-	"services": [
-		{
-			"binding": "WORKER_SELF_REFERENCE",
-			"service": "all3rounds"
-		}
-	],
-	"r2_buckets": [
-		{
-			"binding": "NEXT_INC_CACHE_R2_BUCKET",
-			"bucket_name": "all3rounds-opennext-cache"
-		}
-	],
-	"durable_objects": {
-		"bindings": [
-			{
-				"name": "NEXT_CACHE_DO_QUEUE",
-				"class_name": "DOQueueHandler"
-			}
-		]
-	},
-	"migrations": [
-		{
-			"tag": "v1",
-			"new_sqlite_classes": [
-				"DOQueueHandler"
-			]
-		}
-	],
-	"d1_databases": [
-		{
-			"binding": "DB",
-			"database_name": "all3rounds",
-			"database_id": "32e50e6a-4344-4591-98d3-dd26e6c35aff",
-			"migrations_dir": "migrations"
-		}
-	],
-	"observability": {
-		"enabled": true
-	},
-	"env": {
-		"development": {
-			"name": "all3rounds-dev",
-			"vars": {
-				"APP_ENV": "development"
-			},
-			"d1_databases": [
-				{
-					"binding": "DB",
-					"database_name": "all3rounds-dev",
-					"database_id": "ad631ab8-6830-4f81-956b-6d7b068d5a79",
-					"migrations_dir": "migrations"
-				}
-			],
-			"services": [
-				{
-					"binding": "WORKER_SELF_REFERENCE",
-					"service": "all3rounds-dev"
-				}
-			],
-			"r2_buckets": [
-				{
-					"binding": "NEXT_INC_CACHE_R2_BUCKET",
-					"bucket_name": "all3rounds-dev-opennext-cache"
-				}
-			],
-			"durable_objects": {
-				"bindings": [
-					{
-						"name": "NEXT_CACHE_DO_QUEUE",
-						"class_name": "DOQueueHandler"
-					}
-				]
-			},
-			"images": {
-				"binding": "IMAGES"
-			}
-		},
-		"development_remote": {
-			"name": "all3rounds-dev",
-			"vars": {
-				"APP_ENV": "development"
-			},
-			"d1_databases": [
-				{
-					"binding": "DB",
-					"database_name": "all3rounds-dev",
-					"database_id": "ad631ab8-6830-4f81-956b-6d7b068d5a79",
-					"migrations_dir": "migrations",
-					"remote": true
-				}
-			],
-			"services": [
-				{
-					"binding": "WORKER_SELF_REFERENCE",
-					"service": "all3rounds-dev"
-				}
-			],
-			"r2_buckets": [
-				{
-					"binding": "NEXT_INC_CACHE_R2_BUCKET",
-					"bucket_name": "all3rounds-dev-opennext-cache"
-				}
-			],
-			"durable_objects": {
-				"bindings": [
-					{
-						"name": "NEXT_CACHE_DO_QUEUE",
-						"class_name": "DOQueueHandler"
-					}
-				]
-			},
-			"images": {
-				"binding": "IMAGES"
-			}
-		},
-		"production": {
-			"name": "all3rounds",
-			"vars": {
-				"APP_ENV": "production"
-			},
-			"d1_databases": [
-				{
-					"binding": "DB",
-					"database_name": "all3rounds",
-					"database_id": "32e50e6a-4344-4591-98d3-dd26e6c35aff",
-					"migrations_dir": "migrations"
-				}
-			],
-			"services": [
-				{
-					"binding": "WORKER_SELF_REFERENCE",
-					"service": "all3rounds"
-				}
-			],
-			"r2_buckets": [
-				{
-					"binding": "NEXT_INC_CACHE_R2_BUCKET",
-					"bucket_name": "all3rounds-opennext-cache"
-				}
-			],
-			"durable_objects": {
-				"bindings": [
-					{
-						"name": "NEXT_CACHE_DO_QUEUE",
-						"class_name": "DOQueueHandler"
-					}
-				]
-			},
-			"images": {
-				"binding": "IMAGES"
-			}
-		}
-	}
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "all3rounds",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2024-09-23",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  "services": [
+    {
+      "binding": "WORKER_SELF_REFERENCE",
+      "service": "all3rounds"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "NEXT_INC_CACHE_R2_BUCKET",
+      "bucket_name": "all3rounds-opennext-cache"
+    }
+  ],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "all3rounds",
+      "database_id": "32e50e6a-4344-4591-98d3-dd26e6c35aff",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "observability": {
+    "enabled": true
+  },
+  "env": {
+    "development": {
+      "name": "all3rounds-dev",
+      "vars": {
+        "APP_ENV": "development"
+      },
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "all3rounds-dev",
+          "database_id": "ad631ab8-6830-4f81-956b-6d7b068d5a79",
+          "migrations_dir": "migrations"
+        }
+      ],
+      "services": [
+        {
+          "binding": "WORKER_SELF_REFERENCE",
+          "service": "all3rounds-dev"
+        }
+      ],
+      "r2_buckets": [
+        {
+          "binding": "NEXT_INC_CACHE_R2_BUCKET",
+          "bucket_name": "all3rounds-dev-opennext-cache"
+        }
+      ],
+      "images": {
+        "binding": "IMAGES"
+      }
+    },
+    "development_remote": {
+      "name": "all3rounds-dev",
+      "vars": {
+        "APP_ENV": "development"
+      },
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "all3rounds-dev",
+          "database_id": "ad631ab8-6830-4f81-956b-6d7b068d5a79",
+          "migrations_dir": "migrations",
+          "remote": true
+        }
+      ],
+      "services": [
+        {
+          "binding": "WORKER_SELF_REFERENCE",
+          "service": "all3rounds-dev"
+        }
+      ],
+      "r2_buckets": [
+        {
+          "binding": "NEXT_INC_CACHE_R2_BUCKET",
+          "bucket_name": "all3rounds-dev-opennext-cache"
+        }
+      ],
+      "images": {
+        "binding": "IMAGES"
+      }
+    },
+    "production": {
+      "name": "all3rounds",
+      "vars": {
+        "APP_ENV": "production"
+      },
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "all3rounds",
+          "database_id": "32e50e6a-4344-4591-98d3-dd26e6c35aff",
+          "migrations_dir": "migrations"
+        }
+      ],
+      "services": [
+        {
+          "binding": "WORKER_SELF_REFERENCE",
+          "service": "all3rounds"
+        }
+      ],
+      "r2_buckets": [
+        {
+          "binding": "NEXT_INC_CACHE_R2_BUCKET",
+          "bucket_name": "all3rounds-opennext-cache"
+        }
+      ],
+      "images": {
+        "binding": "IMAGES"
+      }
+    }
+  }
 }

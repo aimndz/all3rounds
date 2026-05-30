@@ -1,10 +1,10 @@
-import { createAdminClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/db/d1-client";
 import { getBetterAuth } from "@/lib/better-auth";
+import {
+  findContributorLeaderboardIdentity,
+  getContributorRepForUser,
+} from "@/lib/contributor-leaderboard";
 import { cookies, headers } from "next/headers";
-
-// ============================================================================
-// Types
-// ============================================================================
 
 export type UserRole =
   | "superadmin"
@@ -18,6 +18,8 @@ export type AuthUser = {
   email: string;
   role: UserRole;
   displayName: string;
+  username: string | null;
+  rep: number;
 };
 
 type UserWithRoleResult = {
@@ -28,11 +30,8 @@ type UserWithRoleResult = {
 type UserProfile = {
   role: string;
   display_name: string | null;
+  username: string | null;
 } | null;
-
-// ============================================================================
-// Permissions Map
-// ============================================================================
 
 const PERMISSIONS: Record<string, UserRole[]> = {
   "lines:edit": ["superadmin", "admin", "moderator", "verified_emcee"],
@@ -59,7 +58,21 @@ const PERMISSIONS: Record<string, UserRole[]> = {
 const inFlightUserRoleLookups = new Map<string, Promise<UserWithRoleResult>>();
 
 function isBetterAuthCookie(name: string) {
-  return name.includes("better-auth");
+  return name === "better-auth.session_token" || name.endsWith(".session_token");
+}
+
+async function hashAuthCookies(cookiesToHash: { name: string; value: string }[]) {
+  const payload = cookiesToHash
+    .map((cookie) => `${cookie.name}=${cookie.value}`)
+    .sort()
+    .join(";");
+  const digest = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(payload),
+  );
+  return Array.from(new Uint8Array(digest))
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
 }
 
 async function getUserProfile(
@@ -68,7 +81,7 @@ async function getUserProfile(
 ): Promise<UserProfile> {
   const { data: profile } = await adminClient
     .from("user_profiles")
-    .select("role, display_name")
+    .select("role, display_name, username")
     .eq("id", userId)
     .single();
 
@@ -78,6 +91,8 @@ async function getUserProfile(
 function buildAuthResult(
   user: { id: string; email: string; name?: string | null },
   profile: UserProfile,
+  rep = 0,
+  username?: string | null,
 ): UserWithRoleResult {
   const role = (profile?.role ?? "viewer") as UserRole;
 
@@ -91,25 +106,17 @@ function buildAuthResult(
         user.name ??
         user.email.split("@")[0] ??
         "User",
+      username: username ?? profile?.username ?? null,
+      rep,
     },
     role,
   };
 }
 
-// ============================================================================
-// Core Functions
-// ============================================================================
-
-/**
- * Get the current user and their role from the database.
- * Returns null user if not logged in; defaults to 'viewer' if no profile found.
- */
 export async function getUserWithRole(): Promise<{
   user: AuthUser | null;
   role: UserRole;
 }> {
-  // Fast exit for completely anonymous users.
-  // In non-request contexts (e.g. some tests), cookies() can throw.
   let hasAuthCookie = false;
   let authCookieFingerprint = "";
   let authCookies: { name: string; value: string }[] = [];
@@ -120,10 +127,9 @@ export async function getUserWithRole(): Promise<{
       .filter((cookie) => isBetterAuthCookie(cookie.name));
 
     hasAuthCookie = authCookies.length > 0;
-    authCookieFingerprint = authCookies
-      .map((cookie) => `${cookie.name}=${cookie.value}`)
-      .sort()
-      .join(";");
+    authCookieFingerprint = hasAuthCookie
+      ? await hashAuthCookies(authCookies)
+      : "";
   } catch {
     return { user: null, role: "viewer" };
   }
@@ -146,7 +152,20 @@ export async function getUserWithRole(): Promise<{
     if (session?.user) {
       const adminClient = createAdminClient();
       const profile = await getUserProfile(adminClient, session.user.id);
-      return buildAuthResult(session.user, profile);
+      const displayName =
+        profile?.display_name ??
+        session.user.name ??
+        session.user.email.split("@")[0];
+      const [directRep, contributor] = await Promise.all([
+        getContributorRepForUser(session.user.id),
+        findContributorLeaderboardIdentity({
+          userId: session.user.id,
+          username: profile?.username,
+          displayName,
+        }),
+      ]);
+      const rep = contributor?.rep ?? directRep;
+      return buildAuthResult(session.user, profile, rep, contributor?.username);
     }
 
     return { user: null, role: "viewer" };
@@ -160,17 +179,10 @@ export async function getUserWithRole(): Promise<{
   }
 }
 
-/**
- * Check if a role has permission for a specific action.
- */
 export function hasPermission(role: UserRole, action: string): boolean {
   return PERMISSIONS[action]?.includes(role) ?? false;
 }
 
-/**
- * Require a specific permission. Returns the user if authorized,
- * or throws with an appropriate error response.
- */
 export async function requirePermission(action: string): Promise<
   | {
       user: AuthUser;

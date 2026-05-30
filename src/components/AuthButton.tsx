@@ -16,7 +16,7 @@ import Link from "next/link";
 import { Separator } from "@/components/ui/separator";
 import { useAuthStore } from "@/stores/auth-store";
 import { adminLinks } from "@/components/admin/admin-links";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, Zap } from "lucide-react";
 
 const SHEET_MENU_ITEM_CLASS =
   "focus:bg-muted/70 focus:text-foreground active:bg-muted/70 active:opacity-90 text-foreground relative flex w-auto items-center gap-2 rounded-(--radius-control-sm) mx-2 px-4 py-3 text-[10px] font-medium tracking-[0.18em] uppercase transition-[background-color,color,opacity] duration-200 outline-hidden";
@@ -62,9 +62,13 @@ export default function AuthButton({
   }
 
   if (isUserLoggedIn && user) {
-    // ... existing initials and returns ...
+    const profileName = user.username || user.displayName;
+    const profileLabel =
+      user.username && !user.username.startsWith("@")
+        ? `@${user.username}`
+        : profileName;
     const initials =
-      user.displayName?.substring(0, 2).toUpperCase() ||
+      profileName?.substring(0, 2).toUpperCase() ||
       user.email?.substring(0, 2).toUpperCase() ||
       "??";
 
@@ -73,6 +77,15 @@ export default function AuthButton({
         <div className="flex w-full flex-col">
           {(type === "all" || type === "actions") && (
             <div className="flex flex-col">
+              <Link
+                href="/profile"
+                prefetch={false}
+                onClick={onSheetAction}
+                className={SHEET_MENU_ITEM_CLASS}
+              >
+                Profile
+              </Link>
+
               {["superadmin", "admin", "moderator"].includes(user.role) && (
                 <>
                   <Link
@@ -103,14 +116,14 @@ export default function AuthButton({
                         />
                       </button>
                       {adminOpen && (
-                        <div className="ml-6 flex flex-col border-l border-border/40 pl-2">
+                        <div className="border-border/40 ml-6 flex flex-col border-l pl-2">
                           {adminLinks.map(({ href, label }) => (
                             <Link
                               key={href}
                               href={href}
                               prefetch={false}
                               onClick={onSheetAction}
-                              className={`${SHEET_MENU_ITEM_CLASS} py-2.5 text-muted-foreground`}
+                              className={`${SHEET_MENU_ITEM_CLASS} text-muted-foreground py-2.5`}
                             >
                               {label}
                             </Link>
@@ -141,9 +154,13 @@ export default function AuthButton({
         <DropdownMenuTrigger asChild>
           <Button
             variant="ghost"
-            className="relative h-8 w-8 cursor-pointer rounded-full p-0 transition-opacity hover:bg-transparent hover:opacity-80 focus-visible:ring-0"
+            className="relative h-8 cursor-pointer gap-2 rounded-full px-0 transition-opacity hover:bg-transparent hover:opacity-80 focus-visible:ring-0"
             aria-label="User Profile Menu"
           >
+            <span className="text-foreground hidden items-center gap-1 pl-2 text-xs font-semibold sm:inline-flex">
+              <Zap className="text-primary size-3" aria-hidden="true" />
+              {user.rep} REP
+            </span>
             <Avatar className="border-border/50 h-8 w-8 border">
               <AvatarFallback className="bg-primary/10 text-primary text-xs font-bold">
                 {initials}
@@ -155,14 +172,19 @@ export default function AuthButton({
           {/* User Info Header */}
           <DropdownMenuLabel className="font-normal">
             <div className="flex flex-col space-y-1">
-              <p className="truncate text-sm font-semibold">
-                {user.displayName}
-              </p>
+              <p className="truncate text-sm font-semibold">{profileLabel}</p>
               <p className="text-muted-foreground truncate text-xs">
                 {user.email}
               </p>
             </div>
           </DropdownMenuLabel>
+
+          <DropdownMenuSeparator />
+          <Link href="/profile" passHref prefetch={false}>
+            <DropdownMenuItem className="cursor-pointer text-[10px] font-medium tracking-[0.18em] uppercase">
+              Profile
+            </DropdownMenuItem>
+          </Link>
 
           {/* Role-based link: Moderators and Admins */}
           {["superadmin", "admin", "moderator"].includes(user.role) && (
@@ -184,7 +206,7 @@ export default function AuthButton({
                   e.preventDefault();
                   setAdminOpen((open) => !open);
                 }}
-                className="flex items-center justify-between text-[10px] font-medium tracking-[0.18em] uppercase cursor-pointer"
+                className="flex cursor-pointer items-center justify-between text-[10px] font-medium tracking-[0.18em] uppercase"
               >
                 <span>Admin</span>
                 <ChevronDown
@@ -198,7 +220,7 @@ export default function AuthButton({
                 <div className="flex flex-col">
                   {adminLinks.map(({ href, label }) => (
                     <Link key={href} href={href} passHref prefetch={false}>
-                      <DropdownMenuItem className="pl-6 text-[10px] font-medium tracking-[0.16em] uppercase cursor-pointer text-muted-foreground hover:text-foreground">
+                      <DropdownMenuItem className="text-muted-foreground hover:text-foreground cursor-pointer pl-6 text-[10px] font-medium tracking-[0.16em] uppercase">
                         {label}
                       </DropdownMenuItem>
                     </Link>
