@@ -34,6 +34,8 @@ describe("GET /api/me", () => {
         email: "admin@test.com",
         role: "admin",
         displayName: "Admin User",
+        username: "admin",
+        rep: 125,
       },
       role: "admin",
     });
@@ -44,6 +46,8 @@ describe("GET /api/me", () => {
     expect(body.user.id).toBe("u1");
     expect(body.user.email).toBe("admin@test.com");
     expect(body.user.displayName).toBe("Admin User");
+    expect(body.user.username).toBe("admin");
+    expect(body.user.rep).toBe(125);
     expect(body.role).toBe("admin");
   });
 });
