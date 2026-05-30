@@ -1,7 +1,7 @@
 import { MetadataRoute } from "next";
 import { getBattlePath } from "@/lib/battles";
 import { getEmceePath } from "@/lib/emcees";
-import { createPublicClient } from "@/lib/supabase/server";
+import { createPublicClient } from "@/db/d1-client";
 
 export const dynamic = "force-static";
 export const revalidate = 86400; // 24 hours (1 day)
@@ -59,15 +59,15 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   ];
 
   try {
-    const supabase = createPublicClient();
+    const dbClient = createPublicClient();
 
     const [battlesRes, emceesRes] = await Promise.all([
-      supabase
+      dbClient
         .from("battles")
         .select("league, slug")
         .in("status", PUBLIC_BATTLE_STATUSES)
         .eq("public_visible", true),
-      supabase.from("emcees").select("slug"),
+      dbClient.from("emcees").select("slug"),
     ]);
 
     const battleRoutes: MetadataRoute.Sitemap =

@@ -109,7 +109,7 @@ export default function PrivacyPage() {
                   <strong>Vercel</strong> – website hosting and infrastructure
                 </li>
                 <li>
-                  <strong>Supabase</strong> – database and backend services
+                  <strong>Cloudflare D1</strong> – database services
                 </li>
                 <li>
                   <strong>Cloudflare</strong> – content delivery network and
