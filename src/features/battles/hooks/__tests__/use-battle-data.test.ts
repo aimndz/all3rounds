@@ -66,6 +66,54 @@ describe("useBattleData", () => {
     expect(result.current.hasMore).toBe(true);
   });
 
+  it("dedupes overlapping initial battle fetches", async () => {
+    let resolveInitial:
+      | ((value: {
+          ok: boolean;
+          json: () => Promise<BattleData>;
+        }) => void)
+      | null = null;
+
+    (global.fetch as Mock).mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveInitial = resolve;
+        }),
+    );
+
+    const { result } = renderHook(() => useBattleData("battle-1"));
+
+    let firstPromise: Promise<BattleData | null> | null = null;
+    let secondPromise: Promise<BattleData | null> | null = null;
+
+    act(() => {
+      firstPromise = result.current.fetchBattle();
+      secondPromise = result.current.fetchBattle();
+    });
+
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+    expect(firstPromise).toBe(secondPromise);
+
+    await act(async () => {
+      resolveInitial?.({
+        ok: true,
+        json: async () =>
+          makeBattleData([1, 2], {
+            limit: 200,
+            offset: 0,
+            has_more: false,
+            has_previous: false,
+            loaded: 2,
+            total: 2,
+          }),
+      });
+
+      await firstPromise;
+    });
+
+    expect(result.current.data?.lines.map((line) => line.id)).toEqual([1, 2]);
+  });
+
   it("prepends earlier lines and keeps later pagination aligned", async () => {
     (global.fetch as Mock)
       .mockResolvedValueOnce({
