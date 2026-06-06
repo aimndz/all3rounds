@@ -53,6 +53,14 @@ const PERMISSIONS: Record<string, UserRole[]> = {
     "viewer",
   ],
   "suggestions:review": ["superadmin", "admin", "moderator"],
+  "annotations:create": [
+    "superadmin",
+    "admin",
+    "moderator",
+    "verified_emcee",
+    "viewer",
+  ],
+  "annotations:moderate": ["superadmin", "admin", "moderator"],
 };
 
 const inFlightUserRoleLookups = new Map<string, Promise<UserWithRoleResult>>();

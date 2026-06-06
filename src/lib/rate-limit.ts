@@ -36,6 +36,9 @@ export const RATE_LIMITS = {
   // Editing / Mutations (admin actions)
   edit: { maxRequests: 100, window: "1 h" },
   add_line: { maxRequests: 50, window: "1 h" },
+  annotation_create: { maxRequests: 30, window: "1 h" },
+  annotation_vote: { maxRequests: 120, window: "1 h" },
+  annotation_helper: { maxRequests: 30, window: "1 h" },
   feedback: { maxRequests: 10, window: "1 h" },
 } as const;
 
@@ -82,6 +85,27 @@ const limiters = redis
         limiter: Ratelimit.slidingWindow(
           RATE_LIMITS.add_line.maxRequests,
           RATE_LIMITS.add_line.window,
+        ),
+      }),
+      annotation_create: new Ratelimit({
+        redis,
+        limiter: Ratelimit.slidingWindow(
+          RATE_LIMITS.annotation_create.maxRequests,
+          RATE_LIMITS.annotation_create.window,
+        ),
+      }),
+      annotation_vote: new Ratelimit({
+        redis,
+        limiter: Ratelimit.slidingWindow(
+          RATE_LIMITS.annotation_vote.maxRequests,
+          RATE_LIMITS.annotation_vote.window,
+        ),
+      }),
+      annotation_helper: new Ratelimit({
+        redis,
+        limiter: Ratelimit.slidingWindow(
+          RATE_LIMITS.annotation_helper.maxRequests,
+          RATE_LIMITS.annotation_helper.window,
         ),
       }),
       feedback: new Ratelimit({
