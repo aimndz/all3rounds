@@ -126,6 +126,7 @@ export async function GET(
       content,
       start_time,
       end_time,
+      content_version,
       round_number,
       speaker_label,
       emcee_id,
@@ -189,6 +190,7 @@ export async function GET(
   interface RawLine {
     id: number;
     content: string;
+    content_version?: number;
     start_time: number;
     end_time: number;
     round_number: number | null;
@@ -202,6 +204,107 @@ export async function GET(
   // We transform the flat line data into a structure that the frontend expects.
   // The 'speaker_ids' array tells us which emcees spoke this line.
   // We use the 'emceeMap' (built from battle_participants) to attach full emcee info.
+  const annotationCounts = new Map<number, number>();
+  const annotationTargets = new Map<
+    number,
+    {
+      start_text_offset: number | null;
+      end_text_offset: number | null;
+      selected_text: string | null;
+    }[]
+  >();
+  if (pagedLines.length > 0) {
+    const minLineSort = Math.min(
+      ...pagedLines.map((line: RawLine) => line.start_time),
+    );
+    const maxLineSort = Math.max(
+      ...pagedLines.map((line: RawLine) => line.start_time),
+    );
+    const { data: annotationRanges } = await dbClient
+      .from("annotation_line_ranges")
+      .select(
+        "annotation_id, start_line_id, end_line_id, start_line_sort, end_line_sort, start_text_offset, end_text_offset, selected_text",
+      )
+      .eq("battle_id", id)
+      .lte("start_line_sort", maxLineSort)
+      .gte("end_line_sort", minLineSort);
+
+    const rangeRows = (annotationRanges ?? []) as {
+      annotation_id: string;
+      start_line_id?: number | null;
+      end_line_id?: number | null;
+      start_line_sort: number;
+      end_line_sort: number;
+      start_text_offset?: number | null;
+      end_text_offset?: number | null;
+      selected_text?: string | null;
+    }[];
+    const annotationIds = Array.from(
+      new Set(rangeRows.map((range) => range.annotation_id)),
+    );
+    const { data: visibleAnnotations } =
+      annotationIds.length > 0
+        ? await dbClient
+            .from("annotations")
+            .select("id, status")
+            .in("id", annotationIds)
+            .eq("status", "published")
+        : { data: [] };
+    const visibleIds = new Set(
+      ((visibleAnnotations ?? []) as { id: string }[]).map(
+        (annotation) => annotation.id,
+      ),
+    );
+
+    const pagedLinesById = new Map(
+      (pagedLines as RawLine[]).map((line) => [line.id, line]),
+    );
+    const annotationIdsByLine = new Map<number, Set<string>>();
+
+    const applyRangeToLine = (line: RawLine, range: (typeof rangeRows)[number]) => {
+      const idsForLine = annotationIdsByLine.get(line.id) ?? new Set<string>();
+      idsForLine.add(range.annotation_id);
+      annotationIdsByLine.set(line.id, idsForLine);
+
+      const currentTargets = annotationTargets.get(line.id) ?? [];
+      currentTargets.push({
+        start_text_offset: range.start_text_offset ?? null,
+        end_text_offset: range.end_text_offset ?? null,
+        selected_text: range.selected_text ?? null,
+      });
+      annotationTargets.set(line.id, currentTargets);
+    };
+
+    for (const range of rangeRows) {
+      if (!visibleIds.has(range.annotation_id)) continue;
+
+      if (
+        range.start_line_id &&
+        range.start_line_id === range.end_line_id &&
+        pagedLinesById.has(range.start_line_id)
+      ) {
+        applyRangeToLine(
+          pagedLinesById.get(range.start_line_id) as RawLine,
+          range,
+        );
+        continue;
+      }
+
+      for (const line of pagedLines as RawLine[]) {
+        if (
+          line.start_time >= range.start_line_sort &&
+          line.start_time <= range.end_line_sort
+        ) {
+          applyRangeToLine(line, range);
+        }
+      }
+    }
+
+    for (const [lineId, ids] of annotationIdsByLine.entries()) {
+      annotationCounts.set(lineId, ids.size);
+    }
+  }
+
   const transformedLines = pagedLines.map((line: RawLine) => {
     const mappedEmcees: { id: string; name: string }[] = [];
 
@@ -227,6 +330,8 @@ export async function GET(
           : fallbackEmcee
             ? [fallbackEmcee]
             : [],
+      annotation_count: annotationCounts.get(line.id) ?? 0,
+      annotation_targets: annotationTargets.get(line.id) ?? [],
     };
   });
 
