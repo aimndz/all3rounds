@@ -60,6 +60,12 @@ const TABLES = new Set([
   "lines",
   "line_speakers",
   "edit_history",
+  "annotations",
+  "annotation_line_ranges",
+  "annotation_line_references",
+  "annotation_votes",
+  "annotation_reports",
+  "user_points",
   "feedback",
   "suggestions",
   "user_profiles",
@@ -293,6 +299,12 @@ function publicRow(table: string, row: Row): Row {
     table === "battle_fan_votes" ||
     table === "lines" ||
     table === "edit_history" ||
+    table === "annotations" ||
+    table === "annotation_line_ranges" ||
+    table === "annotation_line_references" ||
+    table === "annotation_votes" ||
+    table === "annotation_reports" ||
+    table === "user_points" ||
     table === "suggestions" ||
     table === "feedback" ||
     table === "user_profiles" ||
@@ -304,6 +316,7 @@ function publicRow(table: string, row: Row): Row {
       updated_at: toIso(row.updated_at),
       reviewed_at: toIso(row.reviewed_at),
       started_at: toIso(row.started_at),
+      deleted_at: toIso(row.deleted_at),
     };
   }
   if (
@@ -1032,10 +1045,15 @@ export class D1QueryBuilder implements PromiseLike<
           "battle_participants",
           "edit_history",
           "feedback",
-          "suggestions",
-          "battles",
-        ].includes(this.table)
-      )
+      "suggestions",
+      "annotations",
+      "annotation_line_ranges",
+      "annotation_line_references",
+      "annotation_votes",
+      "annotation_reports",
+      "battles",
+    ].includes(this.table)
+  )
         data.id = crypto.randomUUID();
       const columns = Object.keys(data);
       const result = await (
@@ -1046,7 +1064,10 @@ export class D1QueryBuilder implements PromiseLike<
         )
         .bind(...columns.map((column) => data[column]))
         .run();
-      const id = data.id ?? result.meta.last_row_id;
+      const id =
+        this.table === "user_points"
+          ? data.user_id
+          : (data.id ?? result.meta.last_row_id);
       ids.push(id);
       if (this.table === "lines" && typeof id === "number")
         await syncLineSpeakers([id], speakerIds ?? []);
@@ -1134,7 +1155,7 @@ export class D1QueryBuilder implements PromiseLike<
         )
         .bind(...columns.map((column) => data[column]))
         .run();
-      ids.push(data.id);
+      ids.push(this.table === "user_points" ? data.user_id : data.id);
     }
     if (this.table === "battle_participants")
       await recalcBattleCounts(values.map((row) => String(row.emcee_id)));
@@ -1153,7 +1174,13 @@ export class D1QueryBuilder implements PromiseLike<
         data.aka_json = JSON.stringify(aka);
       } else if (key === "public_visible") data[key] = value ? 1 : 0;
       else if (
-        ["created_at", "updated_at", "reviewed_at", "started_at"].includes(key)
+        [
+          "created_at",
+          "updated_at",
+          "reviewed_at",
+          "started_at",
+          "deleted_at",
+        ].includes(key)
       )
         data[key] = normalizeDateInput(value);
       else data[key] = value;
@@ -1172,8 +1199,9 @@ export class D1QueryBuilder implements PromiseLike<
   private async returnMutationRows(ids: unknown[]): Promise<MutationResponse> {
     if (!ids.length) return { data: compatData([]), error: null };
     const placeholders = ids.map(() => "?").join(", ");
+    const keyColumn = this.table === "user_points" ? "user_id" : "id";
     const rows = await fetchRows(
-      `SELECT * FROM ${quoteIdent(this.table)} WHERE id IN (${placeholders})`,
+      `SELECT * FROM ${quoteIdent(this.table)} WHERE ${quoteIdent(keyColumn)} IN (${placeholders})`,
       ids,
     );
     const normalized = rows.map((row) => publicRow(this.table, row));

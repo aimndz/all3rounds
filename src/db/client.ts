@@ -27,3 +27,7 @@ export async function getD1Async() {
 export function getDb() {
   return drizzle(getD1(), { schema });
 }
+
+export async function getDbAsync() {
+  return drizzle(await getD1Async(), { schema });
+}

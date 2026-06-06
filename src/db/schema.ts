@@ -312,6 +312,7 @@ export const lines = sqliteTable(
     roundNumber: integer("round_number"),
     speakerLabel: text("speaker_label"),
     content: text("content").notNull(),
+    contentVersion: integer("content_version").notNull().default(1),
     startTime: real("start_time").notNull(),
     endTime: real("end_time").notNull(),
     createdAt: integer("created_at", { mode: "timestamp_ms" })
@@ -461,6 +462,176 @@ export const userProfiles = sqliteTable(
     usernameKey: uniqueIndex("user_profiles_username_key")
       .on(table.username)
       .where(sql`${table.username} IS NOT NULL`),
+  }),
+);
+
+export const annotations = sqliteTable(
+  "annotations",
+  {
+    id: text("id").primaryKey(),
+    battleId: text("battle_id")
+      .notNull()
+      .references(() => battles.id, { onDelete: "cascade" }),
+    authorId: text("author_id")
+      .notNull()
+      .references(() => userProfiles.id, { onDelete: "cascade" }),
+    bodyJson: text("body_json").notNull(),
+    bodyText: text("body_text").notNull(),
+    status: text("status").notNull().default("published"),
+    score: integer("score").notNull().default(0),
+    qualityState: text("quality_state").notNull().default("normal"),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+    deletedAt: integer("deleted_at", { mode: "timestamp_ms" }),
+  },
+  (table) => ({
+    battleStatusScoreIdx: index("idx_annotations_battle_status_score").on(
+      table.battleId,
+      table.status,
+      table.score,
+    ),
+    authorIdx: index("idx_annotations_author_id").on(table.authorId),
+    statusIdx: index("idx_annotations_status").on(table.status),
+  }),
+);
+
+export const annotationLineRanges = sqliteTable(
+  "annotation_line_ranges",
+  {
+    id: text("id").primaryKey(),
+    annotationId: text("annotation_id")
+      .notNull()
+      .references(() => annotations.id, { onDelete: "cascade" }),
+    battleId: text("battle_id")
+      .notNull()
+      .references(() => battles.id, { onDelete: "cascade" }),
+    startLineId: integer("start_line_id").references(() => lines.id, {
+      onDelete: "set null",
+    }),
+    endLineId: integer("end_line_id").references(() => lines.id, {
+      onDelete: "set null",
+    }),
+    startLineSort: real("start_line_sort").notNull(),
+    endLineSort: real("end_line_sort").notNull(),
+    startTextOffset: integer("start_text_offset"),
+    endTextOffset: integer("end_text_offset"),
+    selectedText: text("selected_text"),
+    lineSnapshotJson: text("line_snapshot_json").notNull(),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (table) => ({
+    annotationIdx: index("idx_annotation_line_ranges_annotation_id").on(
+      table.annotationId,
+    ),
+    overlapIdx: index("idx_annotation_line_ranges_overlap").on(
+      table.battleId,
+      table.startLineSort,
+      table.endLineSort,
+    ),
+  }),
+);
+
+export const annotationLineReferences = sqliteTable(
+  "annotation_line_references",
+  {
+    id: text("id").primaryKey(),
+    annotationId: text("annotation_id")
+      .notNull()
+      .references(() => annotations.id, { onDelete: "cascade" }),
+    battleId: text("battle_id")
+      .notNull()
+      .references(() => battles.id, { onDelete: "cascade" }),
+    lineId: integer("line_id").references(() => lines.id, {
+      onDelete: "set null",
+    }),
+    lineSort: real("line_sort").notNull(),
+    label: text("label").notNull(),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (table) => ({
+    annotationIdx: index("idx_annotation_line_refs_annotation_id").on(
+      table.annotationId,
+    ),
+    lineIdx: index("idx_annotation_line_refs_line_id").on(table.lineId),
+  }),
+);
+
+export const annotationVotes = sqliteTable(
+  "annotation_votes",
+  {
+    id: text("id").primaryKey(),
+    annotationId: text("annotation_id")
+      .notNull()
+      .references(() => annotations.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => userProfiles.id, { onDelete: "cascade" }),
+    value: integer("value").notNull().default(1),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (table) => ({
+    annotationUserKey: uniqueIndex("annotation_votes_annotation_user_key").on(
+      table.annotationId,
+      table.userId,
+    ),
+    annotationIdx: index("idx_annotation_votes_annotation_id").on(
+      table.annotationId,
+    ),
+    userIdx: index("idx_annotation_votes_user_id").on(table.userId),
+  }),
+);
+
+export const userPoints = sqliteTable("user_points", {
+  userId: text("user_id")
+    .primaryKey()
+    .references(() => userProfiles.id, { onDelete: "cascade" }),
+  annotationPoints: integer("annotation_points").notNull().default(0),
+  transcriptPoints: integer("transcript_points").notNull().default(0),
+  totalPoints: integer("total_points").notNull().default(0),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+    .notNull()
+    .default(sql`(unixepoch() * 1000)`),
+});
+
+export const annotationReports = sqliteTable(
+  "annotation_reports",
+  {
+    id: text("id").primaryKey(),
+    annotationId: text("annotation_id")
+      .notNull()
+      .references(() => annotations.id, { onDelete: "cascade" }),
+    reporterId: text("reporter_id")
+      .notNull()
+      .references(() => userProfiles.id, { onDelete: "cascade" }),
+    reason: text("reason").notNull(),
+    details: text("details"),
+    status: text("status").notNull().default("open"),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+    reviewedBy: text("reviewed_by").references(() => userProfiles.id, {
+      onDelete: "set null",
+    }),
+    reviewedAt: integer("reviewed_at", { mode: "timestamp_ms" }),
+  },
+  (table) => ({
+    annotationReporterKey: uniqueIndex(
+      "annotation_reports_annotation_reporter_key",
+    ).on(table.annotationId, table.reporterId),
+    annotationIdx: index("idx_annotation_reports_annotation_id").on(
+      table.annotationId,
+    ),
+    statusIdx: index("idx_annotation_reports_status").on(table.status),
   }),
 );
 
