@@ -30,6 +30,7 @@ import {
   Minimize2,
   ArrowUp,
   Youtube,
+  MessageSquarePlus,
 } from "lucide-react";
 import Footer from "@/components/Footer";
 import { cn, formatDate, formatSpeakerName } from "@/lib/utils";
@@ -40,6 +41,7 @@ import BatchActionBar from "@/features/battles/components/BatchActionBar";
 import { useAuthStore } from "@/stores/auth-store";
 import type { SearchResult } from "@/lib/types";
 import { LineItem } from "@/features/battles/components/LineItem";
+import { AnnotationPanel } from "@/features/battles/components/AnnotationPanel";
 import { InlineBattleStatusSelect } from "@/features/battles/components/InlineBattleStatusSelect";
 import { useBattleData } from "@/features/battles/hooks/use-battle-data";
 import type {
@@ -216,6 +218,21 @@ export default function BattleClient({
   const [isTranscriptExpanded, setIsTranscriptExpanded] = useState(false);
   const [canLoadPreviousOnScroll, setCanLoadPreviousOnScroll] =
     useState(!deepLinkLineId);
+  const [annotationSelectedIds, setAnnotationSelectedIds] = useState<
+    Set<number>
+  >(new Set());
+  const [annotationTextSelection, setAnnotationTextSelection] = useState<{
+    lineId: number;
+    start: number;
+    end: number;
+    text: string;
+  }[]>([]);
+  const [isAnnotationPanelOpen, setIsAnnotationPanelOpen] = useState(false);
+  const [isAnnotationMobileOpen, setIsAnnotationMobileOpen] = useState(false);
+  const [annotationActionPosition, setAnnotationActionPosition] = useState<{
+    top: number;
+    left: number;
+  } | null>(null);
 
   useEffect(() => {
     if (isTranscriptExpanded) {
@@ -788,6 +805,256 @@ export default function BattleClient({
     lines: [] as BattleLine[],
   };
 
+  const selectedAnnotationLines = useMemo(() => {
+    if (!lines || annotationSelectedIds.size === 0) return [];
+    return lines
+      .filter((line) => annotationSelectedIds.has(line.id))
+      .sort(
+        (left, right) =>
+          left.start_time - right.start_time || left.id - right.id,
+      );
+  }, [annotationSelectedIds, lines]);
+  const hasAnnotationPanel =
+    isAnnotationPanelOpen && selectedAnnotationLines.length > 0;
+  const showAnnotationAction =
+    !editMode &&
+    annotationTextSelection.length > 0 &&
+    selectedAnnotationLines.length > 0 &&
+    !hasAnnotationPanel;
+
+  const readLineTextSelection = useCallback(() => {
+    const selection = window.getSelection();
+    if (!selection || selection.isCollapsed || selection.rangeCount === 0) {
+      return null;
+    }
+
+    const rawSelectedText = selection.toString();
+    const selectedText = rawSelectedText.trim();
+    if (!selectedText) return null;
+
+    const range = selection.getRangeAt(0);
+    const textEls = Array.from(
+      document.querySelectorAll<HTMLElement>("[data-line-text-id]"),
+    ).filter((element) => range.intersectsNode(element));
+    if (textEls.length === 0) return null;
+
+    const offsetWithin = (
+      element: HTMLElement,
+      container: Node,
+      offset: number,
+    ) => {
+      if (!element.contains(container)) return null;
+      const preSelectionRange = range.cloneRange();
+      preSelectionRange.selectNodeContents(element);
+      preSelectionRange.setEnd(container, offset);
+      return preSelectionRange.toString().length;
+    };
+
+    const targets = textEls.flatMap((element) => {
+      const lineId = Number(element.dataset.lineTextId);
+      const content = element.textContent ?? "";
+      if (!Number.isFinite(lineId) || !content) return [];
+
+      const rawStart =
+        offsetWithin(element, range.startContainer, range.startOffset) ?? 0;
+      const rawEnd =
+        offsetWithin(element, range.endContainer, range.endOffset) ??
+        content.length;
+      const baseStart = Math.max(0, Math.min(rawStart, content.length));
+      const baseEnd = Math.max(baseStart, Math.min(rawEnd, content.length));
+      const rawText = content.slice(baseStart, baseEnd);
+      const leadingWhitespace = rawText.length - rawText.trimStart().length;
+      const trailingWhitespace = rawText.length - rawText.trimEnd().length;
+      const start = baseStart + leadingWhitespace;
+      const end = baseEnd - trailingWhitespace;
+      const text = content.slice(start, end);
+      if (!text.trim() || end <= start) return [];
+
+      return [{ lineId, start, end, text }];
+    });
+
+    return targets.length > 0 ? targets : null;
+  }, []);
+
+  useEffect(() => {
+    if (!showAnnotationAction) {
+      return;
+    }
+
+    const updateActionPosition = () => {
+      const container = transcriptContainerRef.current;
+      const firstSelectedLine = selectedAnnotationLines[0];
+      if (!container || !firstSelectedLine) {
+        setAnnotationActionPosition(null);
+        return;
+      }
+
+      const lineEl = container.querySelector(
+        `[data-line-id="${firstSelectedLine.id}"]`,
+      ) as HTMLElement | null;
+      if (!lineEl) {
+        setAnnotationActionPosition(null);
+        return;
+      }
+
+      const containerRect = container.getBoundingClientRect();
+      const lineRect = lineEl.getBoundingClientRect();
+      const nextTop = Math.max(
+        8,
+        container.offsetTop + lineRect.bottom - containerRect.top + 8,
+      );
+      const nextLeft = Math.max(
+        8,
+        Math.min(
+          lineRect.left - containerRect.left + 44,
+          containerRect.width - 150,
+        ),
+      );
+
+      setAnnotationActionPosition({ top: nextTop, left: nextLeft });
+    };
+
+    const animationFrame = window.requestAnimationFrame(updateActionPosition);
+    const container = transcriptContainerRef.current;
+    container?.addEventListener("scroll", updateActionPosition, {
+      passive: true,
+    });
+    window.addEventListener("resize", updateActionPosition);
+
+    return () => {
+      window.cancelAnimationFrame(animationFrame);
+      container?.removeEventListener("scroll", updateActionPosition);
+      window.removeEventListener("resize", updateActionPosition);
+    };
+  }, [selectedAnnotationLines, showAnnotationAction, transcriptContainerRef]);
+
+  const handleTextSelectionComplete = useCallback(() => {
+    if (editMode) return;
+    const textSelection = readLineTextSelection();
+    if (!textSelection || textSelection.length === 0) return;
+    setAnnotationTextSelection(textSelection);
+    setAnnotationSelectedIds(
+      new Set(textSelection.map((target) => target.lineId)),
+    );
+    setIsAnnotationPanelOpen(false);
+    setIsAnnotationMobileOpen(false);
+  }, [editMode, readLineTextSelection]);
+
+  const openAnnotationsForLine = useCallback(
+    (lineId: number) => {
+      if (editMode) return;
+      window.getSelection()?.removeAllRanges();
+      setAnnotationTextSelection([]);
+      setAnnotationSelectedIds(new Set([lineId]));
+      setLastClickedLineId(lineId);
+      setIsAnnotationPanelOpen(true);
+      setIsAnnotationMobileOpen(true);
+    },
+    [editMode, setLastClickedLineId],
+  );
+
+  const openAnnotationComposer = useCallback(() => {
+    if (selectedAnnotationLines.length === 0) return;
+    window.getSelection()?.removeAllRanges();
+    setIsAnnotationPanelOpen(true);
+    setIsAnnotationMobileOpen(true);
+  }, [selectedAnnotationLines.length]);
+
+  const closeAnnotationPanel = useCallback(() => {
+    setIsAnnotationPanelOpen(false);
+    setIsAnnotationMobileOpen(false);
+  }, []);
+
+  const clearAnnotationSelection = useCallback(() => {
+    setAnnotationSelectedIds(new Set());
+    setAnnotationTextSelection([]);
+    setIsAnnotationPanelOpen(false);
+    setIsAnnotationMobileOpen(false);
+  }, []);
+
+  const handleJumpToAnnotationLine = useCallback(
+    (lineId: number) => {
+      const params = new URLSearchParams(searchParams.toString());
+      params.set("lineId", String(lineId));
+      router.replace(`?${params.toString()}`, { scroll: false });
+      setLastClickedLineId(lineId);
+
+      window.setTimeout(() => {
+        const container = transcriptContainerRef.current;
+        const el = container?.querySelector(
+          `[data-line-id="${lineId}"]`,
+        ) as HTMLElement | null;
+        if (!container || !el) return;
+        const cRect = container.getBoundingClientRect();
+        const tRect = el.getBoundingClientRect();
+        container.scrollTo({
+          top:
+            container.scrollTop +
+            (tRect.top + tRect.height / 2 - (cRect.top + cRect.height / 2)),
+          behavior: "smooth",
+        });
+      }, 80);
+    },
+    [router, searchParams, setLastClickedLineId, transcriptContainerRef],
+  );
+
+  const handleAnnotationCountsChanged = useCallback(
+    (
+      lineIds: number[],
+      delta: number,
+      textTargets?: {
+        lineId: number;
+        start: number;
+        end: number;
+        text: string;
+      }[],
+    ) => {
+      const ids = new Set(lineIds);
+      const targetsByLine = new Map(
+        (textTargets ?? []).map((target) => [target.lineId, target]),
+      );
+      setData((prev) =>
+        prev
+          ? {
+              ...prev,
+              lines: prev.lines.map((line) =>
+                ids.has(line.id)
+                  ? {
+                      ...line,
+                      annotation_count: Math.max(
+                        0,
+                        (line.annotation_count ?? 0) + delta,
+                      ),
+                      annotation_targets:
+                        delta > 0
+                          ? [
+                              ...(line.annotation_targets ?? []),
+                              targetsByLine.has(line.id)
+                                ? {
+                                    start_text_offset:
+                                      targetsByLine.get(line.id)?.start ?? null,
+                                    end_text_offset:
+                                      targetsByLine.get(line.id)?.end ?? null,
+                                    selected_text:
+                                      targetsByLine.get(line.id)?.text ?? null,
+                                  }
+                                : {
+                                    start_text_offset: null,
+                                    end_text_offset: null,
+                                    selected_text: null,
+                                  },
+                            ]
+                          : line.annotation_targets,
+                    }
+                  : line,
+              ),
+            }
+          : prev,
+      );
+    },
+    [setData],
+  );
+
   // ────────────────────────────────────────────────────────────────────────────
   // Render Logic (Memoized)
   // ────────────────────────────────────────────────────────────────────────────
@@ -926,8 +1193,11 @@ export default function BattleClient({
         className={cn(
           "mx-auto flex w-full flex-col overflow-hidden",
           isTranscriptExpanded
-            ? "bg-background fixed top-(--smart-header-height,4rem) right-0 bottom-0 left-0 z-40 h-[calc(100vh-var(--smart-header-height,4rem))] max-w-none px-4 pt-3 sm:px-8 sm:pt-6"
-            : "h-[calc(100vh-var(--smart-header-height,4rem))] max-w-7xl px-4 sm:px-6",
+            ? "bg-background fixed top-(--smart-header-height,4rem) right-0 bottom-0 left-0 z-40 h-[calc(100dvh-var(--smart-header-height,4rem))] max-w-none px-4 pt-3 sm:px-8 sm:pt-6"
+            : cn(
+                "min-h-[calc(100dvh-var(--smart-header-height,4rem))] overflow-visible px-4 sm:px-6 lg:h-[calc(100dvh-var(--smart-header-height,4rem))] lg:overflow-hidden",
+                hasAnnotationPanel ? "max-w-[96rem]" : "max-w-7xl",
+              ),
         )}
       >
         {/* ── Two-Column Layout ── */}
@@ -940,7 +1210,10 @@ export default function BattleClient({
           {/* Left Column: Video (Sticky/Docked) */}
           <div
             className={cn(
-              "z-30 lg:col-span-7 xl:col-span-8",
+              "z-30",
+              hasAnnotationPanel
+                ? "lg:col-span-5 xl:col-span-5"
+                : "lg:col-span-7 xl:col-span-8",
               isTranscriptExpanded && "hidden lg:block",
             )}
           >
@@ -1079,10 +1352,14 @@ export default function BattleClient({
           {/* ── Right Column: Transcript (Scrollable) ── */}
           <div
             className={cn(
-              "flex min-h-0 flex-1 flex-col",
+              "flex h-[calc(100dvh-var(--smart-header-height,4rem))] min-h-0 flex-none flex-col lg:h-auto lg:flex-1",
               isTranscriptExpanded
-                ? "lg:col-span-12 xl:col-span-12"
-                : "lg:col-span-5 xl:col-span-4",
+                ? hasAnnotationPanel
+                  ? "lg:col-span-8 xl:col-span-8"
+                  : "lg:col-span-12 xl:col-span-12"
+                : hasAnnotationPanel
+                  ? "lg:col-span-4 xl:col-span-4"
+                  : "lg:col-span-5 xl:col-span-4",
             )}
           >
             {/* Edit Mode & Status Bar */}
@@ -1181,6 +1458,35 @@ export default function BattleClient({
                   <Maximize2 className="text-muted-foreground h-4 w-4" />
                 )}
               </Button>
+
+              {showAnnotationAction && annotationActionPosition && (
+                <div
+                  className="bg-background border-border absolute z-50 flex items-center gap-1 rounded-full border px-1.5 py-1 shadow-xl"
+                  style={{
+                    top: annotationActionPosition.top,
+                    left: annotationActionPosition.left,
+                  }}
+                >
+                  <Button
+                    variant="ghost"
+                    size="xs"
+                    onClick={openAnnotationComposer}
+                    className="hover:bg-muted h-7 rounded-full px-2 text-xs"
+                  >
+                    <MessageSquarePlus className="h-3.5 w-3.5" />
+                    Annotate
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
+                    onClick={clearAnnotationSelection}
+                    title="Clear annotation selection"
+                    className="text-muted-foreground hover:bg-muted hover:text-foreground h-7 w-7 rounded-full"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              )}
 
               <div
                 ref={transcriptContainerRef}
@@ -1343,7 +1649,7 @@ export default function BattleClient({
                                               key={line.id}
                                               className="[contain-intrinsic-size:1px_56px] [content-visibility:auto]"
                                               style={{
-                                                marginTop:
+                                                paddingTop:
                                                   gapMargin > 0
                                                     ? `${gapMargin}px`
                                                     : undefined,
@@ -1359,6 +1665,7 @@ export default function BattleClient({
                                                   activeLineId === line.id
                                                 }
                                                 isLastClicked={
+                                                  hasAnnotationPanel &&
                                                   lastClickedLineId === line.id
                                                 }
                                                 inlineEditingId={
@@ -1382,12 +1689,46 @@ export default function BattleClient({
                                                   handleSuggestClick
                                                 }
                                                 onAddClick={handleAddLineAt}
+                                                onAnnotationTextSelectionComplete={
+                                                  editMode
+                                                    ? undefined
+                                                    : handleTextSelectionComplete
+                                                }
+                                                onAnnotationHighlightClick={
+                                                  editMode
+                                                    ? undefined
+                                                    : openAnnotationsForLine
+                                                }
                                                 canEdit={canEdit}
                                                 showBeforeInsert={
                                                   gi === 0 &&
                                                   ti === 0 &&
                                                   li === 0
                                                 }
+                                                isAnnotated={
+                                                  (line.annotation_count ?? 0) >
+                                                  0
+                                                }
+                                                annotationCount={
+                                                  line.annotation_count ?? 0
+                                                }
+                                                isAnnotationSelected={annotationSelectedIds.has(
+                                                  line.id,
+                                                )}
+                                                annotationTextRange={
+                                                  annotationTextSelection.find(
+                                                    (target) =>
+                                                      target.lineId === line.id,
+                                                  ) ?? null
+                                                }
+                                                annotationTextRanges={line.annotation_targets?.map(
+                                                  (target) => ({
+                                                    start:
+                                                      target.start_text_offset,
+                                                    end: target.end_text_offset,
+                                                    text: target.selected_text,
+                                                  }),
+                                                )}
                                               />
                                             </div>
                                           );
@@ -1455,6 +1796,31 @@ export default function BattleClient({
               </div>
             </div>
           </div>
+
+          <AnnotationPanel
+            battle={data.battle}
+            selectedLines={selectedAnnotationLines}
+            selectedTextTargets={annotationTextSelection}
+            open={hasAnnotationPanel}
+            mobileOpen={
+              isAnnotationPanelOpen &&
+              isAnnotationMobileOpen &&
+              selectedAnnotationLines.length > 0
+            }
+            className={cn(
+              hasAnnotationPanel
+                ? isTranscriptExpanded
+                  ? "lg:col-span-4 xl:col-span-4"
+                  : "lg:col-span-3 xl:col-span-3"
+                : "lg:hidden",
+            )}
+            onMobileOpenChange={setIsAnnotationMobileOpen}
+            onClose={closeAnnotationPanel}
+            onJumpToLine={handleJumpToAnnotationLine}
+            isLoggedIn={isUserLoggedIn}
+            onRequireLogin={() => setIsLoginModalOpen(true)}
+            onAnnotationsChanged={handleAnnotationCountsChanged}
+          />
         </div>
       </main>
 

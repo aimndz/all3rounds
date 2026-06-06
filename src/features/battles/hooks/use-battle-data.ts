@@ -5,12 +5,19 @@ import { useState, useCallback, useRef } from "react";
 export type BattleLine = {
   id: number;
   content: string;
+  content_version?: number;
   start_time: number;
   end_time: number;
   round_number: number | null;
   speaker_label: string | null;
   emcee: { id: string; name: string } | null;
   emcees?: { id: string; name: string }[];
+  annotation_count?: number;
+  annotation_targets?: {
+    start_text_offset: number | null;
+    end_text_offset: number | null;
+    selected_text: string | null;
+  }[];
 };
 
 export type BattleStatus = "raw" | "arranged" | "reviewing" | "reviewed";
@@ -68,8 +75,13 @@ export function useBattleData(
   const loadingPreviousPromiseRef = useRef<Promise<BattleData | null> | null>(
     null,
   );
+  const fetchBattlePromiseRef = useRef<Promise<BattleData | null> | null>(null);
 
   const fetchBattle = useCallback((options?: { forceFresh?: boolean }) => {
+    if (!options?.forceFresh && fetchBattlePromiseRef.current) {
+      return fetchBattlePromiseRef.current;
+    }
+
     const params = new URLSearchParams({
       limit: String(PAGE_SIZE),
       offset: "0",
@@ -81,7 +93,7 @@ export function useBattleData(
       params.set("_", String(Date.now()));
     }
 
-    return fetch(`/api/battles/${battleId}?${params.toString()}`)
+    const request = fetch(`/api/battles/${battleId}?${params.toString()}`)
       .then(async (res) => {
         if (!res.ok) {
           const d = await res.json().catch(() => ({}));
@@ -98,6 +110,18 @@ export function useBattleData(
         return null;
       })
       .finally(() => setLoading(false));
+
+    const sharedRequest = request.finally(() => {
+      if (fetchBattlePromiseRef.current === sharedRequest) {
+        fetchBattlePromiseRef.current = null;
+      }
+    });
+
+    if (!options?.forceFresh) {
+      fetchBattlePromiseRef.current = sharedRequest;
+    }
+
+    return sharedRequest;
   }, [battleId, initialLineId]);
 
   const fetchMoreLines = useCallback(() => {
