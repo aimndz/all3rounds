@@ -13,11 +13,7 @@ import {
   X,
   Zap,
 } from "lucide-react";
-import {
-  Avatar,
-  AvatarFallback,
-  AvatarImage,
-} from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -30,7 +26,10 @@ import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import type { BattleData, BattleLine } from "@/features/battles/hooks/use-battle-data";
+import type {
+  BattleData,
+  BattleLine,
+} from "@/features/battles/hooks/use-battle-data";
 
 const ANNOTATION_MIN_BODY_LENGTH = 3;
 
@@ -109,7 +108,10 @@ function toPlainDoc(text: string) {
   };
 }
 
-function renderInlineText(text: string, onJumpToLine: (lineId: number) => void) {
+function renderInlineText(
+  text: string,
+  onJumpToLine: (lineId: number) => void,
+) {
   const parts = text.split(/(\[\[line:\d+\]\])/g);
   return parts.map((part, index) => {
     const match = part.match(/^\[\[line:(\d+)\]\]$/);
@@ -206,6 +208,7 @@ export function AnnotationPanel({
   const [sortMode, setSortMode] = useState<AnnotationSort>("top");
   const [composerExpanded, setComposerExpanded] = useState(false);
   const [showFormattingTips, setShowFormattingTips] = useState(false);
+  const [isReferenceExpanded, setIsReferenceExpanded] = useState(false);
 
   const selectedLineIds = useMemo(
     () => selectedLines.map((line) => line.id),
@@ -240,7 +243,10 @@ export function AnnotationPanel({
             end > start &&
             start < line.content.length
           ) {
-            return line.content.slice(start, Math.min(end, line.content.length));
+            return line.content.slice(
+              start,
+              Math.min(end, line.content.length),
+            );
           }
           return target.selected_text ?? "";
         }),
@@ -310,7 +316,8 @@ export function AnnotationPanel({
     })
       .then(async (res) => {
         const body = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error(body.error || "Failed to load annotations.");
+        if (!res.ok)
+          throw new Error(body.error || "Failed to load annotations.");
         return body as { annotations: Annotation[] };
       })
       .then((body) =>
@@ -321,7 +328,8 @@ export function AnnotationPanel({
         }),
       )
       .catch((error) => {
-        if (error instanceof DOMException && error.name === "AbortError") return;
+        if (error instanceof DOMException && error.name === "AbortError")
+          return;
         setState((current) => ({
           ...current,
           loading: false,
@@ -340,7 +348,12 @@ export function AnnotationPanel({
     setEditingId(null);
     setComposerExpanded(false);
     setShowFormattingTips(false);
+    setIsReferenceExpanded(false);
   };
+
+  useEffect(() => {
+    resetComposer();
+  }, [firstLine?.id, lastLine?.id]);
 
   const saveAnnotation = async () => {
     if (!isLoggedIn) {
@@ -380,7 +393,9 @@ export function AnnotationPanel({
       },
       body_text: draft.trim(),
     };
-    const url = editingId ? `/api/annotations/${editingId}` : "/api/annotations";
+    const url = editingId
+      ? `/api/annotations/${editingId}`
+      : "/api/annotations";
     const method = editingId ? "PATCH" : "POST";
 
     try {
@@ -414,9 +429,7 @@ export function AnnotationPanel({
       setState((current) => ({
         ...current,
         error:
-          error instanceof Error
-            ? error.message
-            : "Failed to save annotation.",
+          error instanceof Error ? error.message : "Failed to save annotation.",
       }));
     } finally {
       setSaving(false);
@@ -477,7 +490,7 @@ export function AnnotationPanel({
 
   const content = (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="border-border/60 shrink-0 border-b p-4">
+      <div className="border-border/60 shrink-0 border-b px-4 py-4 pt-4 lg:pt-4">
         <div className="flex items-center justify-between gap-3">
           <div>
             <p className="text-muted-foreground text-[10px] font-bold tracking-widest uppercase">
@@ -493,12 +506,26 @@ export function AnnotationPanel({
             <X className="h-4 w-4" />
           </Button>
         </div>
-        <p className="text-muted-foreground mt-3 line-clamp-3 text-xs leading-relaxed">
-          {previewText}
+        <p
+          className={cn(
+            "text-foreground mt-3 text-xs leading-relaxed font-bold",
+            !isReferenceExpanded && "line-clamp-3",
+          )}
+        >
+          “{previewText}”
         </p>
+        {previewText.length > 120 && (
+          <button
+            type="button"
+            onClick={() => setIsReferenceExpanded(!isReferenceExpanded)}
+            className="text-muted-foreground mt-1 block text-[11px] font-semibold hover:underline"
+          >
+            {isReferenceExpanded ? "Show less" : "Show more"}
+          </button>
+        )}
       </div>
 
-      <div className="[&::-webkit-scrollbar-thumb]:bg-muted min-h-0 flex-1 overflow-y-auto p-4 [scrollbar-color:var(--muted)_transparent] [scrollbar-width:thin] [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:rounded-full">
+      <div className="[&::-webkit-scrollbar-thumb]:bg-muted min-h-0 flex-1 overflow-y-auto overscroll-contain p-4 [scrollbar-color:var(--muted)_transparent] [scrollbar-width:thin] [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:rounded-full">
         <div className="space-y-3">
           <Textarea
             size={composerExpanded ? "default" : "compact"}
@@ -511,17 +538,17 @@ export function AnnotationPanel({
             }}
             placeholder="Write annotation"
             className={cn(
-              "resize-none px-3 py-2 text-sm leading-5 placeholder:text-sm",
-              composerExpanded ? "min-h-24" : "min-h-11",
+              "resize-none px-3 text-sm leading-5 placeholder:text-sm placeholder:leading-5",
+              composerExpanded ? "min-h-24 py-2" : "min-h-11 py-[11px]",
             )}
           />
           {composerExpanded && (
             <>
-              <div className="rounded-md border border-border/50 bg-card/40">
+              <div className="border-border/50 bg-card/40 rounded-md border">
                 <button
                   type="button"
                   onClick={() => setShowFormattingTips((current) => !current)}
-                  className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-xs font-semibold text-muted-foreground transition-colors hover:text-foreground"
+                  className="text-muted-foreground hover:text-foreground flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-xs font-semibold transition-colors"
                 >
                   <span className="inline-flex items-center gap-2">
                     <HelpCircle className="h-3.5 w-3.5" />
@@ -535,11 +562,18 @@ export function AnnotationPanel({
                   />
                 </button>
                 {showFormattingTips && (
-                  <div className="border-t border-border/50 px-3 py-2 text-xs leading-relaxed text-muted-foreground">
-                    Use blank lines for separate thoughts. Add quotes around
-                    lyrics, keep links on their own line, and use [[line:123]]
-                    to create a jump link to another transcript line.
-                  </div>
+                  <ul className="border-border/50 text-muted-foreground list-disc space-y-1 border-t px-3 py-2 pl-6 text-xs leading-relaxed">
+                    <li>Use blank lines for separate thoughts.</li>
+                    <li>Add quotes around lyrics.</li>
+                    <li>Keep links on their own line.</li>
+                    <li>
+                      Use{" "}
+                      <code className="bg-muted rounded px-1 py-0.5 font-mono text-[10px]">
+                        [[line:123]]
+                      </code>{" "}
+                      to create a jump link to another transcript line.
+                    </li>
+                  </ul>
                 )}
               </div>
               <div className="flex items-center justify-end gap-2">
@@ -549,8 +583,7 @@ export function AnnotationPanel({
                 <Button
                   onClick={() => void saveAnnotation()}
                   disabled={
-                    saving ||
-                    draft.trim().length < ANNOTATION_MIN_BODY_LENGTH
+                    saving || draft.trim().length < ANNOTATION_MIN_BODY_LENGTH
                   }
                   size="xs"
                 >
@@ -560,13 +593,15 @@ export function AnnotationPanel({
               </div>
             </>
           )}
-          {state.error && <p className="text-destructive text-xs">{state.error}</p>}
+          {state.error && (
+            <p className="text-destructive text-xs">{state.error}</p>
+          )}
         </div>
 
-        <Separator className="my-5" />
+        <Separator className="bg-border/50 my-5" />
 
         <div className="flex items-center justify-end gap-3">
-          <div className="inline-flex rounded-md border border-border/50 bg-card/40 p-0.5">
+          <div className="border-border/50 bg-card/40 inline-flex rounded-md border p-0.5">
             {(["top", "newest"] as const).map((mode) => (
               <Button
                 key={mode}
@@ -604,26 +639,32 @@ export function AnnotationPanel({
         className={cn(
           "bg-background border-border/70 hidden min-h-0 overflow-hidden rounded-lg border shadow-xl lg:block",
           open ? "opacity-100" : "pointer-events-none hidden opacity-0",
-          "transition-all duration-200",
+          "transition-opacity duration-200",
           className,
         )}
       >
         {content}
       </aside>
-      {mobileOpen && (
-        <div className="bg-background border-border/70 fixed right-0 bottom-0 left-0 z-50 max-h-[88vh] overflow-hidden rounded-t-lg border-t shadow-2xl lg:hidden">
-          <div className="absolute top-2 left-1/2 h-1 w-10 -translate-x-1/2 rounded-full bg-muted-foreground/30" />
-          {content}
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            onClick={() => onMobileOpenChange(false)}
-            className="absolute top-3 right-3"
-          >
-            <X className="h-4 w-4" />
-          </Button>
-        </div>
-      )}
+      <div
+        className={cn(
+          "bg-background border-border/70 fixed right-0 bottom-0 left-0 z-50 h-[88dvh] max-h-[88dvh] overflow-hidden rounded-t-lg border-t shadow-2xl lg:hidden",
+          "transform transition-[transform,opacity] duration-300 ease-in-out",
+          mobileOpen
+            ? "visible translate-y-0 opacity-100"
+            : "invisible translate-y-full opacity-0",
+        )}
+      >
+        <div className="bg-muted-foreground/30 absolute top-4 left-1/2 h-1 w-10 -translate-x-1/2 rounded-full" />
+        {content}
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          onClick={() => onMobileOpenChange(false)}
+          className="absolute top-4 right-3"
+        >
+          <X className="h-4 w-4" />
+        </Button>
+      </div>
     </>
   );
 }
@@ -645,22 +686,19 @@ function AnnotationList({
 }) {
   if (loading) {
     return (
-      <div className="mt-3 divide-y divide-border/50">
+      <div className="divide-border/50 mt-3 divide-y">
         {[0, 1, 2].map((item) => (
-          <div
-            key={item}
-            className="py-4"
-          >
+          <div key={item} className="py-4">
             <div className="flex items-start justify-between gap-3">
               <div className="space-y-2">
-                <div className="h-3 w-28 animate-pulse rounded bg-muted" />
-                <div className="h-2.5 w-16 animate-pulse rounded bg-muted/70" />
+                <div className="bg-muted h-3 w-28 animate-pulse rounded" />
+                <div className="bg-muted/70 h-2.5 w-16 animate-pulse rounded" />
               </div>
-              <div className="h-7 w-12 animate-pulse rounded-md bg-muted" />
+              <div className="bg-muted h-7 w-12 animate-pulse rounded-md" />
             </div>
             <div className="mt-4 space-y-2">
-              <div className="h-3 w-full animate-pulse rounded bg-muted/80" />
-              <div className="h-3 w-4/5 animate-pulse rounded bg-muted/70" />
+              <div className="bg-muted/80 h-3 w-full animate-pulse rounded" />
+              <div className="bg-muted/70 h-3 w-4/5 animate-pulse rounded" />
             </div>
           </div>
         ))}
@@ -669,7 +707,7 @@ function AnnotationList({
   }
   if (annotations.length === 0) {
     return (
-      <div className="mt-3 rounded-lg border border-border/60 bg-muted/20 p-4 text-sm">
+      <div className="border-border/60 bg-muted/20 mt-3 rounded-lg border p-4 text-sm">
         <MessageSquareText className="text-muted-foreground mb-3 h-5 w-5" />
         No annotations yet. Start with context, wordplay, or a reference that
         helps the line land.
@@ -678,7 +716,7 @@ function AnnotationList({
   }
 
   return (
-    <div className="mt-3 divide-y divide-border/50">
+    <div className="divide-border/50 mt-3 divide-y">
       {annotations.map((annotation) => (
         <article key={annotation.id} className="py-4 first:pt-2 last:pb-0">
           <div className="flex items-start justify-between gap-3">

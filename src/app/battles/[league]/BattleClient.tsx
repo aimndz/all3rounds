@@ -8,6 +8,7 @@ import {
   useMemo,
   useTransition,
   useRef,
+  useSyncExternalStore,
 } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
@@ -126,6 +127,20 @@ function buildBatchLineUpdate(config: {
   return Object.keys(nextUpdates).length > 0 ? nextUpdates : null;
 }
 
+const subscribeMedia = (callback: () => void) => {
+  if (typeof window === "undefined") return () => {};
+  const media = window.matchMedia("(min-width: 1024px)");
+  media.addEventListener("change", callback);
+  return () => media.removeEventListener("change", callback);
+};
+
+const getMediaSnapshot = () => {
+  if (typeof window === "undefined") return false;
+  return window.matchMedia("(min-width: 1024px)").matches;
+};
+
+const getMediaServerSnapshot = () => false;
+
 // ============================================================================
 // Main Component
 // ============================================================================
@@ -234,8 +249,18 @@ export default function BattleClient({
     left: number;
   } | null>(null);
 
+  const isLargeScreen = useSyncExternalStore(
+    subscribeMedia,
+    getMediaSnapshot,
+    getMediaServerSnapshot,
+  );
+
   useEffect(() => {
-    if (isTranscriptExpanded) {
+    const isMobilePanelOpen =
+      isAnnotationPanelOpen &&
+      isAnnotationMobileOpen &&
+      annotationSelectedIds.size > 0;
+    if (isTranscriptExpanded || isMobilePanelOpen) {
       document.body.style.overflow = "hidden";
     } else {
       document.body.style.overflow = "";
@@ -243,7 +268,12 @@ export default function BattleClient({
     return () => {
       document.body.style.overflow = "";
     };
-  }, [isTranscriptExpanded]);
+  }, [
+    isTranscriptExpanded,
+    isAnnotationPanelOpen,
+    isAnnotationMobileOpen,
+    annotationSelectedIds.size,
+  ]);
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
 
   // -- Active Line --
@@ -284,16 +314,7 @@ export default function BattleClient({
     touchStartYRef.current = null;
   }, [deepLinkLineId]);
 
-  useEffect(() => {
-    if (isTranscriptExpanded) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "unset";
-    }
-    return () => {
-      document.body.style.overflow = "unset";
-    };
-  }, [isTranscriptExpanded]);
+
 
   // Auto-load more transcript pages as user reaches the bottom.
   useEffect(() => {
@@ -816,6 +837,9 @@ export default function BattleClient({
   }, [annotationSelectedIds, lines]);
   const hasAnnotationPanel =
     isAnnotationPanelOpen && selectedAnnotationLines.length > 0;
+  const isAnnotationSheetOpen = isLargeScreen
+    ? hasAnnotationPanel
+    : (hasAnnotationPanel && isAnnotationMobileOpen);
   const showAnnotationAction =
     !editMode &&
     annotationTextSelection.length > 0 &&
@@ -1196,7 +1220,7 @@ export default function BattleClient({
             ? "bg-background fixed top-(--smart-header-height,4rem) right-0 bottom-0 left-0 z-40 h-[calc(100dvh-var(--smart-header-height,4rem))] max-w-none px-4 pt-3 sm:px-8 sm:pt-6"
             : cn(
                 "min-h-[calc(100dvh-var(--smart-header-height,4rem))] overflow-visible px-4 sm:px-6 lg:h-[calc(100dvh-var(--smart-header-height,4rem))] lg:overflow-hidden",
-                hasAnnotationPanel ? "max-w-[96rem]" : "max-w-7xl",
+                hasAnnotationPanel ? "max-w-384" : "max-w-7xl",
               ),
         )}
       >
@@ -1665,7 +1689,7 @@ export default function BattleClient({
                                                   activeLineId === line.id
                                                 }
                                                 isLastClicked={
-                                                  hasAnnotationPanel &&
+                                                  isAnnotationSheetOpen &&
                                                   lastClickedLineId === line.id
                                                 }
                                                 inlineEditingId={
