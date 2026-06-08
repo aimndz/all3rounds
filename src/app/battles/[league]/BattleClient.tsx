@@ -16,7 +16,6 @@ import { useToast } from "@/hooks/use-toast";
 import Link from "next/link";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -30,9 +29,9 @@ import {
   Maximize2,
   Minimize2,
   ArrowUp,
-  Youtube,
   MessageSquarePlus,
 } from "lucide-react";
+import { YouTubeIcon } from "@/components/icons/YouTubeIcon";
 import Footer from "@/components/Footer";
 import { cn, formatDate, formatSpeakerName } from "@/lib/utils";
 import { formatBattleLeagueLabel } from "@/lib/battles";
@@ -231,17 +230,20 @@ export default function BattleClient({
   );
   const [collapsedTurns, setCollapsedTurns] = useState<Set<string>>(new Set());
   const [isTranscriptExpanded, setIsTranscriptExpanded] = useState(false);
+  const [isMetaExpanded, setIsMetaExpanded] = useState(false);
   const [canLoadPreviousOnScroll, setCanLoadPreviousOnScroll] =
     useState(!deepLinkLineId);
   const [annotationSelectedIds, setAnnotationSelectedIds] = useState<
     Set<number>
   >(new Set());
-  const [annotationTextSelection, setAnnotationTextSelection] = useState<{
-    lineId: number;
-    start: number;
-    end: number;
-    text: string;
-  }[]>([]);
+  const [annotationTextSelection, setAnnotationTextSelection] = useState<
+    {
+      lineId: number;
+      start: number;
+      end: number;
+      text: string;
+    }[]
+  >([]);
   const [isAnnotationPanelOpen, setIsAnnotationPanelOpen] = useState(false);
   const [isAnnotationMobileOpen, setIsAnnotationMobileOpen] = useState(false);
   const [annotationActionPosition, setAnnotationActionPosition] = useState<{
@@ -313,8 +315,6 @@ export default function BattleClient({
     previousScrollTopRef.current = 0;
     touchStartYRef.current = null;
   }, [deepLinkLineId]);
-
-
 
   // Auto-load more transcript pages as user reaches the bottom.
   useEffect(() => {
@@ -839,7 +839,7 @@ export default function BattleClient({
     isAnnotationPanelOpen && selectedAnnotationLines.length > 0;
   const isAnnotationSheetOpen = isLargeScreen
     ? hasAnnotationPanel
-    : (hasAnnotationPanel && isAnnotationMobileOpen);
+    : hasAnnotationPanel && isAnnotationMobileOpen;
   const showAnnotationAction =
     !editMode &&
     annotationTextSelection.length > 0 &&
@@ -1288,84 +1288,144 @@ export default function BattleClient({
                 <div className="flex flex-col gap-1">
                   {/* First Row: Title and Buttons */}
                   <div className="flex items-center justify-between gap-4">
+                    {/* Mobile View: Clickable container wrapping both Title and YouTube Icon */}
+                    <div className="flex items-center gap-2 min-w-0 sm:hidden">
+                      <a
+                        href={battle.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-muted-foreground hover:text-foreground inline-flex items-center gap-2 min-w-0"
+                        title="Watch on YouTube"
+                      >
+                        <h1
+                          className="text-foreground truncate text-[16px] font-semibold tracking-tight"
+                          title={battle.title}
+                        >
+                          {battle.title}
+                        </h1>
+                        <YouTubeIcon className="h-5 w-5 shrink-0" />
+                      </a>
+                    </div>
+
+                    {/* Desktop View: Static Title */}
                     <h1
-                      className="text-foreground truncate text-[16px] font-bold tracking-tight sm:text-xl"
+                      className="text-foreground truncate text-[16px] font-semibold tracking-tight sm:text-xl hidden sm:block"
                       title={battle.title}
                     >
                       {battle.title}
                     </h1>
 
-                    <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+                    {/* Desktop View: Separate YouTube Button */}
+                    <div className="hidden sm:flex shrink-0 items-center gap-1.5 sm:gap-2">
                       <a
                         href={battle.url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="border-border text-muted-foreground hover:bg-muted hover:text-foreground inline-flex h-7 items-center gap-1.5 rounded-md border px-2.5 text-[10px] font-bold tracking-wider transition-colors sm:h-9 sm:px-4 sm:text-xs sm:font-bold"
+                        className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 transition-colors sm:h-9 sm:border-border sm:border sm:px-4 sm:rounded-md sm:hover:bg-muted sm:text-xs sm:font-bold"
                         title="Watch on YouTube"
                       >
-                        <Youtube className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                        <span className="hidden sm:inline">YouTube</span>
-                        <span className="sm:hidden">Youtube</span>
+                        <YouTubeIcon className="h-4 w-4" />
+                        <span>YouTube</span>
                       </a>
                     </div>
                   </div>
 
                   {/* Second Row: Metadata */}
                   <div className="text-muted-foreground/60 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] font-medium sm:gap-x-3 sm:text-xs">
-                    <Badge
-                      variant="secondary"
-                      className="border-primary/15 bg-primary/10 text-primary px-2 py-0.5 text-[10px] font-bold uppercase"
-                    >
+                    <span className="uppercase">
                       {formatBattleLeagueLabel(battle.league)}
-                    </Badge>
+                    </span>
 
                     {battle.event_name && (
-                      <span className="text-foreground/70 max-w-40 truncate sm:max-w-none">
-                        {battle.event_name}
-                      </span>
+                      <>
+                        <span className="text-border">|</span>
+                        <span>{battle.event_name}</span>
+                      </>
                     )}
 
                     {battle.event_date && (
                       <>
-                        {battle.event_name && (
-                          <span className="text-border">|</span>
-                        )}
+                        <span className="text-border">|</span>
                         <span>{formatDate(battle.event_date)}</span>
                       </>
                     )}
 
-                    {(battle.event_name || battle.event_date) && (
-                      <span className="text-border">|</span>
-                    )}
-                    <span>
+                    <span
+                      className={cn(
+                        "text-border",
+                        isMetaExpanded ? "inline" : "hidden sm:inline",
+                      )}
+                    >
+                      |
+                    </span>
+                    <span
+                      className={isMetaExpanded ? "inline" : "hidden sm:inline"}
+                    >
                       {data.lines_pagination?.total ?? lines.length} lines
                     </span>
 
-                    <span className="text-border">|</span>
+                    <span
+                      className={cn(
+                        "text-border",
+                        isMetaExpanded ? "inline" : "hidden sm:inline",
+                      )}
+                    >
+                      |
+                    </span>
 
-                    {/* Status Badge */}
-                    {canEditBattleStatus ? (
-                      <InlineBattleStatusSelect
-                        battleId={battleId}
-                        status={battle.status}
-                        canEditStatus={canEditBattleStatus}
-                        badgeClassName="origin-left scale-90"
-                        onStatusUpdated={(status) =>
-                          setData((prev) =>
-                            prev
-                              ? {
-                                  ...prev,
-                                  battle: { ...prev.battle, status },
-                                }
-                              : null,
-                          )
-                        }
-                      />
-                    ) : (
-                      <StatusBadge
-                        status={battle.status}
-                        className="origin-left scale-90"
-                      />
+                    <div
+                      className={
+                        isMetaExpanded ? "inline-flex" : "hidden sm:inline-flex"
+                      }
+                    >
+                      {/* Status Badge */}
+                      {canEditBattleStatus ? (
+                        <InlineBattleStatusSelect
+                          battleId={battleId}
+                          status={battle.status}
+                          canEditStatus={canEditBattleStatus}
+                          badgeClassName="origin-left scale-90"
+                          onStatusUpdated={(status) =>
+                            setData((prev) =>
+                              prev
+                                ? {
+                                    ...prev,
+                                    battle: { ...prev.battle, status },
+                                  }
+                                : null,
+                            )
+                          }
+                        />
+                      ) : (
+                        <StatusBadge
+                          status={battle.status}
+                          className="origin-left scale-90"
+                        />
+                      )}
+                    </div>
+
+                    {!isMetaExpanded && (
+                      <>
+                        <span className="text-border sm:hidden">|</span>
+                        <button
+                          onClick={() => setIsMetaExpanded(true)}
+                          className="text-foreground hover:text-foreground/80 cursor-pointer transition-colors sm:hidden"
+                        >
+                          ...more
+                        </button>
+                      </>
+                    )}
+
+                    {isMetaExpanded && (
+                      <>
+                        <span className="text-border sm:hidden">|</span>
+                        <button
+                          onClick={() => setIsMetaExpanded(false)}
+                          className="text-foreground hover:text-foreground/80 cursor-pointer transition-colors sm:hidden"
+                        >
+                          ...less
+                        </button>
+                      </>
                     )}
                   </div>
                 </div>
