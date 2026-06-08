@@ -74,6 +74,12 @@ export async function POST(
     );
   }
 
+  let payload: { value?: number } = {};
+  try {
+    payload = await request.json();
+  } catch {}
+  const targetValue = payload.value === -1 ? -1 : 1;
+
   if (role !== "superadmin") {
     const rateRes = await checkRateLimit(
       `annotation:vote:${user.id}`,
@@ -95,37 +101,64 @@ export async function POST(
   const adminClient = createAdminClient();
   const { data: existingVote } = await adminClient
     .from("annotation_votes")
-    .select("id")
+    .select("id, value")
     .eq("annotation_id", id)
     .eq("user_id", user.id)
     .maybeSingle();
 
-  if (existingVote) {
-    return NextResponse.json({ success: true, score: annotation.score });
+  const existingVoteRow = existingVote as { id: string; value: number } | null;
+
+  let nextScore = Number(annotation.score ?? 0);
+  let repDelta = 0;
+
+  if (existingVoteRow) {
+    if (existingVoteRow.value === targetValue) {
+      // Toggle off (Neutral)
+      const { error: deleteError } = await adminClient
+        .from("annotation_votes")
+        .delete()
+        .eq("id", existingVoteRow.id);
+      if (deleteError) {
+        return NextResponse.json({ error: "Failed to update vote." }, { status: 500 });
+      }
+      nextScore -= targetValue;
+      repDelta = -targetValue;
+    } else {
+      // Toggle from up to down or down to up
+      const { error: updateError } = await adminClient
+        .from("annotation_votes")
+        .update({ value: targetValue, created_at: new Date().toISOString() })
+        .eq("id", existingVoteRow.id);
+      if (updateError) {
+        return NextResponse.json({ error: "Failed to update vote." }, { status: 500 });
+      }
+      nextScore += 2 * targetValue;
+      repDelta = 2 * targetValue;
+    }
+  } else {
+    // New vote
+    const { error: insertError } = await adminClient.from("annotation_votes").insert({
+      id: crypto.randomUUID(),
+      annotation_id: id,
+      user_id: user.id,
+      value: targetValue,
+      created_at: new Date().toISOString(),
+    });
+    if (insertError) {
+      return NextResponse.json({ error: "Failed to update vote." }, { status: 500 });
+    }
+    nextScore += targetValue;
+    repDelta = targetValue;
   }
 
-  const { error: voteError } = await adminClient.from("annotation_votes").insert({
-    id: crypto.randomUUID(),
-    annotation_id: id,
-    user_id: user.id,
-    value: 1,
-    created_at: new Date().toISOString(),
-  });
-
-  if (voteError) {
-    console.error("Create annotation vote error:", voteError);
-    return NextResponse.json(
-      { error: "Failed to upvote annotation." },
-      { status: 500 },
-    );
-  }
-
-  const nextScore = Number(annotation.score ?? 0) + 1;
   await adminClient
     .from("annotations")
     .update({ score: nextScore, updated_at: new Date().toISOString() })
     .eq("id", id);
-  await adjustUserPoints(annotation.author_id, 1);
+
+  if (user.id !== annotation.author_id && repDelta !== 0) {
+    await adjustUserPoints(annotation.author_id, repDelta);
+  }
 
   return NextResponse.json({ success: true, score: nextScore });
 }
@@ -158,7 +191,7 @@ export async function DELETE(
   const adminClient = createAdminClient();
   const { data: existingVote } = await adminClient
     .from("annotation_votes")
-    .select("id")
+    .select("id, value")
     .eq("annotation_id", id)
     .eq("user_id", user.id)
     .maybeSingle();
@@ -167,26 +200,30 @@ export async function DELETE(
     return NextResponse.json({ success: true, score: annotation.score });
   }
 
+  const existingVoteRow = existingVote as { id: string; value: number };
+
   const { error: deleteError } = await adminClient
     .from("annotation_votes")
     .delete()
-    .eq("annotation_id", id)
-    .eq("user_id", user.id);
+    .eq("id", existingVoteRow.id);
 
   if (deleteError) {
     console.error("Delete annotation vote error:", deleteError);
     return NextResponse.json(
-      { error: "Failed to remove upvote." },
+      { error: "Failed to remove vote." },
       { status: 500 },
     );
   }
 
-  const nextScore = Math.max(0, Number(annotation.score ?? 0) - 1);
+  const nextScore = Number(annotation.score ?? 0) - existingVoteRow.value;
   await adminClient
     .from("annotations")
     .update({ score: nextScore, updated_at: new Date().toISOString() })
     .eq("id", id);
-  await adjustUserPoints(annotation.author_id, -1);
+
+  if (user.id !== annotation.author_id) {
+    await adjustUserPoints(annotation.author_id, -existingVoteRow.value);
+  }
 
   return NextResponse.json({ success: true, score: nextScore });
 }

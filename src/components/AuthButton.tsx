@@ -159,7 +159,7 @@ export default function AuthButton({
           >
             <span className="text-foreground hidden items-center gap-1 pl-2 text-xs font-semibold sm:inline-flex">
               <Zap className="text-primary size-3" aria-hidden="true" />
-              {user.rep} REP
+              {Math.max(-100, user.rep ?? 0)} REP
             </span>
             <Avatar className="border-border/50 h-8 w-8 border">
               <AvatarFallback className="bg-primary/10 text-primary text-xs font-bold">

@@ -1115,7 +1115,8 @@ export class D1QueryBuilder implements PromiseLike<
           ),
         ),
       );
-    return this.returnMutationRows(existing.map((row) => row.id));
+    const idKey = this.table === "user_points" ? "user_id" : "id";
+    return this.returnMutationRows(existing.map((row) => row[idKey]));
   }
 
   private async executeDelete(): Promise<MutationResponse> {

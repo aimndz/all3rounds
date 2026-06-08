@@ -155,6 +155,7 @@ type UserPointRow = {
 
 type VoteRow = {
   annotation_id: string;
+  value: number;
 };
 
 export function parseStoredJson(value: string) {
@@ -329,7 +330,7 @@ export async function buildAnnotationResponse(options: {
       options.currentUserId
         ? adminClient
             .from("annotation_votes")
-            .select("annotation_id")
+            .select("annotation_id, value")
             .eq("user_id", options.currentUserId)
             .in("annotation_id", annotationIds)
         : Promise.resolve({ data: [] }),
@@ -351,8 +352,8 @@ export async function buildAnnotationResponse(options: {
     current.push(reference);
     refsByAnnotation.set(reference.annotation_id, current);
   });
-  const votedIds = new Set(
-    ((voteResult.data ?? []) as VoteRow[]).map((vote) => vote.annotation_id),
+  const userVotesMap = new Map<string, number>(
+    ((voteResult.data ?? []) as VoteRow[]).map((vote) => [vote.annotation_id, vote.value ?? 1]),
   );
   const rangeByAnnotation = new Map(
     (options.ranges ?? []).map((range) => [range.annotation_id, range]),
@@ -382,7 +383,8 @@ export async function buildAnnotationResponse(options: {
       created_at: annotation.created_at,
       updated_at: annotation.updated_at,
       deleted_at: annotation.deleted_at ?? null,
-      current_user_voted: votedIds.has(annotation.id),
+      current_user_voted: userVotesMap.get(annotation.id) === 1,
+      current_user_vote_value: userVotesMap.get(annotation.id) ?? 0,
       can_edit: options.currentUserId === annotation.author_id,
       author: {
         id: annotation.author_id,

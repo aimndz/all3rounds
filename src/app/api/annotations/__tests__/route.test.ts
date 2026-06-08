@@ -201,7 +201,7 @@ describe("annotation API routes", () => {
     );
   });
 
-  it("treats duplicate upvotes from the same user as already applied", async () => {
+  it("toggles the vote off when the same vote is sent again", async () => {
     queue("annotations", [
       {
         data: {
@@ -212,7 +212,7 @@ describe("annotation API routes", () => {
         },
       },
     ]);
-    queue("annotation_votes", [{ data: { id: "vote-1" } }]);
+    queue("annotation_votes", [{ data: { id: "vote-1", value: 1 } }]);
 
     const { POST } = await import("@/app/api/annotations/[id]/vote/route");
     const res = await POST(
@@ -223,7 +223,7 @@ describe("annotation API routes", () => {
     expect(res.status).toBe(200);
     await expect(res.json()).resolves.toMatchObject({
       success: true,
-      score: 3,
+      score: 2,
     });
   });
 });

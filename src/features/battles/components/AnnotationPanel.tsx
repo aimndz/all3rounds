@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import {
   Check,
   ChevronDown,
@@ -11,7 +11,6 @@ import {
   Triangle,
   Trash2,
   X,
-  Zap,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -43,6 +42,7 @@ type Annotation = {
   score: number;
   quality_state: string;
   current_user_voted: boolean;
+  current_user_vote_value?: number;
   can_edit: boolean;
   created_at: string | number;
   author: {
@@ -164,8 +164,24 @@ function usernameLabel(annotation: Annotation) {
   return fallback.startsWith("@") ? fallback : `@${fallback}`;
 }
 
+function parseDateSafe(value: string | number) {
+  if (typeof value === "number") return new Date(value);
+  const str = String(value).trim();
+  if (/^\d+$/.test(str)) return new Date(Number(str));
+  let formatted = str;
+  if (str.length >= 10 && !str.includes("T")) {
+    formatted = str.replace(" ", "T");
+    if (!formatted.includes("+") && !formatted.endsWith("Z")) {
+      formatted += "Z";
+    }
+  }
+  const date = new Date(formatted);
+  if (!Number.isNaN(date.getTime())) return date;
+  return new Date(value);
+}
+
 function formatAnnotationAge(value: string | number) {
-  const date = new Date(value);
+  const date = parseDateSafe(value);
   if (Number.isNaN(date.getTime())) return "";
   const seconds = Math.max(0, Math.floor((Date.now() - date.getTime()) / 1000));
   if (seconds < 60) return "now";
@@ -179,7 +195,16 @@ function formatAnnotationAge(value: string | number) {
   ];
   const unit = units.find((item) => seconds >= item.seconds);
   if (!unit) return "now";
-  return `${Math.floor(seconds / unit.seconds)}${unit.label} ago`;
+  return `${Math.floor(seconds / unit.seconds)}${unit.label}`;
+}
+
+function formatScore(score: number): string {
+  if (Math.abs(score) >= 1000) {
+    const kValue = score / 1000;
+    const formatted = kValue.toFixed(1).replace(/\.0$/, "");
+    return `${formatted}k`;
+  }
+  return String(score);
 }
 
 export function AnnotationPanel({
@@ -209,6 +234,55 @@ export function AnnotationPanel({
   const [composerExpanded, setComposerExpanded] = useState(false);
   const [showFormattingTips, setShowFormattingTips] = useState(false);
   const [isReferenceExpanded, setIsReferenceExpanded] = useState(false);
+  const [voteErrors, setVoteErrors] = useState<Record<string, string>>({});
+  const [votesInFlight, setVotesInFlight] = useState<Record<string, boolean>>({});
+  const latestWantedVotes = useRef<Record<string, number>>({});
+
+  const [sortedOrder, setSortedOrder] = useState<string[]>([]);
+  const prevAnnotationsRef = useRef<Annotation[]>([]);
+  const prevSortModeRef = useRef<AnnotationSort>(sortMode);
+
+  useEffect(() => {
+    const hasSameIds = (a: Annotation[], b: Annotation[]) => {
+      if (a.length !== b.length) return false;
+      const setA = new Set(a.map((item) => item.id));
+      return b.every((item) => setA.has(item.id));
+    };
+
+    const isDifferentIds = !hasSameIds(
+      state.annotations,
+      prevAnnotationsRef.current,
+    );
+    const isDifferentSortMode = sortMode !== prevSortModeRef.current;
+
+    if (isDifferentIds || isDifferentSortMode) {
+      const sorted = [...state.annotations].sort((left, right) => {
+        if (sortMode === "newest") {
+          return (
+            parseDateSafe(right.created_at).getTime() -
+            parseDateSafe(left.created_at).getTime()
+          );
+        }
+        const leftTrusted =
+          left.quality_state === "verified" ||
+          ["trusted", "senior"].includes(left.author.trust_level);
+        const rightTrusted =
+          right.quality_state === "verified" ||
+          ["trusted", "senior"].includes(right.author.trust_level);
+        if (leftTrusted !== rightTrusted) return leftTrusted ? -1 : 1;
+        if (left.score !== right.score) return right.score - left.score;
+        return (
+          parseDateSafe(right.created_at).getTime() -
+          parseDateSafe(left.created_at).getTime()
+        );
+      });
+      setSortedOrder(sorted.map((a) => a.id));
+      prevAnnotationsRef.current = state.annotations;
+      prevSortModeRef.current = sortMode;
+    } else {
+      prevAnnotationsRef.current = state.annotations;
+    }
+  }, [state.annotations, sortMode]);
 
   const selectedLineIds = useMemo(
     () => selectedLines.map((line) => line.id),
@@ -267,27 +341,11 @@ export function AnnotationPanel({
       .join(" ");
 
   const sortedAnnotations = useMemo(() => {
-    return [...state.annotations].sort((left, right) => {
-      if (sortMode === "newest") {
-        return (
-          new Date(right.created_at).getTime() -
-          new Date(left.created_at).getTime()
-        );
-      }
-      const leftTrusted =
-        left.quality_state === "verified" ||
-        ["trusted", "senior"].includes(left.author.trust_level);
-      const rightTrusted =
-        right.quality_state === "verified" ||
-        ["trusted", "senior"].includes(right.author.trust_level);
-      if (leftTrusted !== rightTrusted) return leftTrusted ? -1 : 1;
-      if (left.score !== right.score) return right.score - left.score;
-      return (
-        new Date(right.created_at).getTime() -
-        new Date(left.created_at).getTime()
-      );
-    });
-  }, [sortMode, state.annotations]);
+    const annotationsMap = new Map(state.annotations.map((a) => [a.id, a]));
+    return sortedOrder
+      .map((id) => annotationsMap.get(id))
+      .filter((a): a is Annotation => !!a);
+  }, [sortedOrder, state.annotations]);
 
   useEffect(() => {
     if (!open || !firstLine || !lastLine) return;
@@ -349,6 +407,8 @@ export function AnnotationPanel({
     setComposerExpanded(false);
     setShowFormattingTips(false);
     setIsReferenceExpanded(false);
+    setVoteErrors({});
+    setVotesInFlight({});
   };
 
   useEffect(() => {
@@ -436,41 +496,103 @@ export function AnnotationPanel({
     }
   };
 
-  const vote = async (annotation: Annotation) => {
+  const vote = (annotation: Annotation, direction: 1 | -1) => {
     if (!isLoggedIn) {
       onRequireLogin();
       return;
     }
-    const method = annotation.current_user_voted ? "DELETE" : "POST";
-    const pointDelta = method === "POST" ? 1 : -1;
-    const res = await fetch(`/api/annotations/${annotation.id}/vote`, {
-      method,
-      headers: { "Content-Type": "application/json" },
+
+    setVoteErrors((current) => {
+      const next = { ...current };
+      delete next[annotation.id];
+      return next;
     });
-    const body = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      setState((current) => ({
-        ...current,
-        error: body.error || "Failed to update vote.",
-      }));
-      return;
-    }
+
+    const currentValue = annotation.current_user_vote_value ?? (annotation.current_user_voted ? 1 : 0);
+    const targetValue = currentValue === direction ? 0 : direction;
+    const scoreDelta = targetValue - currentValue;
+
     setState((current) => ({
       ...current,
       annotations: current.annotations.map((item) =>
         item.id === annotation.id
           ? {
               ...item,
-              score: body.score ?? item.score,
-              current_user_voted: method === "POST",
-              author: {
-                ...item.author,
-                points: Math.max(0, item.author.points + pointDelta),
-              },
+              score: item.score + scoreDelta,
+              current_user_vote_value: targetValue,
+              current_user_voted: targetValue === 1,
             }
           : item,
       ),
     }));
+
+    latestWantedVotes.current[annotation.id] = targetValue;
+
+    if (votesInFlight[annotation.id]) {
+      return;
+    }
+
+    void runVoteSyncLoop(annotation.id, targetValue);
+  };
+
+  const runVoteSyncLoop = async (annotationId: string, startValue: number) => {
+    setVotesInFlight((curr) => ({ ...curr, [annotationId]: true }));
+
+    let currentValue = startValue;
+    let keepRunning = true;
+
+    while (keepRunning) {
+      try {
+        let res: Response;
+        if (currentValue === 0) {
+          res = await fetch(`/api/annotations/${annotationId}/vote`, {
+            method: "DELETE",
+            headers: { "Content-Type": "application/json" },
+          });
+        } else {
+          res = await fetch(`/api/annotations/${annotationId}/vote`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ value: currentValue }),
+          });
+        }
+
+        const body = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          throw new Error(body.error || "Failed to update vote.");
+        }
+      } catch (error) {
+        setVoteErrors((curr) => ({
+          ...curr,
+          [annotationId]:
+            error instanceof Error ? error.message : "Failed to update vote.",
+        }));
+        setState((current) => ({
+          ...current,
+          annotations: current.annotations.map((item) => {
+            if (item.id !== annotationId) return item;
+            if (item.current_user_vote_value === currentValue) {
+              return {
+                ...item,
+                score: item.score - currentValue,
+                current_user_vote_value: 0,
+                current_user_voted: false,
+              };
+            }
+            return item;
+          }),
+        }));
+      }
+
+      const wantedValue = latestWantedVotes.current[annotationId];
+      if (wantedValue !== undefined && wantedValue !== currentValue) {
+        currentValue = wantedValue;
+      } else {
+        keepRunning = false;
+      }
+    }
+
+    setVotesInFlight((curr) => ({ ...curr, [annotationId]: false }));
   };
 
   const deleteAnnotation = async (annotationId: string) => {
@@ -490,7 +612,7 @@ export function AnnotationPanel({
 
   const content = (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="border-border/60 shrink-0 border-b px-4 py-4 pt-4 lg:pt-4">
+      <div className="border-border/60 shrink-0 border-b px-4 py-4 pt-12 lg:pt-4">
         <div className="flex items-center justify-between gap-3">
           <div>
             <p className="text-muted-foreground text-[10px] font-bold tracking-widest uppercase">
@@ -500,8 +622,11 @@ export function AnnotationPanel({
           <Button
             variant="ghost"
             size="icon-sm"
-            onClick={onClose}
-            className="hidden lg:inline-flex"
+            onClick={() => {
+              onClose();
+              onMobileOpenChange(false);
+            }}
+            className="inline-flex"
           >
             <X className="h-4 w-4" />
           </Button>
@@ -628,6 +753,7 @@ export function AnnotationPanel({
           }}
           onDelete={deleteAnnotation}
           onJumpToLine={onJumpToLine}
+          voteErrors={voteErrors}
         />
       </div>
     </div>
@@ -650,20 +776,12 @@ export function AnnotationPanel({
           "bg-background border-border/70 fixed right-0 bottom-0 left-0 z-50 h-[88dvh] max-h-[88dvh] overflow-hidden rounded-t-lg border-t shadow-2xl lg:hidden",
           "transform transition-[transform,opacity] duration-300 ease-in-out",
           mobileOpen
-            ? "visible translate-y-0 opacity-100"
-            : "invisible translate-y-full opacity-0",
+            ? "translate-y-0 opacity-100 pointer-events-auto"
+            : "translate-y-full opacity-0 pointer-events-none",
         )}
       >
         <div className="bg-muted-foreground/30 absolute top-4 left-1/2 h-1 w-10 -translate-x-1/2 rounded-full" />
         {content}
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          onClick={() => onMobileOpenChange(false)}
-          className="absolute top-4 right-3"
-        >
-          <X className="h-4 w-4" />
-        </Button>
       </div>
     </>
   );
@@ -676,13 +794,15 @@ function AnnotationList({
   onEdit,
   onDelete,
   onJumpToLine,
+  voteErrors,
 }: {
   annotations: Annotation[];
   loading: boolean;
-  onVote: (annotation: Annotation) => void;
+  onVote: (annotation: Annotation, direction: 1 | -1) => void;
   onEdit: (annotation: Annotation) => void;
   onDelete: (annotationId: string) => void;
   onJumpToLine: (lineId: number) => void;
+  voteErrors?: Record<string, string>;
 }) {
   if (loading) {
     return (
@@ -721,7 +841,7 @@ function AnnotationList({
         <article key={annotation.id} className="py-4 first:pt-2 last:pb-0">
           <div className="flex items-start justify-between gap-3">
             <div className="flex min-w-0 items-center gap-2.5">
-              <Avatar size="sm">
+              <Avatar size="default">
                 {annotation.author.image_url && (
                   <AvatarImage
                     src={annotation.author.image_url}
@@ -737,21 +857,21 @@ function AnnotationList({
                 </AvatarFallback>
               </Avatar>
               <div className="min-w-0">
-                <div className="flex min-w-0 items-center gap-2">
+                <div className="flex min-w-0 items-baseline gap-1.5 flex-wrap">
                   <p className="text-foreground/90 truncate text-xs font-normal">
                     {usernameLabel(annotation)}
                   </p>
+                  <span className="text-muted-foreground text-[11px] shrink-0">
+                    {formatAnnotationAge(annotation.created_at)}
+                  </span>
                   {annotation.quality_state !== "normal" && (
-                    <Badge variant="secondary" className="text-[9px]">
+                    <Badge variant="secondary" className="text-[9px] ml-0.5">
                       {annotation.quality_state}
                     </Badge>
                   )}
                 </div>
-                <p className="text-muted-foreground inline-flex items-center gap-1 text-[11px]">
-                  <Zap className="text-primary h-3 w-3" />
-                  <span>{annotation.author.points} rep</span>
-                  <span aria-hidden="true">•</span>
-                  <span>{formatAnnotationAge(annotation.created_at)}</span>
+                <p className="text-muted-foreground inline-flex items-center gap-1 text-[11px] mt-0.5">
+                  <span>{Math.max(-100, annotation.author.points)} REP</span>
                 </p>
               </div>
             </div>
@@ -764,47 +884,72 @@ function AnnotationList({
             />
           </div>
 
-          <div className="mt-3 flex items-center gap-1">
-            <Button
-              variant={annotation.current_user_voted ? "secondary" : "ghost"}
-              size="xs"
-              onClick={() => onVote(annotation)}
-              title="Upvote annotation"
-              className="h-6 px-2"
-            >
-              <Triangle
-                className={cn(
-                  "h-3 w-3",
-                  annotation.current_user_voted && "fill-current",
-                )}
-              />
-              {annotation.score}
-            </Button>
-            {annotation.can_edit && (
-              <DropdownMenu modal={false}>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon-xs"
-                    title="Annotation actions"
-                  >
-                    <MoreHorizontal className="h-3.5 w-3.5" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className="min-w-28">
-                  <DropdownMenuItem onSelect={() => onEdit(annotation)}>
-                    <Edit3 className="h-3.5 w-3.5" />
-                    Edit
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onSelect={() => onDelete(annotation.id)}
-                    className="text-destructive focus:text-destructive"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                    Delete
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+          <div className="mt-3">
+            <div className="flex items-center gap-1">
+              <div className="bg-muted/40 flex items-center gap-0.5 rounded-md p-0.5">
+                <Button
+                  variant={annotation.current_user_vote_value === 1 || (annotation.current_user_vote_value === undefined && annotation.current_user_voted) ? "secondary" : "ghost"}
+                  size="xs"
+                  onClick={() => onVote(annotation, 1)}
+                  title="Upvote annotation"
+                  className="h-6 w-6 p-0"
+                >
+                  <Triangle
+                    className={cn(
+                      "h-3 w-3",
+                      (annotation.current_user_vote_value === 1 || (annotation.current_user_vote_value === undefined && annotation.current_user_voted)) && "fill-current",
+                    )}
+                  />
+                </Button>
+                <span className="text-foreground min-w-5 text-center text-xs font-normal">
+                  {formatScore(annotation.score)}
+                </span>
+                <Button
+                  variant={annotation.current_user_vote_value === -1 ? "secondary" : "ghost"}
+                  size="xs"
+                  onClick={() => onVote(annotation, -1)}
+                  title="Downvote annotation"
+                  className="h-6 w-6 p-0"
+                >
+                  <Triangle
+                    className={cn(
+                      "h-3 w-3 rotate-180",
+                      annotation.current_user_vote_value === -1 && "fill-current",
+                    )}
+                  />
+                </Button>
+              </div>
+              {annotation.can_edit && (
+                <DropdownMenu modal={false}>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon-xs"
+                      title="Annotation actions"
+                    >
+                      <MoreHorizontal className="h-3.5 w-3.5" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start" className="min-w-28">
+                    <DropdownMenuItem onSelect={() => onEdit(annotation)}>
+                      <Edit3 className="h-3.5 w-3.5" />
+                      Edit
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onSelect={() => onDelete(annotation.id)}
+                      className="text-destructive focus:text-destructive"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                      Delete
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
+            </div>
+            {voteErrors?.[annotation.id] && (
+              <p className="text-destructive mt-1 text-[11px]">
+                {voteErrors[annotation.id]}
+              </p>
             )}
           </div>
         </article>

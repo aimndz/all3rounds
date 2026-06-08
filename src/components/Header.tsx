@@ -90,7 +90,7 @@ function MobileNavDrawer({
                     </p>
                     <span className="text-foreground inline-flex shrink-0 items-center gap-1 text-[10px] font-semibold">
                       <Zap className="text-primary size-3" aria-hidden="true" />
-                      {user.rep} REP
+                      {Math.max(-100, user.rep ?? 0)} REP
                     </span>
                   </div>
                 </div>
@@ -254,7 +254,7 @@ export default function Header() {
               {isUserLoggedIn && user ? (
                 <span className="text-foreground inline-flex items-center gap-1 text-xs font-semibold">
                   <Zap className="text-primary size-3" aria-hidden="true" />
-                  {user.rep} REP
+                  {Math.max(-100, user.rep ?? 0)} REP
                 </span>
               ) : null}
               <Button
