@@ -449,6 +449,7 @@ export const userProfiles = sqliteTable(
     trustLevel: text("trust_level").notNull().default("new"),
     displayName: text("display_name"),
     username: text("username"),
+    bio: text("bio"),
     createdAt: integer("created_at", { mode: "timestamp_ms" })
       .notNull()
       .default(sql`(unixepoch() * 1000)`),

@@ -17,15 +17,12 @@ export default async function ProfilePage() {
   }
 
   return (
-    <PageShell width="narrow" spacing="roomy" className="pb-16 sm:pb-20">
-      <PageStack className="gap-8">
-        <section className="max-w-3xl space-y-4">
-          <h1 className="page-heading">Profile</h1>
-          <p className="text-muted-foreground max-w-2xl text-sm leading-7 sm:text-base">
-            Choose the username that appears on public contributor surfaces.
-          </p>
-        </section>
-
+    <PageShell
+      width="narrow"
+      spacing="centered"
+      className="min-h-[calc(100vh-12rem)] pb-16"
+    >
+      <PageStack className="w-full max-w-3xl items-center">
         <ProfileForm user={user} />
       </PageStack>
     </PageShell>

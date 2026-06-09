@@ -20,6 +20,11 @@ export type AuthUser = {
   displayName: string;
   username: string | null;
   rep: number;
+  image?: string | null;
+  createdAt?: number;
+  bio?: string | null;
+  annotationCount?: number;
+  annotations?: unknown[];
 };
 
 type UserWithRoleResult = {
@@ -31,6 +36,7 @@ type UserProfile = {
   role: string;
   display_name: string | null;
   username: string | null;
+  bio: string | null;
 } | null;
 
 const PERMISSIONS: Record<string, UserRole[]> = {
@@ -89,7 +95,7 @@ async function getUserProfile(
 ): Promise<UserProfile> {
   const { data: profile } = await adminClient
     .from("user_profiles")
-    .select("role, display_name, username")
+    .select("role, display_name, username, bio")
     .eq("id", userId)
     .single();
 
@@ -97,10 +103,17 @@ async function getUserProfile(
 }
 
 function buildAuthResult(
-  user: { id: string; email: string; name?: string | null },
+  user: {
+    id: string;
+    email: string;
+    name?: string | null;
+    image?: string | null;
+    createdAt?: Date;
+  },
   profile: UserProfile,
   rep = 0,
   username?: string | null,
+  annotationCount = 0,
 ): UserWithRoleResult {
   const role = (profile?.role ?? "viewer") as UserRole;
 
@@ -116,6 +129,10 @@ function buildAuthResult(
         "User",
       username: username ?? profile?.username ?? null,
       rep,
+      image: user.image ?? null,
+      createdAt: user.createdAt ? user.createdAt.getTime() : Date.now(),
+      bio: profile?.bio ?? null,
+      annotationCount,
     },
     role,
   };
@@ -164,16 +181,48 @@ export async function getUserWithRole(): Promise<{
         profile?.display_name ??
         session.user.name ??
         session.user.email.split("@")[0];
-      const [directRep, contributor] = await Promise.all([
+      const [directRep, contributor, annotationCountResult] = await Promise.all([
         getContributorRepForUser(session.user.id),
         findContributorLeaderboardIdentity({
           userId: session.user.id,
           username: profile?.username,
           displayName,
         }),
+        adminClient
+          .from("annotations")
+          .select("*", { count: "exact", head: true })
+          .eq("author_id", session.user.id),
       ]);
       const rep = contributor?.rep ?? directRep;
-      return buildAuthResult(session.user, profile, rep, contributor?.username);
+      const annotationCount = annotationCountResult?.count ?? 0;
+
+      let resolvedProfile = profile;
+      if (
+        !profile?.bio &&
+        contributor &&
+        contributor.user_id !== session.user.id
+      ) {
+        const linkedProfile = await getUserProfile(
+          adminClient,
+          contributor.user_id,
+        );
+        if (linkedProfile?.bio) {
+          resolvedProfile = {
+            role: profile?.role ?? linkedProfile.role,
+            display_name: profile?.display_name ?? linkedProfile.display_name,
+            username: profile?.username ?? linkedProfile.username,
+            bio: linkedProfile.bio,
+          };
+        }
+      }
+
+      return buildAuthResult(
+        session.user,
+        resolvedProfile,
+        rep,
+        contributor?.username,
+        annotationCount,
+      );
     }
 
     return { user: null, role: "viewer" };

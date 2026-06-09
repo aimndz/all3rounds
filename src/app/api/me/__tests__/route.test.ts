@@ -4,6 +4,23 @@ vi.mock("@/lib/auth", () => ({
   getUserWithRole: vi.fn(),
 }));
 
+const mockFrom = vi.fn(() => {
+  const chain = {
+    select: vi.fn(() => chain),
+    eq: vi.fn(() => chain),
+    in: vi.fn(() => chain),
+    order: vi.fn(() => chain),
+    then: vi.fn((resolve) => resolve({ data: [], error: null })),
+  };
+  return chain;
+});
+
+vi.mock("@/db/d1-client", () => ({
+  createAdminClient: vi.fn(() => ({
+    from: mockFrom,
+  })),
+}));
+
 import { getUserWithRole } from "@/lib/auth";
 import { GET } from "@/app/api/me/route";
 
