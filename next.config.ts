@@ -1,9 +1,11 @@
 import type { NextConfig } from "next";
 import { initOpenNextCloudflareForDev } from "@opennextjs/cloudflare";
+import { getLocalIPs } from "./src/lib/dev-utils";
 
 initOpenNextCloudflareForDev();
 
 const nextConfig: NextConfig = {
+  allowedDevOrigins: [...getLocalIPs()],
   output: "standalone",
   reactCompiler: true,
   images: {

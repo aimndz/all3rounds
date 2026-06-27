@@ -29,7 +29,6 @@ import {
   Maximize2,
   Minimize2,
   ArrowUp,
-  MessageSquarePlus,
 } from "lucide-react";
 import { YouTubeIcon } from "@/components/icons/YouTubeIcon";
 import Footer from "@/components/Footer";
@@ -44,6 +43,7 @@ import { LineItem } from "@/features/battles/components/LineItem";
 import { AnnotationPanel } from "@/features/battles/components/AnnotationPanel";
 import { InlineBattleStatusSelect } from "@/features/battles/components/InlineBattleStatusSelect";
 import { useBattleData } from "@/features/battles/hooks/use-battle-data";
+
 import type {
   BattleLine,
   BattleData,
@@ -249,6 +249,11 @@ export default function BattleClient({
   const [annotationActionPosition, setAnnotationActionPosition] = useState<{
     top: number;
     left: number;
+  } | null>(null);
+
+  const activeDragRef = useRef<{
+    boundary: "start" | "end";
+    pointerId: number;
   } | null>(null);
 
   const isLargeScreen = useSyncExternalStore(
@@ -846,20 +851,23 @@ export default function BattleClient({
     selectedAnnotationLines.length > 0 &&
     !hasAnnotationPanel;
 
-  const readLineTextSelection = useCallback(() => {
-    const selection = window.getSelection();
-    if (!selection || selection.isCollapsed || selection.rangeCount === 0) {
+  const readLineTextSelection = useCallback((rangeParam?: Range | null) => {
+    const activeRange =
+      rangeParam ||
+      (typeof window !== "undefined" && window.getSelection()?.rangeCount
+        ? window.getSelection()?.getRangeAt(0)
+        : null);
+    if (!activeRange || activeRange.collapsed) {
       return null;
     }
 
-    const rawSelectedText = selection.toString();
+    const rawSelectedText = activeRange.toString();
     const selectedText = rawSelectedText.trim();
     if (!selectedText) return null;
 
-    const range = selection.getRangeAt(0);
     const textEls = Array.from(
       document.querySelectorAll<HTMLElement>("[data-line-text-id]"),
-    ).filter((element) => range.intersectsNode(element));
+    ).filter((element) => activeRange.intersectsNode(element));
     if (textEls.length === 0) return null;
 
     const offsetWithin = (
@@ -868,7 +876,7 @@ export default function BattleClient({
       offset: number,
     ) => {
       if (!element.contains(container)) return null;
-      const preSelectionRange = range.cloneRange();
+      const preSelectionRange = activeRange.cloneRange();
       preSelectionRange.selectNodeContents(element);
       preSelectionRange.setEnd(container, offset);
       return preSelectionRange.toString().length;
@@ -880,10 +888,17 @@ export default function BattleClient({
       if (!Number.isFinite(lineId) || !content) return [];
 
       const rawStart =
-        offsetWithin(element, range.startContainer, range.startOffset) ?? 0;
+        offsetWithin(
+          element,
+          activeRange.startContainer,
+          activeRange.startOffset,
+        ) ?? 0;
       const rawEnd =
-        offsetWithin(element, range.endContainer, range.endOffset) ??
-        content.length;
+        offsetWithin(
+          element,
+          activeRange.endContainer,
+          activeRange.endOffset,
+        ) ?? content.length;
       const baseStart = Math.max(0, Math.min(rawStart, content.length));
       const baseEnd = Math.max(baseStart, Math.min(rawEnd, content.length));
       const rawText = content.slice(baseStart, baseEnd);
@@ -907,14 +922,15 @@ export default function BattleClient({
 
     const updateActionPosition = () => {
       const container = transcriptContainerRef.current;
-      const firstSelectedLine = selectedAnnotationLines[0];
-      if (!container || !firstSelectedLine) {
+      const lastSelectedLine =
+        selectedAnnotationLines[selectedAnnotationLines.length - 1];
+      if (!container || !lastSelectedLine) {
         setAnnotationActionPosition(null);
         return;
       }
 
       const lineEl = container.querySelector(
-        `[data-line-id="${firstSelectedLine.id}"]`,
+        `[data-line-id="${lastSelectedLine.id}"]`,
       ) as HTMLElement | null;
       if (!lineEl) {
         setAnnotationActionPosition(null);
@@ -962,7 +978,91 @@ export default function BattleClient({
     );
     setIsAnnotationPanelOpen(false);
     setIsAnnotationMobileOpen(false);
+
+    // Clear native DOM selection so the browser dismisses the native copy/paste context menu.
+    window.getSelection()?.removeAllRanges();
   }, [editMode, readLineTextSelection]);
+
+  const activeDOMRangeRef = useRef<Range | null>(null);
+
+  useEffect(() => {
+    const handleSelectionChange = () => {
+      const selection = window.getSelection();
+      if (selection && !selection.isCollapsed && selection.rangeCount > 0) {
+        activeDOMRangeRef.current = selection.getRangeAt(0).cloneRange();
+      } else {
+        activeDOMRangeRef.current = null;
+      }
+    };
+    document.addEventListener("selectionchange", handleSelectionChange);
+    return () => {
+      document.removeEventListener("selectionchange", handleSelectionChange);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (editMode) return;
+
+    const handleDocumentSelectionEnd = (e: Event) => {
+      const savedRange = activeDOMRangeRef.current;
+      if (!savedRange || savedRange.collapsed) {
+        return;
+      }
+
+      const textSelection = readLineTextSelection(savedRange);
+      if (textSelection && textSelection.length > 0) {
+        // Prevent default native menu activation
+        e.preventDefault();
+
+        setAnnotationTextSelection(textSelection);
+        setAnnotationSelectedIds(
+          new Set(textSelection.map((target) => target.lineId)),
+        );
+        setIsAnnotationPanelOpen(false);
+        setIsAnnotationMobileOpen(false);
+
+        // Clear DOM selection immediately and synchronously to suppress native edit menu
+        window.getSelection()?.removeAllRanges();
+        activeDOMRangeRef.current = null;
+      }
+    };
+
+    document.addEventListener("pointerup", handleDocumentSelectionEnd);
+    document.addEventListener("touchend", handleDocumentSelectionEnd);
+    return () => {
+      document.removeEventListener("pointerup", handleDocumentSelectionEnd);
+      document.removeEventListener("touchend", handleDocumentSelectionEnd);
+    };
+  }, [editMode, readLineTextSelection]);
+
+  const clearAnnotationSelection = useCallback(() => {
+    setAnnotationSelectedIds(new Set());
+    setAnnotationTextSelection([]);
+    setIsAnnotationPanelOpen(false);
+    setIsAnnotationMobileOpen(false);
+  }, []);
+
+  useEffect(() => {
+    if (editMode) return;
+
+    const handleDocumentPointerDown = (e: PointerEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (
+        target?.closest("[data-drag-handle]") ||
+        target?.closest("[data-custom-popup]")
+      ) {
+        return;
+      }
+      if (annotationTextSelection.length > 0) {
+        clearAnnotationSelection();
+      }
+    };
+
+    document.addEventListener("pointerdown", handleDocumentPointerDown);
+    return () => {
+      document.removeEventListener("pointerdown", handleDocumentPointerDown);
+    };
+  }, [editMode, annotationTextSelection.length, clearAnnotationSelection]);
 
   const openAnnotationsForLine = useCallback(
     (lineId: number) => {
@@ -989,12 +1089,255 @@ export default function BattleClient({
     setIsAnnotationMobileOpen(false);
   }, []);
 
-  const clearAnnotationSelection = useCallback(() => {
-    setAnnotationSelectedIds(new Set());
-    setAnnotationTextSelection([]);
-    setIsAnnotationPanelOpen(false);
-    setIsAnnotationMobileOpen(false);
-  }, []);
+  const handleCopySelection = useCallback(() => {
+    const selectedText = annotationTextSelection
+      .map((target) => target.text)
+      .join("\n");
+    if (!selectedText) return;
+
+    navigator.clipboard
+      .writeText(selectedText)
+      .then(() => {
+        toast({
+          title: "Copied to Clipboard",
+          description: "The selected text has been copied.",
+        });
+        clearAnnotationSelection();
+      })
+      .catch((err) => {
+        console.error("Failed to copy:", err);
+        toast({
+          variant: "destructive",
+          title: "Copy Failed",
+          description: "Could not copy text to clipboard.",
+        });
+      });
+  }, [annotationTextSelection, clearAnnotationSelection, toast]);
+
+  const handleShareSelection = useCallback(() => {
+    const selectedText = annotationTextSelection
+      .map((target) => target.text)
+      .join("\n");
+    if (!selectedText) return;
+
+    if (navigator.share) {
+      navigator
+        .share({
+          text: selectedText,
+          url: window.location.href,
+        })
+        .then(() => {
+          clearAnnotationSelection();
+        })
+        .catch((err) => {
+          if (err.name !== "AbortError") {
+            console.error("Failed to share:", err);
+            toast({
+              variant: "destructive",
+              title: "Share Failed",
+              description: "Could not share the selection.",
+            });
+          }
+        });
+    } else {
+      // Fallback: Copy link to clipboard
+      navigator.clipboard
+        .writeText(window.location.href)
+        .then(() => {
+          toast({
+            title: "Link Copied",
+            description: "Share link has been copied to clipboard.",
+          });
+          clearAnnotationSelection();
+        })
+        .catch((err) => {
+          console.error("Failed to copy link:", err);
+        });
+    }
+  }, [annotationTextSelection, clearAnnotationSelection, toast]);
+
+  const comparePositions = useCallback(
+    (lineIdA: number, offsetA: number, lineIdB: number, offsetB: number) => {
+      if (lineIdA === lineIdB) {
+        return offsetA - offsetB;
+      }
+      const idxA = lines.findIndex((l) => l.id === lineIdA);
+      const idxB = lines.findIndex((l) => l.id === lineIdB);
+      return idxA - idxB;
+    },
+    [lines],
+  );
+
+  const updateSelectionBoundary = useCallback(
+    (boundary: "start" | "end", newLineId: number, newOffset: number) => {
+      if (annotationTextSelection.length === 0) return;
+      const currentStartTarget = annotationTextSelection[0];
+      const currentEndTarget =
+        annotationTextSelection[annotationTextSelection.length - 1];
+
+      let lineId = newLineId;
+      let offset = newOffset;
+
+      if (boundary === "start") {
+        if (
+          comparePositions(
+            lineId,
+            offset,
+            currentEndTarget.lineId,
+            currentEndTarget.end,
+          ) >= 0
+        ) {
+          lineId = currentEndTarget.lineId;
+          offset = Math.max(0, currentEndTarget.end - 1);
+        }
+
+        const startLineIdx = lines.findIndex((l) => l.id === lineId);
+        const endLineIdx = lines.findIndex(
+          (l) => l.id === currentEndTarget.lineId,
+        );
+        if (startLineIdx === -1 || endLineIdx === -1) return;
+        const selectedLines = lines.slice(startLineIdx, endLineIdx + 1);
+
+        const newTargets = selectedLines.map((line, idx) => {
+          const content = line.content;
+          const start = idx === 0 ? offset : 0;
+          const end =
+            idx === selectedLines.length - 1
+              ? currentEndTarget.end
+              : content.length;
+          return {
+            lineId: line.id,
+            start,
+            end,
+            text: content.slice(start, end),
+          };
+        });
+
+        setAnnotationTextSelection(newTargets);
+        setAnnotationSelectedIds(new Set(newTargets.map((t) => t.lineId)));
+      } else {
+        if (
+          comparePositions(
+            lineId,
+            offset,
+            currentStartTarget.lineId,
+            currentStartTarget.start,
+          ) <= 0
+        ) {
+          lineId = currentStartTarget.lineId;
+          const lineContentLength =
+            lines.find((l) => l.id === lineId)?.content.length ?? 0;
+          offset = Math.min(lineContentLength, currentStartTarget.start + 1);
+        }
+
+        const startLineIdx = lines.findIndex(
+          (l) => l.id === currentStartTarget.lineId,
+        );
+        const endLineIdx = lines.findIndex((l) => l.id === lineId);
+        if (startLineIdx === -1 || endLineIdx === -1) return;
+        const selectedLines = lines.slice(startLineIdx, endLineIdx + 1);
+
+        const newTargets = selectedLines.map((line, idx) => {
+          const content = line.content;
+          const start = idx === 0 ? currentStartTarget.start : 0;
+          const end =
+            idx === selectedLines.length - 1 ? offset : content.length;
+          return {
+            lineId: line.id,
+            start,
+            end,
+            text: content.slice(start, end),
+          };
+        });
+
+        setAnnotationTextSelection(newTargets);
+        setAnnotationSelectedIds(new Set(newTargets.map((t) => t.lineId)));
+      }
+    },
+    [annotationTextSelection, comparePositions, lines],
+  );
+
+  const handleDragHandleStart = useCallback(
+    (e: React.PointerEvent, boundary: "start" | "end") => {
+      e.preventDefault();
+      e.stopPropagation();
+      e.currentTarget.setPointerCapture(e.pointerId);
+      activeDragRef.current = {
+        boundary,
+        pointerId: e.pointerId,
+      };
+
+      const handlePointerMove = (moveEvt: PointerEvent) => {
+        if (
+          !activeDragRef.current ||
+          activeDragRef.current.pointerId !== moveEvt.pointerId
+        )
+          return;
+
+        let range: Range | null = null;
+        if (document.caretRangeFromPoint) {
+          range = document.caretRangeFromPoint(
+            moveEvt.clientX,
+            moveEvt.clientY,
+          );
+        } else if (document.caretPositionFromPoint) {
+          const position = document.caretPositionFromPoint(
+            moveEvt.clientX,
+            moveEvt.clientY,
+          );
+          if (position) {
+            range = document.createRange();
+            range.setStart(position.offsetNode, position.offset);
+            range.setEnd(position.offsetNode, position.offset);
+          }
+        }
+        if (!range) return;
+
+        let node: Node | null = range.startContainer;
+        let textEl: HTMLElement | null = null;
+        while (node) {
+          if (
+            node instanceof HTMLElement &&
+            node.hasAttribute("data-line-text-id")
+          ) {
+            textEl = node;
+            break;
+          }
+          node = node.parentNode;
+        }
+        if (!textEl) return;
+
+        const lineId = Number(textEl.dataset.lineTextId);
+        const preRange = document.createRange();
+        preRange.selectNodeContents(textEl);
+        preRange.setEnd(range.startContainer, range.startOffset);
+        const offset = preRange.toString().length;
+
+        updateSelectionBoundary(activeDragRef.current.boundary, lineId, offset);
+      };
+
+      const handlePointerUp = (upEvt: PointerEvent) => {
+        if (
+          activeDragRef.current &&
+          activeDragRef.current.pointerId === upEvt.pointerId
+        ) {
+          const target = upEvt.currentTarget as HTMLElement;
+          if (target && typeof target.releasePointerCapture === "function") {
+            target.releasePointerCapture(upEvt.pointerId);
+          }
+          activeDragRef.current = null;
+        }
+        document.removeEventListener("pointermove", handlePointerMove);
+        document.removeEventListener("pointerup", handlePointerUp);
+        document.removeEventListener("pointercancel", handlePointerUp);
+      };
+
+      document.addEventListener("pointermove", handlePointerMove);
+      document.addEventListener("pointerup", handlePointerUp);
+      document.addEventListener("pointercancel", handlePointerUp);
+    },
+    [updateSelectionBoundary],
+  );
 
   const handleJumpToAnnotationLine = useCallback(
     (lineId: number) => {
@@ -1289,12 +1632,12 @@ export default function BattleClient({
                   {/* First Row: Title and Buttons */}
                   <div className="flex items-center justify-between gap-4">
                     {/* Mobile View: Clickable container wrapping both Title and YouTube Icon */}
-                    <div className="flex items-center gap-2 min-w-0 sm:hidden">
+                    <div className="flex min-w-0 items-center gap-2 sm:hidden">
                       <a
                         href={battle.url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-muted-foreground hover:text-foreground inline-flex items-center gap-2 min-w-0"
+                        className="text-muted-foreground hover:text-foreground inline-flex min-w-0 items-center gap-2"
                         title="Watch on YouTube"
                       >
                         <h1
@@ -1309,19 +1652,19 @@ export default function BattleClient({
 
                     {/* Desktop View: Static Title */}
                     <h1
-                      className="text-foreground truncate text-[16px] font-semibold tracking-tight sm:text-xl hidden sm:block"
+                      className="text-foreground hidden truncate text-[16px] font-semibold tracking-tight sm:block sm:text-xl"
                       title={battle.title}
                     >
                       {battle.title}
                     </h1>
 
                     {/* Desktop View: Separate YouTube Button */}
-                    <div className="hidden sm:flex shrink-0 items-center gap-1.5 sm:gap-2">
+                    <div className="hidden shrink-0 items-center gap-1.5 sm:flex sm:gap-2">
                       <a
                         href={battle.url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 transition-colors sm:h-9 sm:border-border sm:border sm:px-4 sm:rounded-md sm:hover:bg-muted sm:text-xs sm:font-bold"
+                        className="text-muted-foreground hover:text-foreground sm:border-border sm:hover:bg-muted inline-flex items-center gap-1.5 transition-colors sm:h-9 sm:rounded-md sm:border sm:px-4 sm:text-xs sm:font-bold"
                         title="Watch on YouTube"
                       >
                         <YouTubeIcon className="h-4 w-4" />
@@ -1545,7 +1888,8 @@ export default function BattleClient({
 
               {showAnnotationAction && annotationActionPosition && (
                 <div
-                  className="bg-background border-border absolute z-50 flex items-center gap-1 rounded-full border px-1.5 py-1 shadow-xl"
+                  data-custom-popup="true"
+                  className="bg-card/95 border-border animate-in fade-in-50 zoom-in-95 absolute z-50 flex items-center gap-1 rounded-full border px-1.5 py-1 shadow-xl backdrop-blur-sm duration-100"
                   style={{
                     top: annotationActionPosition.top,
                     left: annotationActionPosition.left,
@@ -1557,9 +1901,25 @@ export default function BattleClient({
                     onClick={openAnnotationComposer}
                     className="hover:bg-muted h-7 rounded-full px-2 text-xs"
                   >
-                    <MessageSquarePlus className="h-3.5 w-3.5" />
                     Annotate
                   </Button>
+                  <Button
+                    variant="ghost"
+                    size="xs"
+                    onClick={handleCopySelection}
+                    className="hover:bg-muted h-7 rounded-full px-2 text-xs"
+                  >
+                    Copy
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="xs"
+                    onClick={handleShareSelection}
+                    className="hover:bg-muted h-7 rounded-full px-2 text-xs"
+                  >
+                    Share
+                  </Button>
+                  <div className="bg-border mx-0.5 h-4 w-px" />
                   <Button
                     variant="ghost"
                     size="icon-xs"
@@ -1813,6 +2173,19 @@ export default function BattleClient({
                                                     text: target.selected_text,
                                                   }),
                                                 )}
+                                                isSelectionStartLine={
+                                                  annotationTextSelection[0]
+                                                    ?.lineId === line.id
+                                                }
+                                                isSelectionEndLine={
+                                                  annotationTextSelection[
+                                                    annotationTextSelection.length -
+                                                      1
+                                                  ]?.lineId === line.id
+                                                }
+                                                onDragHandleStart={
+                                                  handleDragHandleStart
+                                                }
                                               />
                                             </div>
                                           );

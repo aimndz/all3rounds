@@ -43,6 +43,9 @@ type LineItemProps = {
     end: number | null;
     text?: string | null;
   }[];
+  isSelectionStartLine?: boolean;
+  isSelectionEndLine?: boolean;
+  onDragHandleStart?: (e: React.PointerEvent, boundary: "start" | "end") => void;
 };
 
 function buildTextHighlightRanges({
@@ -106,12 +109,18 @@ function renderHighlightedText({
   lineId,
   isLineLastClicked,
   onSavedHighlightClick,
+  isSelectionStartLine,
+  isSelectionEndLine,
+  onDragHandleStart,
 }: {
   content: string;
   ranges: { start: number; end: number; selected: boolean }[];
   lineId: number;
   isLineLastClicked: boolean;
   onSavedHighlightClick?: (id: number) => void;
+  isSelectionStartLine?: boolean;
+  isSelectionEndLine?: boolean;
+  onDragHandleStart?: (e: React.PointerEvent, boundary: "start" | "end") => void;
 }) {
   if (ranges.length === 0) return content;
 
@@ -122,11 +131,54 @@ function renderHighlightedText({
       parts.push(content.slice(cursor, range.start));
     }
     const isSavedHighlight = !range.selected;
-    parts.push(
+    const contentText = content.slice(range.start, range.end);
+    let markContent: ReactNode = contentText;
+
+    if (range.selected && onDragHandleStart && (isSelectionStartLine || isSelectionEndLine)) {
+      markContent = (
+        <span className="inline">
+          {isSelectionStartLine && (
+            <span className="relative w-0 h-0 inline-block">
+              <span
+                data-drag-handle="true"
+                className="absolute -left-1 -top-3 w-3 h-5 cursor-col-resize z-30 select-none flex items-center justify-center touch-none"
+                onPointerDown={(e) => {
+                  e.stopPropagation();
+                  onDragHandleStart(e, "start");
+                }}
+              >
+                <span className="w-0.5 h-full bg-primary relative">
+                  <span className="absolute top-0 left-1/2 -translate-x-1/2 w-2.5 h-2.5 bg-primary rounded-full shadow-md" />
+                </span>
+              </span>
+            </span>
+          )}
+          {contentText}
+          {isSelectionEndLine && (
+            <span className="relative w-0 h-0 inline-block">
+              <span
+                data-drag-handle="true"
+                className="absolute -left-1 -top-1 w-3 h-5 cursor-col-resize z-30 select-none flex items-center justify-center touch-none"
+                onPointerDown={(e) => {
+                  e.stopPropagation();
+                  onDragHandleStart(e, "end");
+                }}
+              >
+                <span className="w-0.5 h-full bg-primary relative">
+                  <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-2.5 h-2.5 bg-primary rounded-full shadow-md" />
+                </span>
+              </span>
+            </span>
+          )}
+        </span>
+      );
+    }
+
+    const highlightElement = (
       <mark
         key={`${range.start}-${range.end}-${index}`}
         className={cn(
-          "box-decoration-clone bg-[#3e3e3e] p-1 text-foreground [-webkit-box-decoration-break:clone] selection:bg-[#3e3e3e] selection:text-foreground",
+          "box-decoration-clone bg-[#3e3e3e] text-foreground [-webkit-box-decoration-break:clone] selection:bg-[#3e3e3e] selection:text-foreground",
           range.selected && "bg-[#565656] selection:bg-[#565656]",
           isSavedHighlight &&
             isLineLastClicked &&
@@ -149,9 +201,12 @@ function renderHighlightedText({
           onSavedHighlightClick(lineId);
         }}
       >
-        {content.slice(range.start, range.end)}
-      </mark>,
+        {markContent}
+      </mark>
     );
+
+    parts.push(highlightElement);
+
     cursor = range.end;
   });
   if (cursor < content.length) {
@@ -189,6 +244,9 @@ export const LineItem = memo(
     isAnnotationSelected,
     annotationTextRange,
     annotationTextRanges,
+    isSelectionStartLine,
+    isSelectionEndLine,
+    onDragHandleStart,
   }: LineItemProps) => {
     const selectedTextRange = isAnnotationSelected ? annotationTextRange : null;
     const renderedLineContent = renderHighlightedText({
@@ -201,6 +259,9 @@ export const LineItem = memo(
         savedRanges: annotationTextRanges,
         selectedRange: selectedTextRange,
       }),
+      isSelectionStartLine,
+      isSelectionEndLine,
+      onDragHandleStart,
     });
 
     return (
