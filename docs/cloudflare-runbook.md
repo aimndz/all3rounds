@@ -9,6 +9,81 @@ This document captures Cloudflare configuration that is not fully represented in
 - Config file: `wrangler.json`
 - Build path currently used for preview and deploy: `pnpm build:wp`
 
+## D1 Migrations And Recovery
+
+Run the commands below from `apps/`. D1 schema history lives in `migrations/`,
+and Wrangler records successful filenames in each database's `d1_migrations` table.
+
+### Build-local Versus Remote Dev
+
+`pnpm build:wp` applies migrations with `--local` before Next/OpenNext compilation.
+That prepares the build machine's local D1 database; it does not migrate the
+deployed Worker database. A migration error during this step does not establish
+that remote dev D1 is broken. Clearing build caches cannot fix conflicting SQL.
+
+Remote development uses `all3rounds-dev` in the `development_remote` environment.
+Inspect and migrate it explicitly, independently of a successful local build.
+Production is a separate database and is outside this dev recovery procedure.
+
+### Duplicate Annotation Columns In 0010
+
+`0009_annotations.sql` already creates `start_text_offset`, `end_text_offset`, and
+`selected_text`. The original `0010_annotation_text_targets.sql` tried to add the
+same columns again, causing `duplicate column name: start_text_offset` even on a
+fresh database. The repaired `0010` selects those columns with `LIMIT 0`: it
+validates their presence without changing data. The migration name and `0009`
+remain unchanged, so databases stopped after `0009` can resume normally.
+
+See [the repair decision](adr/0001-validate-existing-annotation-text-targets.md).
+Wrangler retains earlier successful migrations when a later migration fails;
+see [Cloudflare's migration behavior](https://developers.cloudflare.com/d1/wrangler-commands/#d1-migrations-apply).
+
+1. Check out the corrected commit and verify locally:
+
+   ```sh
+   pnpm exec vitest run src/db/__tests__/migrations.test.ts
+   pnpm typecheck
+   pnpm build:wp
+   ```
+
+   The integration tests use temporary local databases, not the app's `.wrangler`
+   state or remote bindings. Retry the dev dashboard build with the corrected
+   commit. Do not reset a database or remove its migration history.
+
+2. Before any remote dev change, inspect schema and history:
+
+   ```sh
+   pnpm exec wrangler d1 execute all3rounds-dev --env development_remote --remote --command "PRAGMA table_info(annotation_line_ranges); SELECT name FROM d1_migrations ORDER BY id;" --json
+   pnpm exec wrangler d1 migrations list all3rounds-dev --env development_remote --remote
+   ```
+
+   Confirm `0009` is recorded and the three target columns exist, with types
+   `INTEGER`, `INTEGER`, and `TEXT` respectively. If the schema or ledger is
+   missing or inconsistent, stop and investigate; do not mark migrations applied
+   manually. If `0010` is already recorded, do not replay it. Any other pending
+   changes need their own rollout review.
+
+3. If `0010` is pending and the schema matches, review the pending list before
+   running `pnpm db:migrate:dev`. This command applies **all** pending migrations,
+   not only `0010`; this repair's regression coverage includes `0011` and `0012`.
+   Capture a dev backup before applying:
+
+   ```sh
+   pnpm exec wrangler d1 export all3rounds-dev --env development_remote --remote --output .wrangler/dev-before-0010.sql
+   pnpm db:migrate:dev
+   ```
+
+   Keep that backup local and out of commits. Recheck the migration list and
+   schema afterward. A second apply should report no migrations to apply.
+
+4. After the dev Worker rebuild succeeds, verify an existing annotation still
+   displays its selected text and create a test annotation targeting selected
+   transcript text. Confirm its selection survives a page reload.
+
+If `0010` now reports a missing column, its validation is exposing a schema that
+does not match this repository's `0009`. Stop for explicit schema reconciliation;
+do not suppress the failure or delete existing data.
+
 ## Workers And Environments
 
 Known Worker names from `wrangler.json`:
