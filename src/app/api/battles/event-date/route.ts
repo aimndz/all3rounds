@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createAdminClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/db/d1-client";
 import { requirePermission } from "@/lib/auth";
 import { verifyCsrf } from "@/lib/csrf";
 import { z } from "zod";
@@ -68,11 +68,11 @@ export async function PATCH(request: NextRequest) {
 
     const { eventName, newDate, battleIds } = parsed.data;
 
-    const supabaseAdmin = createAdminClient();
+    const adminClient = createAdminClient();
 
     // ── Mode 2: Specific battles ──
     if (Array.isArray(battleIds) && battleIds.length > 0) {
-      const { data: updated, error } = await supabaseAdmin
+      const { data: updated, error } = await adminClient
         .from("battles")
         .update({ event_date: newDate })
         .in("id", battleIds)
@@ -95,7 +95,7 @@ export async function PATCH(request: NextRequest) {
     // ── Mode 1: All battles in a named event ──
 
     // Build the update query
-    let query = supabaseAdmin.from("battles").update({ event_date: newDate });
+    let query = adminClient.from("battles").update({ event_date: newDate });
 
     if (eventName === "Other Battles") {
       query = query.is("event_name", null);

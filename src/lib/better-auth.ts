@@ -2,7 +2,8 @@ import { betterAuth as createBetterAuth } from "better-auth";
 import { drizzleAdapter } from "@better-auth/drizzle-adapter";
 import { getDb } from "@/db/client";
 import { accounts, sessions, users, verifications } from "@/db/schema";
-import { createAdminClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/db/d1-client";
+import { defaultUsernameForUserId } from "@/lib/user-profile";
 
 export function getBetterAuth() {
   return createBetterAuth({
@@ -26,13 +27,16 @@ export function getBetterAuth() {
       user: {
         create: {
           async after(user) {
-            await createAdminClient().from("user_profiles").upsert(
-              {
-                id: user.id,
-                display_name: user.name || user.email.split("@")[0] || "User",
-              },
-              { onConflict: "id", ignoreDuplicates: true },
-            );
+            await createAdminClient()
+              .from("user_profiles")
+              .upsert(
+                {
+                  id: user.id,
+                  username: defaultUsernameForUserId(user.id),
+                  display_name: user.name || user.email.split("@")[0] || "User",
+                },
+                { onConflict: "id", ignoreDuplicates: true },
+              );
           },
         },
       },

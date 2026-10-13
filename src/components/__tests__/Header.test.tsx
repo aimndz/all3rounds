@@ -20,7 +20,7 @@ vi.mock("next/link", () => ({
     </a>
   ),
 }));
-// Mock AuthButton to avoid Supabase client init
+// Mock AuthButton to keep header tests focused on navigation.
 vi.mock("@/components/AuthButton", () => ({
   default: () => <button>Sign In</button>,
 }));

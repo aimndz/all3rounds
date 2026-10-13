@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createClient } from "@/db/d1-client";
 import { hasOnlySearchParams } from "@/lib/api-utils";
 import type { SearchResult, BattleStatus } from "@/lib/types";
 
@@ -60,7 +60,7 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const supabase = await createClient();
+  const dbClient = await createClient();
 
   let data: SearchRpcRow[] = [];
   let countRows = 0;
@@ -70,7 +70,7 @@ export async function GET(request: NextRequest) {
       data: searchData,
       error: searchError,
       count,
-    } = await supabase
+    } = await dbClient
       .rpc("search_fast", { search_term: query }, { count: "exact" })
       .range(offset, offset + limit - 1);
 
@@ -148,20 +148,20 @@ export async function GET(request: NextRequest) {
 
       const [participantsResult, contextResult, battleRoutesResult] = await Promise.all([
         uniqueBattleIds.length > 0
-          ? supabase
+          ? dbClient
               .from("battle_participants")
               .select("battle_id, label, emcee:emcees(id, name)")
               .in("battle_id", uniqueBattleIds)
           : Promise.resolve({ data: [] as ParticipantRow[] | null }),
 
         contextLineIds.length > 0
-          ? supabase
+          ? dbClient
               .from("lines")
               .select("id, content, battle_id, speaker_label, round_number")
               .in("id", contextLineIds)
           : Promise.resolve({ data: [] as LineRow[] | null }),
         uniqueBattleIds.length > 0
-          ? supabase
+          ? dbClient
               .from("battles")
               .select("id, league, slug")
               .in("id", uniqueBattleIds)

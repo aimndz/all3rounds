@@ -180,6 +180,12 @@ export default async function RootLayout({
                   name: "Emcees",
                   url: `${siteUrl}/emcees`,
                 },
+                {
+                  "@type": "SiteNavigationElement",
+                  position: 5,
+                  name: "Contributors",
+                  url: `${siteUrl}/contributors`,
+                },
               ],
             }),
           }}

@@ -55,8 +55,14 @@ export const divisions = sqliteTable(
       .default(sql`(unixepoch() * 1000)`),
   },
   (table) => ({
-    routeKey: uniqueIndex("divisions_league_slug_key").on(table.league, table.slug),
-    leagueNameIdx: index("idx_divisions_league_name").on(table.league, table.name),
+    routeKey: uniqueIndex("divisions_league_slug_key").on(
+      table.league,
+      table.slug,
+    ),
+    leagueNameIdx: index("idx_divisions_league_name").on(
+      table.league,
+      table.name,
+    ),
   }),
 );
 
@@ -69,7 +75,9 @@ export const emceeDivisions = sqliteTable(
     divisionId: text("division_id")
       .notNull()
       .references(() => divisions.id, { onDelete: "cascade" }),
-    isPrimary: integer("is_primary", { mode: "boolean" }).notNull().default(false),
+    isPrimary: integer("is_primary", { mode: "boolean" })
+      .notNull()
+      .default(false),
     createdAt: integer("created_at", { mode: "timestamp_ms" })
       .notNull()
       .default(sql`(unixepoch() * 1000)`),
@@ -92,7 +100,9 @@ export const emceeHometowns = sqliteTable(
     hometown: text("hometown").notNull(),
     hometownNormalized: text("hometown_normalized").notNull(),
     countryCode: text("country_code"),
-    isPrimary: integer("is_primary", { mode: "boolean" }).notNull().default(false),
+    isPrimary: integer("is_primary", { mode: "boolean" })
+      .notNull()
+      .default(false),
     displayOrder: integer("display_order").notNull().default(0),
     createdAt: integer("created_at", { mode: "timestamp_ms" })
       .notNull()
@@ -100,7 +110,9 @@ export const emceeHometowns = sqliteTable(
   },
   (table) => ({
     pk: primaryKey({ columns: [table.emceeId, table.hometownNormalized] }),
-    normalizedIdx: index("idx_emcee_hometowns_normalized").on(table.hometownNormalized),
+    normalizedIdx: index("idx_emcee_hometowns_normalized").on(
+      table.hometownNormalized,
+    ),
     countryIdx: index("idx_emcee_hometowns_country").on(table.countryCode),
     primaryKey: uniqueIndex("emcee_hometowns_one_primary")
       .on(table.emceeId)
@@ -123,7 +135,10 @@ export const titles = sqliteTable(
       .default(sql`(unixepoch() * 1000)`),
   },
   (table) => ({
-    routeKey: uniqueIndex("titles_league_slug_key").on(table.league, table.slug),
+    routeKey: uniqueIndex("titles_league_slug_key").on(
+      table.league,
+      table.slug,
+    ),
     divisionIdx: index("idx_titles_division_id").on(table.divisionId),
   }),
 );
@@ -181,32 +196,34 @@ export const battles = sqliteTable(
   },
   (table) => ({
     youtubeKey: uniqueIndex("battles_youtube_id_key").on(table.youtubeId),
-    routeKey: uniqueIndex("battles_league_slug_key").on(table.league, table.slug),
+    routeKey: uniqueIndex("battles_league_slug_key").on(
+      table.league,
+      table.slug,
+    ),
     statusIdx: index("idx_battles_status").on(table.status),
     eventDateIdx: index("idx_battles_event_date").on(table.eventDate),
-    statusEventDateIdx: index("idx_battles_status_event_date").on(table.status, table.eventDate),
+    statusEventDateIdx: index("idx_battles_status_event_date").on(
+      table.status,
+      table.eventDate,
+    ),
     publicStatusEventDateIdx: index("idx_battles_public_status_event_date").on(
       table.publicVisible,
       table.status,
       table.eventDate,
     ),
-    publicLeagueStatusEventDateIdx: index("idx_battles_public_league_status_event_date").on(
-      table.publicVisible,
-      table.league,
-      table.status,
-      table.eventDate,
-    ),
-    publicEventNameEventDateIdx: index("idx_battles_public_event_name_event_date").on(
-      table.publicVisible,
+    publicLeagueStatusEventDateIdx: index(
+      "idx_battles_public_league_status_event_date",
+    ).on(table.publicVisible, table.league, table.status, table.eventDate),
+    publicEventNameEventDateIdx: index(
+      "idx_battles_public_event_name_event_date",
+    ).on(table.publicVisible, table.eventName, table.eventDate),
+    eventNameEventDateIdx: index("idx_battles_event_name_event_date").on(
       table.eventName,
       table.eventDate,
     ),
-    eventNameEventDateIdx: index("idx_battles_event_name_event_date").on(table.eventName, table.eventDate),
-    statusEventNameEventDateIdx: index("idx_battles_status_event_name_event_date").on(
-      table.status,
-      table.eventName,
-      table.eventDate,
-    ),
+    statusEventNameEventDateIdx: index(
+      "idx_battles_status_event_name_event_date",
+    ).on(table.status, table.eventName, table.eventDate),
   }),
 );
 
@@ -272,7 +289,9 @@ export const battleResultWinners = sqliteTable(
   },
   (table) => ({
     pk: primaryKey({ columns: [table.battleId, table.participantId] }),
-    participantIdx: index("idx_battle_result_winners_participant_id").on(table.participantId),
+    participantIdx: index("idx_battle_result_winners_participant_id").on(
+      table.participantId,
+    ),
     participantFk: foreignKey({
       columns: [table.battleId, table.participantId],
       foreignColumns: [battleParticipants.battleId, battleParticipants.id],
@@ -302,7 +321,10 @@ export const lines = sqliteTable(
   (table) => ({
     battleIdx: index("idx_lines_battle_id").on(table.battleId),
     emceeIdx: index("idx_lines_emcee_id").on(table.emceeId),
-    battleStartIdx: index("idx_lines_battle_start").on(table.battleId, table.startTime),
+    battleStartIdx: index("idx_lines_battle_start").on(
+      table.battleId,
+      table.startTime,
+    ),
   }),
 );
 
@@ -425,6 +447,7 @@ export const userProfiles = sqliteTable(
     role: text("role").notNull().default("viewer"),
     trustLevel: text("trust_level").notNull().default("new"),
     displayName: text("display_name"),
+    username: text("username"),
     createdAt: integer("created_at", { mode: "timestamp_ms" })
       .notNull()
       .default(sql`(unixepoch() * 1000)`),
@@ -435,6 +458,9 @@ export const userProfiles = sqliteTable(
   (table) => ({
     roleIdx: index("idx_user_profiles_role").on(table.role),
     trustIdx: index("idx_user_profiles_trust").on(table.trustLevel),
+    usernameKey: uniqueIndex("user_profiles_username_key")
+      .on(table.username)
+      .where(sql`${table.username} IS NOT NULL`),
   }),
 );
 
@@ -464,7 +490,9 @@ export const battleFanVotes = sqliteTable(
     ),
     battleIdx: index("idx_battle_fan_votes_battle_id").on(table.battleId),
     userIdx: index("idx_battle_fan_votes_user_id").on(table.userId),
-    participantIdx: index("idx_battle_fan_votes_participant_id").on(table.participantId),
+    participantIdx: index("idx_battle_fan_votes_participant_id").on(
+      table.participantId,
+    ),
     participantFk: foreignKey({
       columns: [table.battleId, table.participantId],
       foreignColumns: [battleParticipants.battleId, battleParticipants.id],
@@ -497,7 +525,10 @@ export const suggestions = sqliteTable(
   (table) => ({
     lineIdx: index("idx_suggestions_line_id").on(table.lineId),
     statusIdx: index("idx_suggestions_status").on(table.status),
-    statusReviewedAtIdx: index("idx_suggestions_status_reviewed_at").on(table.status, table.reviewedAt),
+    statusReviewedAtIdx: index("idx_suggestions_status_reviewed_at").on(
+      table.status,
+      table.reviewedAt,
+    ),
     userIdx: index("idx_suggestions_user_id").on(table.userId),
   }),
 );

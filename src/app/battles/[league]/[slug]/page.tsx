@@ -1,7 +1,7 @@
 import { cache } from "react";
 import { notFound, permanentRedirect } from "next/navigation";
 import { Metadata } from "next";
-import { createAdminClient, createPublicClient } from "@/lib/supabase/server";
+import { createAdminClient, createPublicClient } from "@/db/d1-client";
 import { getUserWithRole, hasPermission } from "@/lib/auth";
 import {
   getBattlePath,
@@ -20,8 +20,8 @@ const siteUrl = getSiteUrl();
 const getBattle = cache(async (league: string, slug: string) => {
   const { role } = await getUserWithRole();
   const canViewHiddenBattles = hasPermission(role, "battles:manage");
-  const supabase = canViewHiddenBattles ? createAdminClient() : createPublicClient();
-  let query = supabase
+  const dbClient = canViewHiddenBattles ? createAdminClient() : createPublicClient();
+  let query = dbClient
     .from("battles")
     .select("id, league, slug, title, event_name, event_date, youtube_id, public_visible")
     .eq("league", normalizeBattleLeague(league))
@@ -35,7 +35,7 @@ const getBattle = cache(async (league: string, slug: string) => {
 
   if (error) {
     console.error(
-      "[getBattle] Supabase error:",
+      "[getBattle] D1 query error:",
       error.message,
       "for battle route:",
       league,

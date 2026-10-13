@@ -7,13 +7,11 @@ type CloudflareCacheStorage = CacheStorage & {
 };
 
 export function hasPrivateCacheHeaders(request: NextRequest): boolean {
-  return (
-    request.headers.has("cookie") || request.headers.has("authorization")
-  );
+  return request.headers.has("cookie") || request.headers.has("authorization");
 }
 
 export function buildPublicApiCacheKey(
-  request: NextRequest,
+  request: Request,
   pathname: string,
   params: URLSearchParams,
 ): string {
@@ -79,4 +77,15 @@ export async function storePublicApiCache(
     response.headers.set(PUBLIC_API_CACHE_STATUS_HEADER, "BYPASS");
   }
   return response;
+}
+
+export async function deletePublicApiCache(cacheKey: string): Promise<void> {
+  const cache = getDefaultCache();
+  if (!cache) return;
+
+  try {
+    await cache.delete(new Request(cacheKey));
+  } catch (error) {
+    console.warn("[public-api-cache] Failed to delete response", error);
+  }
 }

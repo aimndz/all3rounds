@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 
-vi.mock("@/lib/supabase/server", () => {
+vi.mock("@/db/d1-client", () => {
   const mockSelectChain = {
     select: vi.fn().mockReturnThis(),
     in: vi.fn(),
@@ -26,7 +26,7 @@ describe("GET /api/lines/random", () => {
   });
 
   it("returns 404 when no eligible random lines are available", async () => {
-    const { __mocks } = (await import("@/lib/supabase/server")) as unknown as {
+    const { __mocks } = (await import("@/db/d1-client")) as unknown as {
       __mocks: {
         client: { rpc: ReturnType<typeof vi.fn> };
       };
@@ -47,7 +47,7 @@ describe("GET /api/lines/random", () => {
   });
 
   it("returns batched random lines in the order provided by the RPC", async () => {
-    const { __mocks } = (await import("@/lib/supabase/server")) as unknown as {
+    const { __mocks } = (await import("@/db/d1-client")) as unknown as {
       __mocks: {
         client: {
           rpc: ReturnType<typeof vi.fn>;

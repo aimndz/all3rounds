@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
-import { createClient, createAdminClient } from "@/lib/supabase/server";
+import { createClient, createAdminClient } from "@/db/d1-client";
 import { getUserWithRole, hasPermission, requirePermission } from "@/lib/auth";
 import { verifyCsrf } from "@/lib/csrf";
 import { sortParticipantsByTitle } from "@/features/battles/utils/participant-grouping";
@@ -54,12 +54,12 @@ export async function GET(
 
   const { role } = await getUserWithRole();
   const canViewHiddenBattles = hasPermission(role, "battles:manage");
-  const supabase = canViewHiddenBattles ? createAdminClient() : await createClient();
+  const dbClient = canViewHiddenBattles ? createAdminClient() : await createClient();
 
   // If a deep-link line is provided, start from the page that contains it.
   let effectiveOffset = offset;
   if (lineId && offset === 0) {
-    const { data: targetLine } = await supabase
+    const { data: targetLine } = await dbClient
       .from("lines")
       .select("id, start_time")
       .eq("battle_id", id)
@@ -67,7 +67,7 @@ export async function GET(
       .maybeSingle();
 
     if (targetLine) {
-      const { count: linesBeforeTarget } = await supabase
+      const { count: linesBeforeTarget } = await dbClient
         .from("lines")
         .select("id", { count: "exact", head: true })
         .eq("battle_id", id)
@@ -79,7 +79,7 @@ export async function GET(
   }
 
   // Fetch battle details
-  let battleQuery = supabase
+  let battleQuery = dbClient
     .from("battles")
     .select("id, league, slug, title, youtube_id, event_name, event_date, url, status, public_visible")
     .eq("id", id);
@@ -98,7 +98,7 @@ export async function GET(
     );
   }
 
-  const { data: rawParticipants } = await supabase
+  const { data: rawParticipants } = await dbClient
     .from("battle_participants")
     .select("label, emcee:emcees ( id, name, aka )")
     .eq("battle_id", id);
@@ -118,7 +118,7 @@ export async function GET(
     data: lines,
     error: linesError,
     count: totalLines,
-  } = await supabase
+  } = await dbClient
     .from("lines")
     .select(
       `
@@ -179,7 +179,7 @@ export async function GET(
   if (participants) {
     participants.forEach((p) => {
       if (p.emcee) {
-        // Handle potential array return from supabase
+        // The compatibility client may return an array for this projection.
         const e = Array.isArray(p.emcee) ? p.emcee[0] : p.emcee;
         emceeMap.set(e.id, e);
       }
@@ -307,8 +307,8 @@ export async function PATCH(
     if (public_visible !== undefined) updates.public_visible = public_visible;
 
     // 3. Update status using Admin Client to bypass RLS
-    const supabaseAdmin = createAdminClient();
-    const { data: updated, error } = await supabaseAdmin
+    const adminClient = createAdminClient();
+    const { data: updated, error } = await adminClient
       .from("battles")
       .update(updates)
       .eq("id", id)
@@ -379,8 +379,8 @@ export async function DELETE(
       );
     }
 
-    const supabaseAdmin = createAdminClient();
-    const { data: battle, error: fetchError } = await supabaseAdmin
+    const adminClient = createAdminClient();
+    const { data: battle, error: fetchError } = await adminClient
       .from("battles")
       .select("id, league, slug, title, youtube_id")
       .eq("id", id)
@@ -400,7 +400,7 @@ export async function DELETE(
       );
     }
 
-    const { error: deleteLinesError } = await supabaseAdmin
+    const { error: deleteLinesError } = await adminClient
       .from("lines")
       .delete()
       .eq("battle_id", id);
@@ -412,7 +412,7 @@ export async function DELETE(
       );
     }
 
-    const { error: deletePartsError } = await supabaseAdmin
+    const { error: deletePartsError } = await adminClient
       .from("battle_participants")
       .delete()
       .eq("battle_id", id);
@@ -424,7 +424,7 @@ export async function DELETE(
       );
     }
 
-    const { error } = await supabaseAdmin
+    const { error } = await adminClient
       .from("battles")
       .delete()
       .eq("id", id);
@@ -437,7 +437,7 @@ export async function DELETE(
       );
     }
 
-    await supabaseAdmin
+    await adminClient
       .from("video_processing_status")
       .delete()
       .eq("youtube_id", battle.youtube_id);

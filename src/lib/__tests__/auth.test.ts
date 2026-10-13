@@ -6,9 +6,9 @@ vi.mock("next/headers", () => ({
   headers: vi.fn(),
 }));
 
-// Mock the supabase server module
-vi.mock("@/lib/supabase/server", () => ({
+vi.mock("@/db/d1-client", () => ({
   createAdminClient: vi.fn(),
+  createPublicClient: vi.fn(),
 }));
 
 const mockBetterAuth = {
@@ -22,11 +22,12 @@ vi.mock("@/lib/better-auth", () => ({
 }));
 
 import { cookies, headers } from "next/headers";
-import { createAdminClient } from "@/lib/supabase/server";
+import { createAdminClient, createPublicClient } from "@/db/d1-client";
 import { getBetterAuth } from "@/lib/better-auth";
 import { hasPermission, getUserWithRole, requirePermission } from "../auth";
 
 const mockCreateAdminClient = vi.mocked(createAdminClient);
+const mockCreatePublicClient = vi.mocked(createPublicClient);
 const mockCookies = vi.mocked(cookies);
 const mockHeaders = vi.mocked(headers);
 const mockGetSession = vi.mocked(getBetterAuth().api.getSession);
@@ -37,7 +38,7 @@ function setupMocks(
     email: string;
     name?: string | null;
   } | null,
-  profile: { role: string; display_name: string } | null,
+  profile: { role: string; display_name: string; username?: string | null } | null,
   options?: { authDelayMs?: number },
 ) {
   const authDelayMs = options?.authDelayMs ?? 0;
@@ -70,19 +71,30 @@ function setupMocks(
     from: vi.fn().mockReturnValue({ select: selectFn }),
   } as unknown as ReturnType<typeof createAdminClient>);
 
+  mockCreatePublicClient.mockReturnValue({
+    from: vi.fn().mockReturnValue({
+      select: vi.fn().mockReturnThis(),
+      eq: vi
+        .fn()
+        .mockReturnValueOnce({
+          eq: vi.fn().mockResolvedValue({ count: 0, error: null }),
+        })
+        .mockReturnThis(),
+    }),
+    rpc: vi.fn().mockResolvedValue({ data: [], error: null }),
+  } as unknown as ReturnType<typeof createPublicClient>);
+
   return { mockSessionGet };
 }
 
 describe("hasPermission", () => {
   const cases: [UserRole, string, boolean][] = [
-    // superadmin has everything
     ["superadmin", "lines:edit", true],
     ["superadmin", "lines:delete", true],
     ["superadmin", "users:manage", true],
     ["superadmin", "suggestions:create", true],
     ["superadmin", "suggestions:review", true],
 
-    // admin
     ["admin", "lines:edit", true],
     ["admin", "lines:batch_edit", true],
     ["admin", "lines:delete", false],
@@ -90,7 +102,6 @@ describe("hasPermission", () => {
     ["admin", "battles:manage", true],
     ["admin", "suggestions:review", true],
 
-    // moderator
     ["moderator", "lines:edit", true],
     ["moderator", "lines:batch_edit", false],
     ["moderator", "lines:delete", false],
@@ -98,13 +109,11 @@ describe("hasPermission", () => {
     ["moderator", "suggestions:review", true],
     ["moderator", "users:manage", false],
 
-    // verified_emcee
     ["verified_emcee", "lines:edit", true],
     ["verified_emcee", "lines:batch_edit", false],
     ["verified_emcee", "suggestions:create", true],
     ["verified_emcee", "suggestions:review", false],
 
-    // viewer
     ["viewer", "lines:edit", false],
     ["viewer", "suggestions:create", true],
     ["viewer", "suggestions:review", false],

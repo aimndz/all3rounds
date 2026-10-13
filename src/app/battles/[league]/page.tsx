@@ -1,6 +1,6 @@
 import { cache } from "react";
 import { notFound, permanentRedirect } from "next/navigation";
-import { createAdminClient, createPublicClient } from "@/lib/supabase/server";
+import { createAdminClient, createPublicClient } from "@/db/d1-client";
 import { getUserWithRole, hasPermission } from "@/lib/auth";
 import { getBattleHref } from "@/lib/battles";
 import { uuidSchema } from "@/lib/schemas";
@@ -12,8 +12,8 @@ const getBattle = cache(async (id: string) => {
   if (!uuidSchema.safeParse(id).success) return null;
   const { role } = await getUserWithRole();
   const canViewHiddenBattles = hasPermission(role, "battles:manage");
-  const supabase = canViewHiddenBattles ? createAdminClient() : createPublicClient();
-  let query = supabase
+  const dbClient = canViewHiddenBattles ? createAdminClient() : createPublicClient();
+  let query = dbClient
     .from("battles")
     .select("id, league, slug")
     .eq("id", id);
@@ -25,7 +25,7 @@ const getBattle = cache(async (id: string) => {
   const { data, error } = await query.maybeSingle();
 
   if (error) {
-    console.error("[getBattle] Supabase error:", error.message, "for ID:", id);
+    console.error("[getBattle] D1 query error:", error.message, "for ID:", id);
     return null;
   }
   return data;

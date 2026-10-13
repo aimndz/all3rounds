@@ -17,7 +17,11 @@ type SearchCandidate = {
   rank: number;
 };
 type Filter =
-  | { kind: "eq" | "neq" | "lt" | "lte" | "gt" | "gte"; column: string; value: unknown }
+  | {
+      kind: "eq" | "neq" | "lt" | "lte" | "gt" | "gte";
+      column: string;
+      value: unknown;
+    }
   | { kind: "in"; column: string; value: unknown[] }
   | { kind: "ilike" | "like"; column: string; value: string }
   | { kind: "is"; column: string; value: null }
@@ -172,7 +176,8 @@ export function scoreSearchRow(row: Row, normalizedTerm: string) {
   const exactPhrase = content.includes(normalizedTerm);
   const matchedTokens = tokens.filter((token) => contentWords.includes(token));
   const allTokens = tokens.length > 0 && matchedTokens.length === tokens.length;
-  const orderedTokens = tokens.length > 1 && hasTokensInOrder(contentWords, tokens);
+  const orderedTokens =
+    tokens.length > 1 && hasTokensInOrder(contentWords, tokens);
 
   let score = 0;
   if (exactPhrase) score += 10_000;
@@ -187,10 +192,21 @@ export function scoreSearchRow(row: Row, normalizedTerm: string) {
   const eventName = normalizedField(row, "battle_event_name");
   const metadata = [speaker, emcee, title, eventName].filter(Boolean).join(" ");
 
-  if (tokens.some((token) => speaker.split(" ").includes(token) || emcee.split(" ").includes(token))) {
+  if (
+    tokens.some(
+      (token) =>
+        speaker.split(" ").includes(token) || emcee.split(" ").includes(token),
+    )
+  ) {
     score += 500;
   }
-  if (tokens.some((token) => title.split(" ").includes(token) || eventName.split(" ").includes(token))) {
+  if (
+    tokens.some(
+      (token) =>
+        title.split(" ").includes(token) ||
+        eventName.split(" ").includes(token),
+    )
+  ) {
     score += 300;
   }
   if (row.battle_status === "reviewed") score += 100;
@@ -217,11 +233,17 @@ export function scoreSingleTokenSearchRow(
 
   let score = 0;
   if (speaker === normalizedTerm || emcee === normalizedTerm) score += 2_000;
-  if (speaker.split(" ").includes(normalizedTerm) || emcee.split(" ").includes(normalizedTerm)) {
+  if (
+    speaker.split(" ").includes(normalizedTerm) ||
+    emcee.split(" ").includes(normalizedTerm)
+  ) {
     score += 1_000;
   }
   if (title === normalizedTerm || eventName === normalizedTerm) score += 700;
-  if (title.split(" ").includes(normalizedTerm) || eventName.split(" ").includes(normalizedTerm)) {
+  if (
+    title.split(" ").includes(normalizedTerm) ||
+    eventName.split(" ").includes(normalizedTerm)
+  ) {
     score += 350;
   }
   if (row.battle_status === "reviewed") score += 100;
@@ -284,7 +306,12 @@ function publicRow(table: string, row: Row): Row {
       started_at: toIso(row.started_at),
     };
   }
-  if (table === "user" || table === "session" || table === "account" || table === "verification") {
+  if (
+    table === "user" ||
+    table === "session" ||
+    table === "account" ||
+    table === "verification"
+  ) {
     return {
       ...row,
       createdAt: toIso(row.createdAt),
@@ -298,10 +325,18 @@ function publicRow(table: string, row: Row): Row {
 }
 
 function projectRow(row: Row, columns?: string) {
-  if (!columns || columns.trim() === "*" || columns.includes("(") || columns.includes(":")) {
+  if (
+    !columns ||
+    columns.trim() === "*" ||
+    columns.includes("(") ||
+    columns.includes(":")
+  ) {
     return row;
   }
-  const selected = columns.split(",").map((column) => column.trim()).filter(Boolean);
+  const selected = columns
+    .split(",")
+    .map((column) => column.trim())
+    .filter(Boolean);
   return Object.fromEntries(selected.map((column) => [column, row[column]]));
 }
 
@@ -349,20 +384,23 @@ function parseOrExpression(input: string): OrClause[] {
     .filter(Boolean)
     .map((part) => {
       const isNullMatch = part.match(/^([a-zA-Z0-9_]+)\.is\.null$/);
-      if (isNullMatch) return { kind: "is", column: isNullMatch[1], value: null };
+      if (isNullMatch)
+        return { kind: "is", column: isNullMatch[1], value: null };
 
       const inMatch = part.match(/^([a-zA-Z0-9_]+)\.in\.\((.*)\)$/);
       if (inMatch) {
         return {
           kind: "in",
           column: inMatch[1],
-          value: splitTopLevel(inMatch[2])
-            .map((value) => value.trim().replace(/^"|"$/g, "").replace(/""/g, '"')),
+          value: splitTopLevel(inMatch[2]).map((value) =>
+            value.trim().replace(/^"|"$/g, "").replace(/""/g, '"'),
+          ),
         };
       }
 
       const containsMatch = part.match(/^aka\.cs\.\{"(.*)"\}$/);
-      if (containsMatch) return { kind: "contains", column: "aka", value: containsMatch[1] };
+      if (containsMatch)
+        return { kind: "contains", column: "aka", value: containsMatch[1] };
 
       const match = part.match(/^([a-zA-Z0-9_]+)\.(eq|neq|ilike|like)\.(.*)$/);
       if (!match) throw new Error(`Unsupported OR expression: ${part}`);
@@ -442,18 +480,34 @@ function buildWhere(filters: Filter[]) {
 }
 
 async function fetchRows(sql: string, params: unknown[] = []): Promise<Row[]> {
-  const result = await (await getD1Async()).prepare(sql).bind(...params).all();
+  const result = await (
+    await getD1Async()
+  )
+    .prepare(sql)
+    .bind(...params)
+    .all();
   logD1Usage(sql, result.meta);
   return result.results ?? [];
 }
 
-async function fetchFirst(sql: string, params: unknown[] = []): Promise<Row | null> {
+async function fetchFirst(
+  sql: string,
+  params: unknown[] = [],
+): Promise<Row | null> {
   const statement = (await getD1Async()).prepare(sql).bind(...params);
   const row = await statement.first();
   return row;
 }
 
-function logD1Usage(sql: string, meta?: { rows_read?: number; rows_written?: number; duration?: number }) {
+async function tableHasColumn(table: string, column: string): Promise<boolean> {
+  const rows = await fetchRows(`PRAGMA table_info(${quoteIdent(table)})`);
+  return rows.some((row) => row.name === column);
+}
+
+function logD1Usage(
+  sql: string,
+  meta?: { rows_read?: number; rows_written?: number; duration?: number },
+) {
   if (process.env.APP_ENV !== "development") return;
   const rowsRead = meta?.rows_read ?? 0;
   const rowsWritten = meta?.rows_written ?? 0;
@@ -481,7 +535,11 @@ async function fetchRowsByIn(table: string, column: string, values: unknown[]) {
   return rows;
 }
 
-async function fetchGroupedCounts(table: string, column: string, values: unknown[]) {
+async function fetchGroupedCounts(
+  table: string,
+  column: string,
+  values: unknown[],
+) {
   const rows: Row[] = [];
   for (let index = 0; index < values.length; index += MAX_IN_PARAMS) {
     const chunk = values.slice(index, index + MAX_IN_PARAMS);
@@ -508,7 +566,11 @@ function compareValues(left: unknown, right: unknown, ascending: boolean) {
 
 async function attachEmcees(rows: Row[], sourceKey: string, targetKey: string) {
   const ids = Array.from(
-    new Set(rows.map((row) => row[sourceKey]).filter((value): value is string => typeof value === "string")),
+    new Set(
+      rows
+        .map((row) => row[sourceKey])
+        .filter((value): value is string => typeof value === "string"),
+    ),
   );
   if (!ids.length) {
     rows.forEach((row) => {
@@ -517,15 +579,25 @@ async function attachEmcees(rows: Row[], sourceKey: string, targetKey: string) {
     return;
   }
   const emceeRows = await fetchRowsByIn("emcees", "id", ids);
-  const byId = new Map(emceeRows.map((row) => [String(row.id), publicRow("emcees", row)]));
+  const byId = new Map(
+    emceeRows.map((row) => [String(row.id), publicRow("emcees", row)]),
+  );
   rows.forEach((row) => {
     row[targetKey] = byId.get(String(row[sourceKey])) ?? null;
   });
 }
 
-async function attachProfiles(rows: Row[], sourceKey: string, targetKey: string) {
+async function attachProfiles(
+  rows: Row[],
+  sourceKey: string,
+  targetKey: string,
+) {
   const ids = Array.from(
-    new Set(rows.map((row) => row[sourceKey]).filter((value): value is string => typeof value === "string")),
+    new Set(
+      rows
+        .map((row) => row[sourceKey])
+        .filter((value): value is string => typeof value === "string"),
+    ),
   );
   if (!ids.length) {
     rows.forEach((row) => {
@@ -534,7 +606,9 @@ async function attachProfiles(rows: Row[], sourceKey: string, targetKey: string)
     return;
   }
   const profileRows = await fetchRowsByIn("user_profiles", "id", ids);
-  const byId = new Map(profileRows.map((row) => [String(row.id), publicRow("user_profiles", row)]));
+  const byId = new Map(
+    profileRows.map((row) => [String(row.id), publicRow("user_profiles", row)]),
+  );
   rows.forEach((row) => {
     row[targetKey] = byId.get(String(row[sourceKey])) ?? null;
   });
@@ -547,7 +621,11 @@ async function attachBattles(
   options?: { withParticipants?: boolean },
 ) {
   const ids = Array.from(
-    new Set(rows.map((row) => row[sourceKey]).filter((value): value is string => typeof value === "string")),
+    new Set(
+      rows
+        .map((row) => row[sourceKey])
+        .filter((value): value is string => typeof value === "string"),
+    ),
   );
   if (!ids.length) {
     rows.forEach((row) => {
@@ -557,14 +635,20 @@ async function attachBattles(
   }
   const battleRows = await fetchRowsByIn("battles", "id", ids);
   const normalized = battleRows.map((row) => publicRow("battles", row));
-  if (options?.withParticipants) await hydrateRows("battles", normalized, "battle_participants(");
+  if (options?.withParticipants)
+    await hydrateRows("battles", normalized, "battle_participants(");
   const byId = new Map(normalized.map((row) => [String(row.id), row]));
   rows.forEach((row) => {
     row[targetKey] = byId.get(String(row[sourceKey])) ?? null;
   });
 }
 
-async function hydrateRows(table: string, rows: Row[], selectSpec?: string, orders: Order[] = []) {
+async function hydrateRows(
+  table: string,
+  rows: Row[],
+  selectSpec?: string,
+  orders: Order[] = [],
+) {
   if (!rows.length) return rows;
   if (table === "lines") {
     const ids = rows.map((row) => Number(row.id));
@@ -579,7 +663,8 @@ async function hydrateRows(table: string, rows: Row[], selectSpec?: string, orde
     rows.forEach((row) => {
       row.speaker_ids = byLine.get(Number(row.id)) ?? [];
     });
-    if (selectSpec?.includes("emcee:emcees")) await attachEmcees(rows, "emcee_id", "emcee");
+    if (selectSpec?.includes("emcee:emcees"))
+      await attachEmcees(rows, "emcee_id", "emcee");
     if (selectSpec?.includes("battle:battles")) {
       await attachBattles(rows, "battle_id", "battle", {
         withParticipants: selectSpec.includes("battle_participants"),
@@ -587,7 +672,10 @@ async function hydrateRows(table: string, rows: Row[], selectSpec?: string, orde
     }
   }
   if (table === "battle_participants") {
-    if (selectSpec?.includes("emcee:emcees") || selectSpec?.includes("emcees (")) {
+    if (
+      selectSpec?.includes("emcee:emcees") ||
+      selectSpec?.includes("emcees (")
+    ) {
       await attachEmcees(rows, "emcee_id", "emcee");
     }
     if (selectSpec?.includes("battles (")) {
@@ -615,13 +703,21 @@ async function hydrateRows(table: string, rows: Row[], selectSpec?: string, orde
         row.lines = byId.get(Number(row.line_id)) ?? null;
       });
     }
-    if (selectSpec?.includes("user:user_profiles")) await attachProfiles(rows, "user_id", "user");
-    if (selectSpec?.includes("reviewer:user_profiles")) await attachProfiles(rows, "reviewed_by", "reviewer");
+    if (selectSpec?.includes("user:user_profiles"))
+      await attachProfiles(rows, "user_id", "user");
+    if (selectSpec?.includes("reviewer:user_profiles"))
+      await attachProfiles(rows, "reviewed_by", "reviewer");
   }
   if (table === "battles" && selectSpec?.includes("battle_participants(")) {
     const ids = rows.map((row) => String(row.id));
-    const participantRows = await fetchRowsByIn("battle_participants", "battle_id", ids);
-    const normalized = participantRows.map((row) => publicRow("battle_participants", row));
+    const participantRows = await fetchRowsByIn(
+      "battle_participants",
+      "battle_id",
+      ids,
+    );
+    const normalized = participantRows.map((row) =>
+      publicRow("battle_participants", row),
+    );
     await hydrateRows("battle_participants", normalized, "emcee:emcees");
     const byBattle = new Map<string, Row[]>();
     normalized.forEach((participant) => {
@@ -636,15 +732,23 @@ async function hydrateRows(table: string, rows: Row[], selectSpec?: string, orde
   if (table === "emcees") {
     const ids = rows.map((row) => String(row.id));
     if (selectSpec?.includes("battle_participants(count)")) {
-      const counts = await fetchGroupedCounts("battle_participants", "emcee_id", ids);
-      const byId = new Map(counts.map((row) => [String(row.emcee_id), Number(row.count)]));
+      const counts = await fetchGroupedCounts(
+        "battle_participants",
+        "emcee_id",
+        ids,
+      );
+      const byId = new Map(
+        counts.map((row) => [String(row.emcee_id), Number(row.count)]),
+      );
       rows.forEach((row) => {
         row.battle_participants = [{ count: byId.get(String(row.id)) ?? 0 }];
       });
     }
     if (selectSpec?.includes("lines(count)")) {
       const counts = await fetchGroupedCounts("lines", "emcee_id", ids);
-      const byId = new Map(counts.map((row) => [String(row.emcee_id), Number(row.count)]));
+      const byId = new Map(
+        counts.map((row) => [String(row.emcee_id), Number(row.count)]),
+      );
       rows.forEach((row) => {
         row.lines = [{ count: byId.get(String(row.id)) ?? 0 }];
       });
@@ -655,12 +759,17 @@ async function hydrateRows(table: string, rows: Row[], selectSpec?: string, orde
 
 async function syncAliases(emceeId: string, aka: string[]) {
   const db = await getD1Async();
-  await db.prepare("DELETE FROM emcee_aliases WHERE emcee_id = ?").bind(emceeId).run();
+  await db
+    .prepare("DELETE FROM emcee_aliases WHERE emcee_id = ?")
+    .bind(emceeId)
+    .run();
   if (!aka.length) return;
   await db.batch(
     aka.map((alias) =>
       db
-        .prepare("INSERT INTO emcee_aliases (emcee_id, alias, alias_normalized) VALUES (?, ?, ?)")
+        .prepare(
+          "INSERT INTO emcee_aliases (emcee_id, alias, alias_normalized) VALUES (?, ?, ?)",
+        )
         .bind(emceeId, alias, normalizeEmceeSlug(alias)),
     ),
   );
@@ -670,10 +779,16 @@ async function syncLineSpeakers(lineIds: number[], speakerIds: string[]) {
   const db = await getD1Async();
   const statements = [];
   for (const lineId of lineIds) {
-    statements.push(db.prepare("DELETE FROM line_speakers WHERE line_id = ?").bind(lineId));
+    statements.push(
+      db.prepare("DELETE FROM line_speakers WHERE line_id = ?").bind(lineId),
+    );
     speakerIds.forEach((emceeId) => {
       statements.push(
-        db.prepare("INSERT OR IGNORE INTO line_speakers (line_id, emcee_id) VALUES (?, ?)").bind(lineId, emceeId),
+        db
+          .prepare(
+            "INSERT OR IGNORE INTO line_speakers (line_id, emcee_id) VALUES (?, ?)",
+          )
+          .bind(lineId, emceeId),
       );
     });
   }
@@ -681,8 +796,13 @@ async function syncLineSpeakers(lineIds: number[], speakerIds: string[]) {
 }
 
 async function recalcBattleCounts(emceeIds?: string[]) {
-  const where = emceeIds?.length ? `WHERE id IN (${emceeIds.map(() => "?").join(", ")})` : "";
-  const rows = await fetchRows(`SELECT id FROM emcees ${where}`, emceeIds ?? []);
+  const where = emceeIds?.length
+    ? `WHERE id IN (${emceeIds.map(() => "?").join(", ")})`
+    : "";
+  const rows = await fetchRows(
+    `SELECT id FROM emcees ${where}`,
+    emceeIds ?? [],
+  );
   const db = await getD1Async();
   if (!rows.length) return;
   await db.batch(
@@ -701,7 +821,9 @@ async function recalcBattleCounts(emceeIds?: string[]) {
   );
 }
 
-export class D1QueryBuilder implements PromiseLike<CompatResponse | MutationResponse> {
+export class D1QueryBuilder implements PromiseLike<
+  CompatResponse | MutationResponse
+> {
   private mode: MutationMode = "select";
   private singleMode: SingleMode = "many";
   private selectSpec = "*";
@@ -717,31 +839,121 @@ export class D1QueryBuilder implements PromiseLike<CompatResponse | MutationResp
     assertTable(table);
   }
 
-  select(columns = "*", options?: { count?: "exact"; head?: boolean }) { this.selectSpec = columns; this.selectOptions = options; return this; }
-  insert(values: Row | Row[]) { this.mode = "insert"; this.mutationValues = values; return this; }
-  update(values: Row) { this.mode = "update"; this.mutationValues = values; return this; }
-  delete() { this.mode = "delete"; return this; }
-  upsert(values: Row | Row[], options?: { onConflict?: string; ignoreDuplicates?: boolean }) { this.mode = "upsert"; this.mutationValues = values; this.onConflict = options?.onConflict; return this; }
-  eq(column: string, value: unknown) { this.filters.push({ kind: "eq", column, value }); return this; }
-  neq(column: string, value: unknown) { this.filters.push({ kind: "neq", column, value }); return this; }
-  lt(column: string, value: unknown) { this.filters.push({ kind: "lt", column, value }); return this; }
-  lte(column: string, value: unknown) { this.filters.push({ kind: "lte", column, value }); return this; }
-  gt(column: string, value: unknown) { this.filters.push({ kind: "gt", column, value }); return this; }
-  gte(column: string, value: unknown) { this.filters.push({ kind: "gte", column, value }); return this; }
-  in(column: string, value: unknown[]) { this.filters.push({ kind: "in", column, value }); return this; }
-  like(column: string, pattern: string) { this.filters.push({ kind: "like", column, value: pattern }); return this; }
-  ilike(column: string, pattern: string) { this.filters.push({ kind: "ilike", column, value: pattern }); return this; }
-  is(column: string, value: null) { this.filters.push({ kind: "is", column, value }); return this; }
-  or(expression: string) { this.filters.push({ kind: "or", clauses: parseOrExpression(expression) }); return this; }
-  order(column: string, options?: { ascending?: boolean; foreignTable?: string; nullsFirst?: boolean }) { this.orders.push({ column, ascending: options?.ascending ?? true, foreignTable: options?.foreignTable, nullsFirst: options?.nullsFirst }); return this; }
-  limit(value: number) { this.limitValue = value; return this; }
-  range(from: number, to: number) { this.offsetValue = from; this.limitValue = Math.max(to - from + 1, 0); return this; }
-  maybeSingle(): Promise<CompatResponse | MutationResponse> { this.singleMode = "maybeSingle"; return this.execute(); }
-  single(): Promise<CompatResponse | MutationResponse> { this.singleMode = "single"; return this.execute(); }
+  select(columns = "*", options?: { count?: "exact"; head?: boolean }) {
+    this.selectSpec = columns;
+    this.selectOptions = options;
+    return this;
+  }
+  insert(values: Row | Row[]) {
+    this.mode = "insert";
+    this.mutationValues = values;
+    return this;
+  }
+  update(values: Row) {
+    this.mode = "update";
+    this.mutationValues = values;
+    return this;
+  }
+  delete() {
+    this.mode = "delete";
+    return this;
+  }
+  upsert(
+    values: Row | Row[],
+    options?: { onConflict?: string; ignoreDuplicates?: boolean },
+  ) {
+    this.mode = "upsert";
+    this.mutationValues = values;
+    this.onConflict = options?.onConflict;
+    return this;
+  }
+  eq(column: string, value: unknown) {
+    this.filters.push({ kind: "eq", column, value });
+    return this;
+  }
+  neq(column: string, value: unknown) {
+    this.filters.push({ kind: "neq", column, value });
+    return this;
+  }
+  lt(column: string, value: unknown) {
+    this.filters.push({ kind: "lt", column, value });
+    return this;
+  }
+  lte(column: string, value: unknown) {
+    this.filters.push({ kind: "lte", column, value });
+    return this;
+  }
+  gt(column: string, value: unknown) {
+    this.filters.push({ kind: "gt", column, value });
+    return this;
+  }
+  gte(column: string, value: unknown) {
+    this.filters.push({ kind: "gte", column, value });
+    return this;
+  }
+  in(column: string, value: unknown[]) {
+    this.filters.push({ kind: "in", column, value });
+    return this;
+  }
+  like(column: string, pattern: string) {
+    this.filters.push({ kind: "like", column, value: pattern });
+    return this;
+  }
+  ilike(column: string, pattern: string) {
+    this.filters.push({ kind: "ilike", column, value: pattern });
+    return this;
+  }
+  is(column: string, value: null) {
+    this.filters.push({ kind: "is", column, value });
+    return this;
+  }
+  or(expression: string) {
+    this.filters.push({ kind: "or", clauses: parseOrExpression(expression) });
+    return this;
+  }
+  order(
+    column: string,
+    options?: {
+      ascending?: boolean;
+      foreignTable?: string;
+      nullsFirst?: boolean;
+    },
+  ) {
+    this.orders.push({
+      column,
+      ascending: options?.ascending ?? true,
+      foreignTable: options?.foreignTable,
+      nullsFirst: options?.nullsFirst,
+    });
+    return this;
+  }
+  limit(value: number) {
+    this.limitValue = value;
+    return this;
+  }
+  range(from: number, to: number) {
+    this.offsetValue = from;
+    this.limitValue = Math.max(to - from + 1, 0);
+    return this;
+  }
+  maybeSingle(): Promise<CompatResponse | MutationResponse> {
+    this.singleMode = "maybeSingle";
+    return this.execute();
+  }
+  single(): Promise<CompatResponse | MutationResponse> {
+    this.singleMode = "single";
+    return this.execute();
+  }
   then<TResult1 = CompatResponse | MutationResponse, TResult2 = never>(
-    onfulfilled?: ((value: CompatResponse | MutationResponse) => TResult1 | PromiseLike<TResult1>) | null,
+    onfulfilled?:
+      | ((
+          value: CompatResponse | MutationResponse,
+        ) => TResult1 | PromiseLike<TResult1>)
+      | null,
     onrejected?: ((reason: unknown) => TResult2 | PromiseLike<TResult2>) | null,
-  ) { return this.execute().then(onfulfilled, onrejected); }
+  ) {
+    return this.execute().then(onfulfilled, onrejected);
+  }
 
   private async execute(): Promise<CompatResponse | MutationResponse> {
     try {
@@ -757,12 +969,31 @@ export class D1QueryBuilder implements PromiseLike<CompatResponse | MutationResp
 
   private async executeSelect(): Promise<CompatResponse> {
     const where = buildWhere(this.filters);
-    const count = this.selectOptions?.count === "exact"
-      ? Number((await fetchFirst(`SELECT COUNT(*) AS count FROM ${quoteIdent(this.table)}${where.sql}`, where.params))?.count ?? 0)
-      : undefined;
-    if (this.selectOptions?.head) return { data: null, error: null, count: count ?? null };
-    const orderSql = this.orders.filter((order) => !order.foreignTable).map((order) => `${quoteIdent(order.column)} ${order.ascending ? "ASC" : "DESC"}`).join(", ");
-    const params = [...where.params, ...(this.limitValue != null ? [this.limitValue] : []), ...(this.offsetValue != null ? [this.offsetValue] : [])];
+    const count =
+      this.selectOptions?.count === "exact"
+        ? Number(
+            (
+              await fetchFirst(
+                `SELECT COUNT(*) AS count FROM ${quoteIdent(this.table)}${where.sql}`,
+                where.params,
+              )
+            )?.count ?? 0,
+          )
+        : undefined;
+    if (this.selectOptions?.head)
+      return { data: null, error: null, count: count ?? null };
+    const orderSql = this.orders
+      .filter((order) => !order.foreignTable)
+      .map(
+        (order) =>
+          `${quoteIdent(order.column)} ${order.ascending ? "ASC" : "DESC"}`,
+      )
+      .join(", ");
+    const params = [
+      ...where.params,
+      ...(this.limitValue != null ? [this.limitValue] : []),
+      ...(this.offsetValue != null ? [this.offsetValue] : []),
+    ];
     const rows = await fetchRows(
       `SELECT * FROM ${quoteIdent(this.table)}${where.sql}${orderSql ? ` ORDER BY ${orderSql}` : ""}${this.limitValue != null ? " LIMIT ?" : ""}${this.offsetValue != null ? " OFFSET ?" : ""}`,
       params,
@@ -770,25 +1001,60 @@ export class D1QueryBuilder implements PromiseLike<CompatResponse | MutationResp
     const normalized = rows.map((row) => publicRow(this.table, row));
     await hydrateRows(this.table, normalized, this.selectSpec, this.orders);
     const projected = normalized.map((row) => projectRow(row, this.selectSpec));
-    if (this.singleMode === "single") return projected.length === 1 ? { data: compatData(projected[0]), error: null, count: count ?? null } : { data: null, error: new Error("Expected exactly one row"), count: count ?? null };
-    if (this.singleMode === "maybeSingle") return { data: projected[0] ? compatData(projected[0]) : null, error: null, count: count ?? null };
+    if (this.singleMode === "single")
+      return projected.length === 1
+        ? { data: compatData(projected[0]), error: null, count: count ?? null }
+        : {
+            data: null,
+            error: new Error("Expected exactly one row"),
+            count: count ?? null,
+          };
+    if (this.singleMode === "maybeSingle")
+      return {
+        data: projected[0] ? compatData(projected[0]) : null,
+        error: null,
+        count: count ?? null,
+      };
     return { data: compatData(projected), error: null, count: count ?? null };
   }
 
   private async executeInsert(): Promise<MutationResponse> {
-    const values = Array.isArray(this.mutationValues) ? this.mutationValues : [this.mutationValues ?? {}];
+    const values = Array.isArray(this.mutationValues)
+      ? this.mutationValues
+      : [this.mutationValues ?? {}];
     const ids: unknown[] = [];
     for (const raw of values) {
       const { data, speakerIds, aka } = this.normalizeMutationValues(raw);
-      if (!data.id && ["emcees", "battle_participants", "edit_history", "feedback", "suggestions", "battles"].includes(this.table)) data.id = crypto.randomUUID();
+      if (
+        !data.id &&
+        [
+          "emcees",
+          "battle_participants",
+          "edit_history",
+          "feedback",
+          "suggestions",
+          "battles",
+        ].includes(this.table)
+      )
+        data.id = crypto.randomUUID();
       const columns = Object.keys(data);
-      const result = await (await getD1Async()).prepare(`INSERT INTO ${quoteIdent(this.table)} (${columns.map(quoteIdent).join(", ")}) VALUES (${columns.map(() => "?").join(", ")})`).bind(...columns.map((column) => data[column])).run();
+      const result = await (
+        await getD1Async()
+      )
+        .prepare(
+          `INSERT INTO ${quoteIdent(this.table)} (${columns.map(quoteIdent).join(", ")}) VALUES (${columns.map(() => "?").join(", ")})`,
+        )
+        .bind(...columns.map((column) => data[column]))
+        .run();
       const id = data.id ?? result.meta.last_row_id;
       ids.push(id);
-      if (this.table === "lines" && typeof id === "number") await syncLineSpeakers([id], speakerIds ?? []);
-      if (this.table === "emcees" && typeof data.id === "string") await syncAliases(data.id, aka ?? []);
+      if (this.table === "lines" && typeof id === "number")
+        await syncLineSpeakers([id], speakerIds ?? []);
+      if (this.table === "emcees" && typeof data.id === "string")
+        await syncAliases(data.id, aka ?? []);
     }
-    if (this.table === "battle_participants") await recalcBattleCounts(values.map((row) => String(row.emcee_id)));
+    if (this.table === "battle_participants")
+      await recalcBattleCounts(values.map((row) => String(row.emcee_id)));
     return this.returnMutationRows(ids);
   }
 
@@ -800,35 +1066,78 @@ export class D1QueryBuilder implements PromiseLike<CompatResponse | MutationResp
     const columns = Object.keys(data);
     if (columns.length) {
       const where = buildWhere(this.filters);
-      await (await getD1Async()).prepare(`UPDATE ${quoteIdent(this.table)} SET ${columns.map((column) => `${quoteIdent(column)} = ?`).join(", ")} ${where.sql}`).bind(...columns.map((column) => data[column]), ...where.params).run();
+      await (
+        await getD1Async()
+      )
+        .prepare(
+          `UPDATE ${quoteIdent(this.table)} SET ${columns.map((column) => `${quoteIdent(column)} = ?`).join(", ")} ${where.sql}`,
+        )
+        .bind(...columns.map((column) => data[column]), ...where.params)
+        .run();
     }
-    if (this.table === "lines" && speakerIds) await syncLineSpeakers(existing.map((row) => Number(row.id)), speakerIds);
-    if (this.table === "emcees" && aka) await Promise.all(existing.map((row) => syncAliases(String(row.id), aka)));
-    if (this.table === "battle_participants") await recalcBattleCounts(Array.from(new Set(existing.map((row) => String(row.emcee_id)).concat(data.emcee_id ? [String(data.emcee_id)] : []))));
+    if (this.table === "lines" && speakerIds)
+      await syncLineSpeakers(
+        existing.map((row) => Number(row.id)),
+        speakerIds,
+      );
+    if (this.table === "emcees" && aka)
+      await Promise.all(
+        existing.map((row) => syncAliases(String(row.id), aka)),
+      );
+    if (this.table === "battle_participants")
+      await recalcBattleCounts(
+        Array.from(
+          new Set(
+            existing
+              .map((row) => String(row.emcee_id))
+              .concat(data.emcee_id ? [String(data.emcee_id)] : []),
+          ),
+        ),
+      );
     return this.returnMutationRows(existing.map((row) => row.id));
   }
 
   private async executeDelete(): Promise<MutationResponse> {
     const existing = await this.fetchMatchingRows();
     const where = buildWhere(this.filters);
-    await (await getD1Async()).prepare(`DELETE FROM ${quoteIdent(this.table)}${where.sql}`).bind(...where.params).run();
-    if (this.table === "battle_participants") await recalcBattleCounts(existing.map((row) => String(row.emcee_id)));
+    await (
+      await getD1Async()
+    )
+      .prepare(`DELETE FROM ${quoteIdent(this.table)}${where.sql}`)
+      .bind(...where.params)
+      .run();
+    if (this.table === "battle_participants")
+      await recalcBattleCounts(existing.map((row) => String(row.emcee_id)));
     return { data: compatData(existing), error: null };
   }
 
   private async executeUpsert(): Promise<MutationResponse> {
-    const values = Array.isArray(this.mutationValues) ? this.mutationValues : [this.mutationValues ?? {}];
+    const values = Array.isArray(this.mutationValues)
+      ? this.mutationValues
+      : [this.mutationValues ?? {}];
     const ids: unknown[] = [];
     for (const raw of values) {
       const { data } = this.normalizeMutationValues(raw);
-      if (!data.id && ["battle_participants", "emcees"].includes(this.table)) data.id = crypto.randomUUID();
+      if (!data.id && ["battle_participants", "emcees"].includes(this.table))
+        data.id = crypto.randomUUID();
       const columns = Object.keys(data);
-      const conflictColumns = this.onConflict?.split(",").map((column) => column.trim()) ?? [];
-      const updates = columns.filter((column) => !conflictColumns.includes(column));
-      await (await getD1Async()).prepare(`INSERT INTO ${quoteIdent(this.table)} (${columns.map(quoteIdent).join(", ")}) VALUES (${columns.map(() => "?").join(", ")}) ON CONFLICT (${conflictColumns.map(quoteIdent).join(", ")}) DO UPDATE SET ${updates.map((column) => `${quoteIdent(column)} = excluded.${quoteIdent(column)}`).join(", ")}`).bind(...columns.map((column) => data[column])).run();
+      const conflictColumns =
+        this.onConflict?.split(",").map((column) => column.trim()) ?? [];
+      const updates = columns.filter(
+        (column) => !conflictColumns.includes(column),
+      );
+      await (
+        await getD1Async()
+      )
+        .prepare(
+          `INSERT INTO ${quoteIdent(this.table)} (${columns.map(quoteIdent).join(", ")}) VALUES (${columns.map(() => "?").join(", ")}) ON CONFLICT (${conflictColumns.map(quoteIdent).join(", ")}) DO UPDATE SET ${updates.map((column) => `${quoteIdent(column)} = excluded.${quoteIdent(column)}`).join(", ")}`,
+        )
+        .bind(...columns.map((column) => data[column]))
+        .run();
       ids.push(data.id);
     }
-    if (this.table === "battle_participants") await recalcBattleCounts(values.map((row) => String(row.emcee_id)));
+    if (this.table === "battle_participants")
+      await recalcBattleCounts(values.map((row) => String(row.emcee_id)));
     return this.returnMutationRows(ids);
   }
 
@@ -837,10 +1146,16 @@ export class D1QueryBuilder implements PromiseLike<CompatResponse | MutationResp
     let speakerIds: string[] | undefined;
     let aka: string[] | undefined;
     Object.entries(raw).forEach(([key, value]) => {
-      if (key === "speaker_ids") speakerIds = Array.isArray(value) ? value.map(String) : [];
-      else if (key === "aka") { aka = Array.isArray(value) ? value.map(String) : []; data.aka_json = JSON.stringify(aka); }
-      else if (key === "public_visible") data[key] = value ? 1 : 0;
-      else if (["created_at", "updated_at", "reviewed_at", "started_at"].includes(key)) data[key] = normalizeDateInput(value);
+      if (key === "speaker_ids")
+        speakerIds = Array.isArray(value) ? value.map(String) : [];
+      else if (key === "aka") {
+        aka = Array.isArray(value) ? value.map(String) : [];
+        data.aka_json = JSON.stringify(aka);
+      } else if (key === "public_visible") data[key] = value ? 1 : 0;
+      else if (
+        ["created_at", "updated_at", "reviewed_at", "started_at"].includes(key)
+      )
+        data[key] = normalizeDateInput(value);
       else data[key] = value;
     });
     return { data, speakerIds, aka };
@@ -848,35 +1163,75 @@ export class D1QueryBuilder implements PromiseLike<CompatResponse | MutationResp
 
   private async fetchMatchingRows() {
     const where = buildWhere(this.filters);
-    return fetchRows(`SELECT * FROM ${quoteIdent(this.table)}${where.sql}`, where.params);
+    return fetchRows(
+      `SELECT * FROM ${quoteIdent(this.table)}${where.sql}`,
+      where.params,
+    );
   }
 
   private async returnMutationRows(ids: unknown[]): Promise<MutationResponse> {
     if (!ids.length) return { data: compatData([]), error: null };
     const placeholders = ids.map(() => "?").join(", ");
-    const rows = await fetchRows(`SELECT * FROM ${quoteIdent(this.table)} WHERE id IN (${placeholders})`, ids);
+    const rows = await fetchRows(
+      `SELECT * FROM ${quoteIdent(this.table)} WHERE id IN (${placeholders})`,
+      ids,
+    );
     const normalized = rows.map((row) => publicRow(this.table, row));
     await hydrateRows(this.table, normalized, this.selectSpec, this.orders);
     const projected = normalized.map((row) => projectRow(row, this.selectSpec));
-    return this.singleMode === "single" ? { data: projected[0] ? compatData(projected[0]) : null, error: null } : { data: compatData(projected), error: null };
+    return this.singleMode === "single"
+      ? { data: projected[0] ? compatData(projected[0]) : null, error: null }
+      : { data: compatData(projected), error: null };
   }
 }
 
 class D1RpcBuilder implements PromiseLike<CompatResponse | MutationResponse> {
   private from = 0;
   private to?: number;
-  constructor(private readonly name: string, private readonly args?: Row, private readonly options?: { count?: "exact" }) {}
-  range(from: number, to: number) { this.from = from; this.to = to; return this; }
+  constructor(
+    private readonly name: string,
+    private readonly args?: Row,
+    private readonly options?: { count?: "exact" },
+  ) {}
+  range(from: number, to: number) {
+    this.from = from;
+    this.to = to;
+    return this;
+  }
   then<TResult1 = CompatResponse | MutationResponse, TResult2 = never>(
-    onfulfilled?: ((value: CompatResponse | MutationResponse) => TResult1 | PromiseLike<TResult1>) | null,
+    onfulfilled?:
+      | ((
+          value: CompatResponse | MutationResponse,
+        ) => TResult1 | PromiseLike<TResult1>)
+      | null,
     onrejected?: ((reason: unknown) => TResult2 | PromiseLike<TResult2>) | null,
-  ) { return this.execute().then(onfulfilled, onrejected); }
+  ) {
+    return this.execute().then(onfulfilled, onrejected);
+  }
   private async execute(): Promise<CompatResponse | MutationResponse> {
     try {
-      if (this.name === "search_fast") return searchFast(String(this.args?.search_term ?? ""), this.from, this.to, this.options);
-      if (this.name === "get_random_valid_line_ids") return randomValidLineIds(Number(this.args?.sample_size ?? 6), Array.isArray(this.args?.allowed_statuses) ? this.args.allowed_statuses.map(String) : ["reviewing"]);
+      if (this.name === "search_fast")
+        return searchFast(
+          String(this.args?.search_term ?? ""),
+          this.from,
+          this.to,
+          this.options,
+        );
+      if (this.name === "get_random_valid_line_ids")
+        return randomValidLineIds(
+          Number(this.args?.sample_size ?? 6),
+          Array.isArray(this.args?.allowed_statuses)
+            ? this.args.allowed_statuses.map(String)
+            : ["reviewing"],
+        );
       if (this.name === "get_admin_review_stats") return adminReviewStats();
-      if (this.name === "merge_speaker_ids") return mergeSpeakerIds(String(this.args?.old_emcee_id), String(this.args?.new_emcee_id));
+      if (this.name === "get_contributor_leaderboard")
+        return contributorLeaderboard(Number(this.args?.row_limit ?? 50));
+      if (this.name === "merge_speaker_ids")
+        return mergeSpeakerIds(
+          String(this.args?.old_emcee_id),
+          String(this.args?.new_emcee_id),
+        );
       throw new Error(`Unsupported D1 RPC: ${this.name}`);
     } catch (error) {
       return { data: null, error: error as CompatError, count: null };
@@ -884,7 +1239,12 @@ class D1RpcBuilder implements PromiseLike<CompatResponse | MutationResponse> {
   }
 }
 
-async function searchFast(searchTerm: string, from: number, to?: number, options?: { count?: "exact" }): Promise<CompatResponse> {
+async function searchFast(
+  searchTerm: string,
+  from: number,
+  to?: number,
+  options?: { count?: "exact" },
+): Promise<CompatResponse> {
   const normalizedTerm = normalizeSearchTerm(searchTerm);
   if (!normalizedTerm) {
     return { data: compatData([]), error: null, count: 0 };
@@ -893,9 +1253,14 @@ async function searchFast(searchTerm: string, from: number, to?: number, options
   const mode = getSearchMode(normalizedTerm);
   const candidates = await fetchSearchCandidates(normalizedTerm, mode);
   if (process.env.APP_ENV === "development") {
-    console.info(`[D1] search_mode=${mode} candidate_count=${candidates.length}`);
+    console.info(
+      `[D1] search_mode=${mode} candidate_count=${candidates.length}`,
+    );
   }
-  const pageCandidates = candidates.slice(from, to == null ? undefined : to + 1);
+  const pageCandidates = candidates.slice(
+    from,
+    to == null ? undefined : to + 1,
+  );
   const rows = await hydrateSearchCandidates(pageCandidates);
 
   await hydrateRows("lines", rows, "*");
@@ -939,13 +1304,19 @@ async function rankSingleTokenCandidates(
   candidates: SearchCandidate[],
 ) {
   const rows = await hydrateSearchCandidates(candidates);
-  const originalRanks = new Map(candidates.map((candidate) => [candidate.id, candidate.rank]));
+  const originalRanks = new Map(
+    candidates.map((candidate) => [candidate.id, candidate.rank]),
+  );
   return rows
     .map((row) => {
       const id = Number(row.id);
       return {
         id,
-        rank: scoreSingleTokenSearchRow(row, normalizedTerm, originalRanks.get(id) ?? 0),
+        rank: scoreSingleTokenSearchRow(
+          row,
+          normalizedTerm,
+          originalRanks.get(id) ?? 0,
+        ),
       };
     })
     .filter(
@@ -1032,7 +1403,10 @@ async function hydrateSearchCandidates(candidates: SearchCandidate[]) {
   });
 }
 
-async function randomValidLineIds(sampleSize: number, statuses: string[]): Promise<MutationResponse> {
+async function randomValidLineIds(
+  sampleSize: number,
+  statuses: string[],
+): Promise<MutationResponse> {
   const safeSize = Math.min(Math.max(sampleSize, 1), 12);
   const placeholders = statuses.map(() => "?").join(", ");
   const rows = await fetchRows(
@@ -1066,19 +1440,91 @@ async function adminReviewStats(): Promise<MutationResponse> {
             o.total_approved, o.total_rejected, o.total_reviews
      FROM by_moderator m CROSS JOIN overview o ORDER BY m.total DESC`,
   );
-  return { data: compatData(rows.map((row) => publicRow("suggestions", row))), error: null };
+  return {
+    data: compatData(rows.map((row) => publicRow("suggestions", row))),
+    error: null,
+  };
 }
 
-async function mergeSpeakerIds(oldEmceeId: string, newEmceeId: string): Promise<MutationResponse> {
+async function contributorLeaderboard(
+  rowLimit: number,
+): Promise<MutationResponse> {
+  const safeLimit = Math.min(
+    Math.max(Number.isFinite(rowLimit) ? rowLimit : 50, 1),
+    100,
+  );
+  const hasUsernameColumn = await tableHasColumn("user_profiles", "username");
+  const usernameExpression = hasUsernameColumn
+    ? "COALESCE(NULLIF(up.username, ''), 'user_' || substr(replace(s.user_id, '-', ''), 1, 8), up.display_name, u.name, 'Anonymous')"
+    : "COALESCE('user_' || substr(replace(s.user_id, '-', ''), 1, 8), up.display_name, u.name, 'Anonymous')";
+  const usernameGroupBy = hasUsernameColumn ? ", up.username" : "";
+
+  const rows = await fetchRows(
+    `WITH by_contributor AS (
+       SELECT
+         s.user_id,
+         ${usernameExpression} AS username,
+         COALESCE(up.display_name, u.name, 'Anonymous') AS display_name,
+         COUNT(*) AS total_suggestions,
+         SUM(CASE WHEN s.status = 'approved' THEN 1 ELSE 0 END) AS approved_count,
+         SUM(CASE WHEN s.status = 'pending' THEN 1 ELSE 0 END) AS pending_count,
+         SUM(CASE WHEN s.status = 'rejected' THEN 1 ELSE 0 END) AS rejected_count,
+         MAX(CASE WHEN s.status = 'approved' THEN s.reviewed_at ELSE NULL END) AS last_approved_at
+       FROM suggestions s
+       LEFT JOIN user_profiles up ON up.id = s.user_id
+       LEFT JOIN "user" u ON u.id = s.user_id
+       GROUP BY s.user_id${usernameGroupBy}, up.display_name, u.name
+       HAVING SUM(CASE WHEN s.status = 'approved' THEN 1 ELSE 0 END) > 0
+     )
+     SELECT
+       ROW_NUMBER() OVER (ORDER BY approved_count DESC, last_approved_at DESC, total_suggestions DESC, user_id ASC) AS rank,
+       user_id,
+       username,
+       display_name,
+       approved_count AS rep,
+       approved_count,
+       pending_count,
+       rejected_count,
+       total_suggestions,
+       last_approved_at
+     FROM by_contributor
+     ORDER BY approved_count DESC, last_approved_at DESC, total_suggestions DESC, user_id ASC
+     LIMIT ?`,
+    [safeLimit],
+  );
+
+  return {
+    data: compatData(
+      rows.map((row) => ({
+        ...row,
+        last_approved_at: toIso(row.last_approved_at),
+      })),
+    ),
+    error: null,
+  };
+}
+
+async function mergeSpeakerIds(
+  oldEmceeId: string,
+  newEmceeId: string,
+): Promise<MutationResponse> {
   const db = await getD1Async();
   await db.batch([
-    db.prepare(`INSERT OR IGNORE INTO line_speakers (line_id, emcee_id) SELECT line_id, ? FROM line_speakers WHERE emcee_id = ?`).bind(newEmceeId, oldEmceeId),
+    db
+      .prepare(
+        `INSERT OR IGNORE INTO line_speakers (line_id, emcee_id) SELECT line_id, ? FROM line_speakers WHERE emcee_id = ?`,
+      )
+      .bind(newEmceeId, oldEmceeId),
     db.prepare("DELETE FROM line_speakers WHERE emcee_id = ?").bind(oldEmceeId),
   ]);
   return { data: null, error: null };
 }
 
 export class D1CompatClient {
-  from(table: string): D1QueryBuilder { return new D1QueryBuilder(table); }
-  rpc(name: string, args?: Row, options?: { count?: "exact" }): D1RpcBuilder { return new D1RpcBuilder(name, args, options); }
+  from(table: string): D1QueryBuilder {
+    return new D1QueryBuilder(table);
+  }
+  rpc(name: string, args?: Row, options?: { count?: "exact" }): D1RpcBuilder {
+    return new D1RpcBuilder(name, args, options);
+  }
 }

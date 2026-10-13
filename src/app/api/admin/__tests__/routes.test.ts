@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NextRequest } from "next/server";
 
-vi.mock("@/lib/supabase/server", () => {
+vi.mock("@/db/d1-client", () => {
   const mockChain = {
     select: vi.fn().mockReturnThis(),
     update: vi.fn().mockReturnThis(),
@@ -41,6 +41,8 @@ function authedAdmin() {
       email: "admin@test.com",
       role: "superadmin",
       displayName: "Admin",
+      username: "admin",
+      rep: 0,
     },
     role: "superadmin",
     error: null,

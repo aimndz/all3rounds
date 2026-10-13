@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createAdminClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/db/d1-client";
 import { requirePermission } from "@/lib/auth";
 import { verifyCsrf } from "@/lib/csrf";
 import { z } from "zod";
@@ -71,11 +71,11 @@ export async function PATCH(request: NextRequest) {
     // Map "Other Battles" to null
     const finalNewName = newName === "Other Battles" ? null : newName;
 
-    const supabaseAdmin = createAdminClient();
+    const adminClient = createAdminClient();
 
     // ── Mode 2: Move specific battles ──
     if (Array.isArray(battleIds) && battleIds.length > 0) {
-      const { data: updated, error } = await supabaseAdmin
+      const { data: updated, error } = await adminClient
         .from("battles")
         .update({ event_name: finalNewName })
         .in("id", battleIds)
@@ -98,7 +98,7 @@ export async function PATCH(request: NextRequest) {
     // ── Mode 1: Rename all battles in a group ──
 
     // Build the update query — handle "Other Battles" (null event_name)
-    let query = supabaseAdmin
+    let query = adminClient
       .from("battles")
       .update({ event_name: finalNewName });
 

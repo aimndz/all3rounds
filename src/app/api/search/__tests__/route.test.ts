@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NextRequest } from "next/server";
 
 // ── Mock Dependencies ──
-vi.mock("@/lib/supabase/server", () => {
+vi.mock("@/db/d1-client", () => {
   const mockChain: any = {
     range: vi.fn().mockReturnThis(),
     select: vi.fn().mockReturnThis(),
@@ -11,7 +11,7 @@ vi.mock("@/lib/supabase/server", () => {
     eq: vi.fn().mockReturnThis(),
     order: vi.fn().mockReturnThis(),
     single: vi.fn().mockReturnThis(),
-    // Important: supabase-js methods return a promise-like object
+    // D1 compatibility queries are promise-like.
     then: vi.fn((onFulfilled: (res: any) => any) => Promise.resolve({ data: [], error: null }).then(onFulfilled)),
   };
   
@@ -70,8 +70,8 @@ describe("GET /api/search (Cloudflare Migration)", () => {
     expect(body.error).toContain("Page number too large");
   });
 
-  it("returns success with formatted results from Supabase RPC", async () => {
-    const { __mocks } = await import("@/lib/supabase/server") as unknown as { __mocks: any };
+  it("returns success with formatted results from D1 RPC", async () => {
+    const { __mocks } = await import("@/db/d1-client") as unknown as { __mocks: any };
     
     // Mock the RPC result structure
     const mockRpcData = [
@@ -111,7 +111,7 @@ describe("GET /api/search (Cloudflare Migration)", () => {
   });
 
   it("handles RPC errors gracefully (returns 500)", async () => {
-    const { __mocks } = await import("@/lib/supabase/server") as unknown as { __mocks: any };
+    const { __mocks } = await import("@/db/d1-client") as unknown as { __mocks: any };
     
     __mocks.mockChain.then.mockImplementationOnce((onFulfilled: any) => 
       Promise.resolve({
