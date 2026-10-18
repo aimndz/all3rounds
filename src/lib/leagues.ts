@@ -36,6 +36,7 @@ export const leagueDefinitions = [
   {
     slug: "motus",
     name: "Motus",
+    logoSrc: "/leagues/motus.png",
     channelUrl: "https://www.youtube.com/@motusbattle",
     sortOrder: 2,
   },
