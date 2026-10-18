@@ -2,6 +2,7 @@
 
 import { useCallback } from "react";
 import Image from "next/image";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   ArrowUpDown,
   X,
@@ -24,6 +25,10 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { formatBattleLeagueLabel } from "@/lib/battles";
+import {
+  getLeagueDefinition,
+  getLeagueDirectoryPath,
+} from "@/lib/leagues";
 import { cn } from "@/lib/utils";
 import { STATUS_CONFIG } from "@/components/StatusBadge";
 import {
@@ -57,6 +62,7 @@ export default function BattlesDirectory({
   initialTotalEvents,
   initialYears,
   initialEventNames = [],
+  initialAvailableLeagues = [],
   league,
 }: {
   initialBattles: Battle[];
@@ -67,6 +73,8 @@ export default function BattlesDirectory({
   initialAvailableLeagues?: string[];
   league?: PublicLeague;
 }) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const { canEditBattleStatus, isSuperAdmin } = useAuthStore();
 
   const {
@@ -131,7 +139,23 @@ export default function BattlesDirectory({
 
   const showLoadingSkeleton = loading && battles.length === 0;
   const showEmptyState = !loading && battles.length === 0;
-  const leagueOptions = ["fliptop", "motus"];
+  const leagueOptions = initialAvailableLeagues
+    .map((value) => getLeagueDefinition(value)?.slug)
+    .filter((value): value is string => Boolean(value));
+
+  const handleLeagueChange = (value: string) => {
+    if (value === "all") {
+      updateSearch({ league: value });
+      return;
+    }
+
+    const currentParams: Record<string, string> = {};
+    new URLSearchParams(searchParams.toString()).forEach((paramValue, key) => {
+      currentParams[key] = paramValue;
+    });
+
+    router.push(getLeagueDirectoryPath(value, currentParams));
+  };
 
   const renderFilterContent = (mobile = false) => (
     <div
@@ -214,7 +238,7 @@ export default function BattlesDirectory({
           {mobile && <label className="filter-label">League</label>}
           <Select
             value={leagueFilter}
-            onValueChange={(v) => updateSearch({ league: v })}
+            onValueChange={handleLeagueChange}
           >
             <SelectTrigger
               size="lg"

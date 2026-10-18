@@ -1,3 +1,5 @@
+import { buildQueryString, type SearchParamValues } from "@/lib/utils";
+
 export type LeagueDefinition = {
   readonly slug: string;
   readonly name: string;
@@ -10,8 +12,17 @@ export type PublicLeague = LeagueDefinition & {
   readonly battleCount: number;
 };
 
+const DIRECTORY_QUERY_KEYS = ["q", "status", "year", "sort", "page"];
+
 export function formatPublicBattleCount(count: number): string {
   return `${count.toLocaleString()} public battle${count === 1 ? "" : "s"}`;
+}
+
+export function getLeagueDirectoryPath(
+  slug: string,
+  params: SearchParamValues = {},
+): string {
+  return `/leagues/${encodeURIComponent(slug)}${buildQueryString(params, DIRECTORY_QUERY_KEYS)}`;
 }
 
 export const leagueDefinitions = [

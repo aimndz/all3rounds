@@ -8,7 +8,7 @@ import {
   normalizeBattleLeague,
   normalizeBattleSlug,
 } from "@/lib/battles";
-import { getSiteUrl, formatDateLong } from "@/lib/utils";
+import { buildQueryString, getSiteUrl, formatDateLong } from "@/lib/utils";
 import BattleClient from "../BattleClient";
 import JsonLd from "@/components/shared/JsonLd";
 
@@ -46,23 +46,6 @@ const getBattle = cache(async (league: string, slug: string) => {
 
   return data;
 });
-
-function buildQueryString(
-  searchParams: Record<string, string | string[] | undefined>,
-): string {
-  const query = new URLSearchParams();
-
-  for (const [key, value] of Object.entries(searchParams)) {
-    if (typeof value === "string") {
-      query.set(key, value);
-    } else if (Array.isArray(value)) {
-      value.forEach((item) => query.append(key, item));
-    }
-  }
-
-  const queryString = query.toString();
-  return queryString ? `?${queryString}` : "";
-}
 
 export async function generateMetadata({
   params,

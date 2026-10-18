@@ -4,6 +4,7 @@ import { createAdminClient, createPublicClient } from "@/lib/supabase/server";
 import { getUserWithRole, hasPermission } from "@/lib/auth";
 import { getBattleHref } from "@/lib/battles";
 import { uuidSchema } from "@/lib/schemas";
+import { buildQueryString } from "@/lib/utils";
 
 export const revalidate = 86400; // 24 hours (1 day)
 export const dynamic = "force-dynamic";
@@ -143,23 +144,6 @@ export default async function BattlePage({
   );
 }
 */
-
-function buildQueryString(
-  searchParams: Record<string, string | string[] | undefined>,
-): string {
-  const query = new URLSearchParams();
-
-  for (const [key, value] of Object.entries(searchParams)) {
-    if (typeof value === "string") {
-      query.set(key, value);
-    } else if (Array.isArray(value)) {
-      value.forEach((item) => query.append(key, item));
-    }
-  }
-
-  const queryString = query.toString();
-  return queryString ? `?${queryString}` : "";
-}
 
 export default async function BattleRedirectPage({
   params,

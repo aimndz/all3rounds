@@ -5,6 +5,32 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+export type SearchParamValues = Record<
+  string,
+  string | string[] | undefined
+>;
+
+export function buildQueryString(
+  searchParams: SearchParamValues,
+  allowedKeys?: readonly string[],
+): string {
+  const allowed = allowedKeys ? new Set(allowedKeys) : null;
+  const query = new URLSearchParams();
+
+  for (const [key, value] of Object.entries(searchParams)) {
+    if (allowed && !allowed.has(key)) continue;
+
+    if (typeof value === "string") {
+      query.set(key, value);
+    } else if (Array.isArray(value)) {
+      value.forEach((item) => query.append(key, item));
+    }
+  }
+
+  const queryString = query.toString();
+  return queryString ? `?${queryString}` : "";
+}
+
 export function formatTime(seconds: number): string {
   const m = Math.floor(seconds / 60);
   const s = Math.floor(seconds % 60);
