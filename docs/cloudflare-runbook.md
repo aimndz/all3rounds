@@ -43,13 +43,13 @@ a named collection of Battles within one League.
   uses the same 24-hour page revalidation horizon and is expected to use the
   one-day Edge TTL. A registered League with no public Battles is intentionally
   not available as a public page.
-- Search, status, year, sort, and pagination interactions on a scoped page
-  request `/api/battles?...&league={slug}`. Public unauthenticated responses
-  use the existing one-hour `s-maxage` policy with 59 seconds of
-  stale-while-revalidate and the Workers Cache API.
-- Ingestion and Battle mutations call `revalidateBattleDiscovery`, which
-  refreshes the League chooser, the affected League page, the all-Leagues
-  Battle directory, and public Battle API cache entries.
+- Ingestion and Battle mutations call `revalidateBattleDiscovery`, which asks
+  Next/OpenNext to revalidate the League chooser, the affected League page,
+  and the all-Leagues Battle directory, and rotates public Battle API cache
+  entries. It does not explicitly purge Cloudflare's page cache; a previously
+  cached League HTML response can remain at the edge until the one-day Edge
+  TTL expires. Use an explicit Cloudflare purge when immediate public-page
+  freshness is required.
 
 When checking public caching, use requests without `Cookie` or `Authorization`
 headers. Authenticated requests intentionally bypass the public API cache.
@@ -182,8 +182,8 @@ Dashboard cache rules recorded or required for verification:
    `URI Path is in /privacy-policy, /terms-of-service`
    Action: `Eligible for cache, Edge TTL`
 
-8. `Main Lists (1 Day)`
-   Match:
+8. `Main Lists (1 Day)` (expected; verify in the dashboard)
+   Match to configure or confirm:
    `URI Path is in /battles, /emcees, /leagues`
    `URI Path starts with /battles`
    `URI Path starts with /emcees`
@@ -226,13 +226,12 @@ League cache verification:
 - Repeat each request from the same region and inspect the available Cloudflare
   cache status or response headers. The expected page policy is the one-day
   Edge TTL described above, with a 24-hour application revalidation horizon.
-- From the scoped page, inspect a filter request to `/api/battles` and confirm
-  its `league` parameter remains present. The expected API response policy is
-  `public, s-maxage=3600, stale-while-revalidate=59`; `X-A3R-Cache` should
-  report the normal MISS-then-HIT flow for repeated unauthenticated requests.
 - After a deployment or representative Battle visibility/mutation change,
-  confirm that the chooser count, the affected League page, and the
-  all-Leagues directory converge without a redirect loop or empty response.
+  use an explicit Cloudflare purge when immediate page freshness is required,
+  then confirm that the chooser count, affected League page, and all-Leagues
+  directory converge without a redirect loop or empty response. Without a
+  purge, allow for the one-day Edge TTL before treating stale HTML as a
+  regression.
 
 ### Security
 

@@ -1,6 +1,6 @@
 # Production Smoke Test
 
-Run this after deploys that affect routing, auth, caching, search, admin flows, or database schema.
+Run this after deploys that affect routing, auth, caching, search, admin flows, or Supabase schema.
 
 Use the archive glossary in `CONTEXT.md`: a League owns Battles, and an Event is
 a named collection of Battles within one League.
@@ -12,8 +12,9 @@ a named collection of Battles within one League.
   selected League, shows its Battle count, and renders only that League's
   Battles and Events.
 - On the scoped League page, apply at least one search, status, year, sort, or
-  pagination filter. Confirm the URL remains `/leagues/{slug}` and the
-  resulting Battle list remains scoped to that League.
+  pagination filter. Confirm the URL pathname remains `/leagues/{slug}` (with
+  any expected filter query parameters) and the resulting Battle list remains
+  scoped to that League.
 - Open a Battle from the scoped page. Confirm the Battle detail breadcrumb
   links to the selected League, and the deterministic fallback link returns to
   `/leagues/{slug}` when browser history is unavailable.
@@ -46,13 +47,12 @@ a named collection of Battles within one League.
 ## Caching And Runtime
 
 - `/leagues` and a populated `/leagues/{slug}` return the expected public page
-  without stale, empty, or redirect-loop output after deploy.
+  after cache fill or an explicit Cloudflare purge. If an older HTML response
+  is still cached, allow for the documented one-day Edge TTL before treating
+  it as a regression.
 - Repeat unauthenticated requests to both League routes and inspect the
   available Cloudflare cache status or response headers. Confirm the expected
   one-day Edge TTL and 24-hour application revalidation behavior.
-- A scoped filter request to `/api/battles` retains `league={slug}` and returns
-  the expected public one-hour API cache policy. Confirm repeated requests do
-  not use private-cache bypass headers.
 - Public pages return expected content after deploy, not stale or empty output.
 - Admin and auth pages are not cached as public content.
 - No obvious middleware regressions or redirect loops.
