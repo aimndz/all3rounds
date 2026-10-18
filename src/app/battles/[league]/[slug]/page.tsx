@@ -4,10 +4,12 @@ import { Metadata } from "next";
 import { createAdminClient, createPublicClient } from "@/lib/supabase/server";
 import { getUserWithRole, hasPermission } from "@/lib/auth";
 import {
+  formatBattleLeagueLabel,
   getBattlePath,
   normalizeBattleLeague,
   normalizeBattleSlug,
 } from "@/lib/battles";
+import { getLeagueDefinition, getLeagueDirectoryPath } from "@/lib/leagues";
 import { buildQueryString, getSiteUrl, formatDateLong } from "@/lib/utils";
 import BattleClient from "../BattleClient";
 import JsonLd from "@/components/shared/JsonLd";
@@ -143,13 +145,22 @@ export default async function BattlePage({
   const breadcrumbJsonLd = {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
+    // Battle detail URLs stay under /battles for compatibility, while public
+    // browsing is organized around the selected League.
     itemListElement: [
-      { "@type": "ListItem", position: 1, name: "Archive", item: siteUrl },
+      {
+        "@type": "ListItem",
+        position: 1,
+        name: "Leagues",
+        item: `${siteUrl}/leagues`,
+      },
       {
         "@type": "ListItem",
         position: 2,
-        name: "Battles",
-        item: `${siteUrl}/battles`,
+        name:
+          getLeagueDefinition(normalizeBattleLeague(battle.league))?.name ??
+          formatBattleLeagueLabel(battle.league),
+        item: `${siteUrl}${getLeagueDirectoryPath(normalizeBattleLeague(battle.league))}`,
       },
       {
         "@type": "ListItem",

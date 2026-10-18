@@ -19,4 +19,16 @@ describe("Footer", () => {
     const matches = screen.getAllByText(/All3Rounds/);
     expect(matches.length).toBeGreaterThanOrEqual(1);
   });
+
+  it("links public browsing to Leagues instead of Battles", () => {
+    render(<Footer />);
+
+    expect(screen.getByRole("link", { name: "Leagues" })).toHaveAttribute(
+      "href",
+      "/leagues",
+    );
+    expect(
+      screen.queryByRole("link", { name: /^Battles$/i }),
+    ).not.toBeInTheDocument();
+  });
 });

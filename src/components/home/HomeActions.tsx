@@ -11,11 +11,11 @@ const ACTIONS = [
     cta: "Find a line",
   },
   {
-    href: "/battles",
-    title: "Browse battles",
-    description: "Explore events, matchups, and synced transcripts.",
+    href: "/leagues",
+    title: "Browse leagues",
+    description: "Choose a league, then explore its events, matchups, and synced transcripts.",
     icon: Trophy,
-    cta: "Explore matchups",
+    cta: "Explore leagues",
   },
   {
     href: "/emcees",

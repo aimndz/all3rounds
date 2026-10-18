@@ -9,7 +9,7 @@ import {
   useTransition,
   useRef,
 } from "react";
-import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
 import { useToast } from "@/hooks/use-toast";
 import Link from "next/link";
@@ -24,7 +24,6 @@ import {
   ChevronRight,
   ChevronDown,
   Mic2,
-  ArrowLeft,
   Plus,
   Maximize2,
   Minimize2,
@@ -33,9 +32,14 @@ import {
 } from "lucide-react";
 import Footer from "@/components/Footer";
 import { cn, formatDate, formatSpeakerName } from "@/lib/utils";
-import { formatBattleLeagueLabel } from "@/lib/battles";
+import {
+  formatBattleLeagueLabel,
+  normalizeBattleLeague,
+} from "@/lib/battles";
+import { getLeagueDefinition, getLeagueDirectoryPath } from "@/lib/leagues";
 import { getSpeakerColor } from "@/lib/constants";
 import { StatusBadge } from "@/components/StatusBadge";
+import PageBackButton from "@/components/PageBackButton";
 import BatchActionBar from "@/features/battles/components/BatchActionBar";
 import { useAuthStore } from "@/stores/auth-store";
 import type { SearchResult } from "@/lib/types";
@@ -134,9 +138,15 @@ export default function BattleClient({
   battleId?: string;
 }) {
   const params = useParams();
-  const router = useRouter();
   const searchParams = useSearchParams();
   const battleId = battleIdProp ?? (params.id as string);
+  const routeLeagueSlug =
+    typeof params.league === "string"
+      ? normalizeBattleLeague(params.league)
+      : null;
+  const routeLeaguePath = routeLeagueSlug
+    ? getLeagueDirectoryPath(routeLeagueSlug)
+    : "/leagues";
   const { toast } = useToast();
   const [isPending, startTransition] = useTransition();
   const loadPreviousSentinelRef = useRef<HTMLDivElement>(null);
@@ -566,7 +576,7 @@ export default function BattleClient({
         setIsLoginModalOpen(true);
       }
     },
-    [isUserLoggedIn],
+    [isUserLoggedIn, setIsLoginModalOpen, setSuggestingLine],
   );
 
   const toggleRoundCollapse = useCallback((roundIndex: number) => {
@@ -633,7 +643,7 @@ export default function BattleClient({
       }
       setAddingLine(true);
     },
-    [data],
+    [data, setAddingLine, setAddingLineData],
   );
 
   /**
@@ -787,6 +797,16 @@ export default function BattleClient({
     battle: {} as BattleData["battle"],
     lines: [] as BattleLine[],
   };
+  const battleLeagueSlug = battle.league
+    ? normalizeBattleLeague(battle.league)
+    : routeLeagueSlug;
+  const leaguePath = battleLeagueSlug
+    ? getLeagueDirectoryPath(battleLeagueSlug)
+    : routeLeaguePath;
+  const leagueName = battleLeagueSlug
+    ? (getLeagueDefinition(battleLeagueSlug)?.name ??
+      formatBattleLeagueLabel(battleLeagueSlug))
+    : "Leagues";
 
   // ────────────────────────────────────────────────────────────────────────────
   // Render Logic (Memoized)
@@ -909,7 +929,7 @@ export default function BattleClient({
           </h1>
           <p className="text-muted-foreground mt-1 text-sm">{error}</p>
           <Button variant="outline" size="sm" className="mt-4" asChild>
-            <Link href="/battles">← Back to battles</Link>
+            <Link href={routeLeaguePath}>← Back to leagues</Link>
           </Button>
         </div>
       </>
@@ -944,13 +964,32 @@ export default function BattleClient({
               isTranscriptExpanded && "hidden lg:block",
             )}
           >
-            <button
-              onClick={() => router.back()}
-              className="text-muted-foreground/60 hover:text-foreground mb-2 ml-1 inline-flex cursor-pointer items-center gap-1.5 text-[10px] font-bold tracking-wider uppercase transition-colors sm:ml-0 lg:mb-4"
+            <nav
+              aria-label="Breadcrumb"
+              className="text-muted-foreground/60 mb-2 ml-1 flex min-w-0 items-center gap-1 text-[10px] font-medium tracking-wider uppercase sm:ml-0"
             >
-              <ArrowLeft className="h-3 w-3" />
-              Go Back
-            </button>
+              <Link
+                href="/leagues"
+                className="hover:text-foreground shrink-0 transition-colors"
+              >
+                Leagues
+              </Link>
+              <ChevronRight className="size-3 shrink-0" aria-hidden="true" />
+              <Link
+                href={leaguePath}
+                className="hover:text-foreground truncate transition-colors"
+              >
+                {leagueName}
+              </Link>
+              <ChevronRight className="size-3 shrink-0" aria-hidden="true" />
+              <span className="text-foreground/70 truncate normal-case">
+                {battle.title}
+              </span>
+            </nav>
+            <PageBackButton
+              fallbackHref={leaguePath}
+              label={`Back to ${leagueName}`}
+            />
             <div className="border-border bg-card/95 -mx-4 overflow-hidden border-b shadow-sm backdrop-blur-sm transition-all duration-500 sm:mx-0 sm:rounded-xl sm:border sm:shadow-lg sm:hover:shadow-xl">
               {/* Player Container */}
               <div

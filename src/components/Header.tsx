@@ -8,6 +8,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { useAuthStore } from "@/stores/auth-store";
+import { PUBLIC_NAVIGATION_LINKS } from "@/lib/public-navigation";
 import Image from "next/image";
 import Link from "next/link";
 import { Menu, X } from "lucide-react";
@@ -21,7 +22,7 @@ type MobileDrawerProps = {
   onClose: () => void;
   isUserLoggedIn: boolean;
   user: ReturnType<typeof useAuthStore.getState>["user"];
-  navLinks: { href: string; label: string }[];
+  navLinks: ReadonlyArray<{ href: string; label: string }>;
 };
 
 function MobileNavDrawer({
@@ -132,12 +133,7 @@ export default function Header() {
   const [isDrawerMounted, setIsDrawerMounted] = useState(false);
   const closeTimerRef = useRef<number | null>(null);
 
-  const navLinks = [
-    { href: "/search", label: "Search" },
-    { href: "/random", label: "Discover" },
-    { href: "/battles", label: "Battles" },
-    { href: "/emcees", label: "Emcees" },
-  ];
+  const navLinks = PUBLIC_NAVIGATION_LINKS;
 
   useEffect(() => {
     if (isDrawerOpen) {

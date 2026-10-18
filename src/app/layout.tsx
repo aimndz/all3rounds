@@ -9,6 +9,7 @@ import Footer from "@/components/Footer";
 import { AuthProvider } from "@/components/AuthProvider";
 import { ErrorBoundary } from "@/components/shared/ErrorBoundary";
 import FeedbackButton from "@/components/FeedbackButton";
+import { getPublicNavigationStructuredData } from "@/lib/public-navigation";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -155,32 +156,7 @@ export default async function RootLayout({
             __html: JSON.stringify({
               "@context": "https://schema.org",
               "@type": "ItemList",
-              itemListElement: [
-                {
-                  "@type": "SiteNavigationElement",
-                  position: 1,
-                  name: "Search",
-                  url: `${siteUrl}/search`,
-                },
-                {
-                  "@type": "SiteNavigationElement",
-                  position: 2,
-                  name: "Discover",
-                  url: `${siteUrl}/random`,
-                },
-                {
-                  "@type": "SiteNavigationElement",
-                  position: 3,
-                  name: "Battles",
-                  url: `${siteUrl}/battles`,
-                },
-                {
-                  "@type": "SiteNavigationElement",
-                  position: 4,
-                  name: "Emcees",
-                  url: `${siteUrl}/emcees`,
-                },
-              ],
+              itemListElement: getPublicNavigationStructuredData(siteUrl),
             }),
           }}
         />

@@ -2,6 +2,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { Github, Mail, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { PUBLIC_NAVIGATION_LINKS } from "@/lib/public-navigation";
 
 export default function Footer() {
   return (
@@ -74,12 +75,7 @@ export default function Footer() {
               Explore
             </h3>
             <nav className="flex flex-col gap-3">
-              {[
-                { href: "/search", label: "Search" },
-                { href: "/random", label: "Discover" },
-                { href: "/battles", label: "Battles" },
-                { href: "/emcees", label: "Emcees" },
-              ].map((link) => (
+              {PUBLIC_NAVIGATION_LINKS.map((link) => (
                 <Link
                   key={link.href}
                   href={link.href}

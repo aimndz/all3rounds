@@ -83,6 +83,50 @@ describe("canonical Battle detail route", () => {
     expect(mocks.permanentRedirect).not.toHaveBeenCalled();
     expect(mocks.notFound).not.toHaveBeenCalled();
 
+    type JsonLdProps = {
+      data: Array<{
+        "@type": string;
+        itemListElement?: Array<{
+          name: string;
+          item?: string;
+        }>;
+      }>;
+    };
+    const pageChildren = (page as React.ReactElement<{
+      children: React.ReactNode;
+    }>).props.children as React.ReactElement<JsonLdProps>[];
+    const structuredData = pageChildren[0]?.props.data as Array<{
+      "@type": string;
+      itemListElement?: Array<{
+        name: string;
+        item?: string;
+      }>;
+    }>;
+    const breadcrumbs = structuredData.find(
+      (entry) => entry["@type"] === "BreadcrumbList",
+    );
+
+    expect(breadcrumbs?.itemListElement).toEqual([
+      {
+        "@type": "ListItem",
+        position: 1,
+        name: "Leagues",
+        item: expect.stringContaining("/leagues"),
+      },
+      {
+        "@type": "ListItem",
+        position: 2,
+        name: "FlipTop",
+        item: expect.stringContaining("/leagues/fliptop"),
+      },
+      {
+        "@type": "ListItem",
+        position: 3,
+        name: "Loonie vs Abra",
+        item: expect.stringContaining("/battles/fliptop/loonie-vs-abra"),
+      },
+    ]);
+
     const metadata = await generateMetadata({
       params: Promise.resolve({
         league: "fliptop",
