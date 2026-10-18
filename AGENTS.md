@@ -1,5 +1,19 @@
 # All3Rounds Agent Guide
 
+## Agent skills
+
+### Issue tracker
+
+Engineering specs and issues are tracked as local Markdown files under `.scratch/`. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Use the default `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, and `wontfix` labels. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+This is a single-context repository with a root glossary and ADR directory. See `docs/agents/domain.md`.
+
 Use this file as the operating manual for changes in `all3rounds`. Keep it high-signal, repo-specific, and cheaper to maintain than debugging production regressions later.
 
 ## Project Snapshot

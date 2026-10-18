@@ -27,6 +27,10 @@ const PUBLIC_CACHE_CONFIGS = [
     cache: "public, max-age=3600, s-maxage=86400, stale-while-revalidate=59",
   },
   {
+    pattern: /^\/leagues(\/.*)?$/,
+    cache: "public, max-age=3600, s-maxage=86400, stale-while-revalidate=59",
+  },
+  {
     pattern: /^\/emcees?(\/.*)?$/,
     cache: "public, max-age=3600, s-maxage=86400, stale-while-revalidate=59",
   },

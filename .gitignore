@@ -86,5 +86,6 @@ output.json
 supabase/.temp/
 
 .agent/*
+.scratch/
 
 migration-data/*
