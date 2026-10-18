@@ -40,8 +40,22 @@ describe("league-scoped battle event identity", () => {
     ]);
 
     expect(filter).toBe(
-      'and(league.eq.fliptop,event_name.eq."A"),and(league.eq.motus,event_name.eq."B"),and(league.eq.motus,event_name.is.null)',
+      'and(league.eq.fliptop,event_name.eq."A"),and(league.eq.motus,event_name.eq."B"),and(league.eq.motus,event_name.is.null),and(league.eq.motus,event_name.eq."")',
     );
+  });
+
+  it("includes empty Event values in the League-scoped unnamed bucket", () => {
+    expect(buildBattleEventFilter([getBattleEventKey("motus", null)])).toBe(
+      'and(league.eq.motus,event_name.is.null),and(league.eq.motus,event_name.eq."")',
+    );
+  });
+
+  it("escapes quotes in Event values for the compatibility adapter", () => {
+    expect(
+      buildBattleEventFilter([
+        getBattleEventKey("fliptop", 'Season 1 "Finals"'),
+      ]),
+    ).toBe('and(league.eq.fliptop,event_name.eq."Season 1 ""Finals""")');
   });
 
   it("orders only the requested event keys while keeping duplicate names separate", () => {
@@ -95,6 +109,22 @@ describe("league-scoped battle event identity", () => {
     expect(ordered).toEqual([
       getBattleEventKey("motus", "A"),
       getBattleEventKey("fliptop", "Z"),
+    ]);
+  });
+
+  it("keeps missing Event dates at the same ordering boundary as the directory", () => {
+    const rows = [
+      { league: "fliptop", event_name: "Undated", event_date: null },
+      { league: "fliptop", event_name: "Dated", event_date: "2025-01-01" },
+    ];
+
+    expect(getOrderedBattleEventKeys(rows, "latest")).toEqual([
+      getBattleEventKey("fliptop", "Dated"),
+      getBattleEventKey("fliptop", "Undated"),
+    ]);
+    expect(getOrderedBattleEventKeys(rows, "oldest")).toEqual([
+      getBattleEventKey("fliptop", "Undated"),
+      getBattleEventKey("fliptop", "Dated"),
     ]);
   });
 });

@@ -6,7 +6,8 @@ import {
   PUBLIC_BATTLE_STATUSES,
 } from "@/lib/battles";
 import {
-  getOrderedBattleEventKeys,
+  type BattleEventGroupRow,
+  getBattleEventKey,
   orderBattlesByEventKeys,
 } from "@/lib/battle-events";
 import { buildBattleEventFilter } from "@/lib/postgrest";
@@ -43,19 +44,14 @@ export async function getBattleDirectoryData(
           .in("status", PUBLIC_BATTLE_STATUSES)
           .eq("public_visible", true)
       : Promise.resolve({ count: options.initialCount });
-  let eventsMetaBaseQuery = supabase
-    .from("battles")
-    .select("event_name, event_date, league")
-    .in("status", PUBLIC_BATTLE_STATUSES)
-    .eq("public_visible", true);
-
-  if (league !== "all") {
-    eventsMetaBaseQuery = eventsMetaBaseQuery.eq("league", league);
-  }
-
-  const eventsMetaQuery = eventsMetaBaseQuery
-    .order("event_date", { ascending: sort === "oldest" })
-    .limit(5000);
+  const eventsMetaQuery = supabase.rpc("get_battle_event_groups", {
+    league,
+    status: "all",
+    year: "all",
+    sort,
+    page: 1,
+    event_limit: INITIAL_EVENTS_PER_PAGE,
+  });
 
   const leaguesQuery =
     league === "all"
@@ -77,14 +73,15 @@ export async function getBattleDirectoryData(
     );
   }
 
-  const allEventRows = eventsMetaResponse.data || [];
-  const orderedEventKeys = getOrderedBattleEventKeys(allEventRows, sort);
-
-  const initialTotalEvents = orderedEventKeys.length;
-  const firstPageEventKeys = orderedEventKeys.slice(
-    0,
-    INITIAL_EVENTS_PER_PAGE,
+  const eventRows = (eventsMetaResponse.data || []) as BattleEventGroupRow[];
+  const orderedEventKeys = eventRows.map((row) =>
+    getBattleEventKey(row.league, row.event_name),
   );
+
+  const initialTotalEvents = Number(
+    eventsMetaResponse.count ?? orderedEventKeys.length,
+  );
+  const firstPageEventKeys = orderedEventKeys;
   const buildInitialBattlesQuery = () => {
     let query = supabase
       .from("battles")

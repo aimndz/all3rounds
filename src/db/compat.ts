@@ -1,4 +1,5 @@
 import { getD1Async } from "@/db/client";
+import { PUBLIC_BATTLE_STATUSES } from "@/lib/battles";
 import { normalizeEmceeSlug } from "@/lib/emcees";
 
 type Row = Record<string, unknown>;
@@ -890,6 +891,7 @@ class D1RpcBuilder implements PromiseLike<CompatResponse | MutationResponse> {
   private async execute(): Promise<CompatResponse | MutationResponse> {
     try {
       if (this.name === "search_fast") return searchFast(String(this.args?.search_term ?? ""), this.from, this.to, this.options);
+      if (this.name === "get_battle_event_groups") return battleEventGroups(this.args);
       if (this.name === "get_random_valid_line_ids") return randomValidLineIds(Number(this.args?.sample_size ?? 6), Array.isArray(this.args?.allowed_statuses) ? this.args.allowed_statuses.map(String) : ["reviewing"]);
       if (this.name === "get_admin_review_stats") return adminReviewStats();
       if (this.name === "merge_speaker_ids") return mergeSpeakerIds(String(this.args?.old_emcee_id), String(this.args?.new_emcee_id));
@@ -919,6 +921,100 @@ async function searchFast(searchTerm: string, from: number, to?: number, options
     data: compatData(rows),
     error: null,
     count: options?.count === "exact" ? candidates.length : null,
+  };
+}
+
+async function battleEventGroups(args: Row = {}): Promise<CompatResponse> {
+  const eventNameExpression = 'NULLIF("event_name", \'\')';
+  const conditions = [
+    '"public_visible" = 1',
+    `"status" IN (${PUBLIC_BATTLE_STATUSES.map(() => "?").join(", ")})`,
+  ];
+  const params: unknown[] = [...PUBLIC_BATTLE_STATUSES];
+
+  if (typeof args.league === "string" && args.league !== "all") {
+    conditions.push('"league" = ?');
+    params.push(args.league);
+  }
+
+  if (typeof args.status === "string" && args.status !== "all") {
+    conditions.push('"status" = ?');
+    params.push(args.status);
+  }
+
+  if (typeof args.year === "string" && /^\d{4}$/.test(args.year)) {
+    conditions.push('"event_date" >= ?', '"event_date" <= ?');
+    params.push(`${args.year}-01-01`, `${args.year}-12-31`);
+  }
+
+  const sort = args.sort === "oldest" ? "oldest" : "latest";
+  const pageValue = Number(args.page);
+  const eventLimitValue = Number(args.event_limit);
+  const page = Number.isFinite(pageValue) ? Math.max(1, Math.floor(pageValue)) : 1;
+  const eventLimit = Number.isFinite(eventLimitValue)
+    ? Math.min(Math.max(1, Math.floor(eventLimitValue)), 20)
+    : 5;
+  const normalizedEventDateExpression = 'COALESCE(NULLIF("event_date", \'\'), \'0000-00-00\')';
+  const dateOrderColumn = sort === "oldest" ? "min_event_date" : "max_event_date";
+  const pageOffsetExpression = `CASE
+    WHEN COALESCE(MAX("total_events"), 0) = 0 THEN 0
+    ELSE MIN(
+      (? - 1) * ?,
+      (CAST((MAX("total_events") + ? - 1) / ? AS INTEGER) - 1) * ?
+    )
+  END`;
+  const direction = sort === "oldest" ? "ASC" : "DESC";
+  const where = ` WHERE ${conditions.join(" AND ")}`;
+
+  const groupedEventsQuery = `WITH event_groups AS (
+       SELECT "league", ${eventNameExpression} AS "event_name",
+              MIN(${normalizedEventDateExpression}) AS "min_event_date",
+              MAX(${normalizedEventDateExpression}) AS "max_event_date"
+       FROM "battles"${where}
+       GROUP BY "league", ${eventNameExpression}
+     ), ordered_groups AS (
+       SELECT event_groups.*,
+              COUNT(*) OVER () AS "total_events",
+              ROW_NUMBER() OVER (
+                ORDER BY
+                  "${dateOrderColumn}" ${direction},
+                  COALESCE("event_name", 'Other Battles') COLLATE NOCASE ASC,
+                  COALESCE("event_name", '') COLLATE NOCASE ASC,
+                  "league" COLLATE NOCASE ASC
+              ) AS "event_row"
+       FROM event_groups
+     ), page_context AS (
+       SELECT ${pageOffsetExpression} AS "offset_value"
+       FROM ordered_groups
+     )
+     SELECT og."league", og."event_name", og."total_events"
+     FROM ordered_groups og
+     CROSS JOIN page_context pc
+     WHERE og."event_row" > pc."offset_value"
+       AND og."event_row" <= pc."offset_value" + ?
+     ORDER BY og."event_row"`;
+
+  const rows = await fetchRows(groupedEventsQuery, [
+    ...params,
+    page,
+    eventLimit,
+    eventLimit,
+    eventLimit,
+    eventLimit,
+    eventLimit,
+  ]);
+  const totalEvents = Number(rows[0]?.total_events ?? 0);
+
+  const eventRows = rows.map((row) => {
+    const eventRow = { ...row };
+    delete eventRow.total_events;
+    return eventRow;
+  });
+
+  return {
+    data: compatData(eventRows),
+    error: null,
+    count: totalEvents,
   };
 }
 

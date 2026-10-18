@@ -14,6 +14,11 @@ export type BattleEventRow = {
   score?: number;
 };
 
+export type BattleEventGroupRow = {
+  league: string;
+  event_name: string | null;
+};
+
 /**
  * Event identity is scoped to a league. JSON keeps the key reversible even
  * when an event name contains punctuation that would be awkward as a

@@ -4,6 +4,8 @@ import { hasOnlySearchParams } from "@/lib/api-utils";
 import { parseSearchTokens, scoreBattle } from "@/lib/fuzzy-utils";
 import { normalizeBattleLeague, PUBLIC_BATTLE_STATUSES } from "@/lib/battles";
 import {
+  type BattleEventGroupRow,
+  getBattleEventKey,
   getOrderedBattleEventKeys,
   orderBattlesByEventKeys,
 } from "@/lib/battle-events";
@@ -258,8 +260,8 @@ export async function GET(request: NextRequest) {
         }
       }
     } else {
-      // Fetch data with a high limit to ensure all unique events are found
-      // across all battles, bypassing PostgREST pagination defaults.
+      // Let D1 group Events before the Worker sees them. The page query only
+      // returns the Event keys needed for this directory page.
       const [countResponse, eventsMetaResponse] = await Promise.all([
         applyCommonFilters(
           supabase.from("battles").select("id", { count: "exact", head: true }),
@@ -267,15 +269,14 @@ export async function GET(request: NextRequest) {
           cleanYear,
           cleanLeague,
         ),
-        applyCommonFilters(
-          supabase
-            .from("battles")
-            .select("event_name, event_date, league")
-            .limit(10000),
-          cleanStatus,
-          cleanYear,
-          cleanLeague,
-        ),
+        supabase.rpc("get_battle_event_groups", {
+          league: cleanLeague,
+          status: cleanStatus,
+          year: cleanYear,
+          sort: cleanSort,
+          page,
+          event_limit: eventLimit,
+        }),
       ]);
 
       if (countResponse.error) {
@@ -287,19 +288,12 @@ export async function GET(request: NextRequest) {
 
       count = countResponse.count || 0;
 
-      const eventRows = eventsMetaResponse.data || [];
-      const orderedEventKeys = getOrderedBattleEventKeys(
-        eventRows,
-        cleanSort === "oldest" ? "oldest" : "latest",
+      const eventRows = (eventsMetaResponse.data || []) as BattleEventGroupRow[];
+      const pageEventKeys = eventRows.map((row) =>
+        getBattleEventKey(row.league, row.event_name),
       );
 
-      totalEvents = orderedEventKeys.length;
-      const effectivePage = getEffectivePage(page, totalEvents, eventLimit);
-      const pageEventKeys = paginateEventKeys(
-        orderedEventKeys,
-        effectivePage,
-        eventLimit,
-      );
+      totalEvents = Number(eventsMetaResponse.count ?? pageEventKeys.length);
       if (pageEventKeys.length === 0) {
         data = [];
       } else {

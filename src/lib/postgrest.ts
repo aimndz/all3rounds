@@ -6,13 +6,16 @@ export function quotePostgrestValue(value: string): string {
 
 export function buildBattleEventFilter(eventKeys: readonly string[]): string {
   return eventKeys
-    .map((eventKey) => {
+    .flatMap((eventKey) => {
       const { league, eventName } = parseBattleEventKey(eventKey);
-      const eventClause =
-        eventName === null
-          ? "event_name.is.null"
-          : `event_name.eq.${quotePostgrestValue(eventName)}`;
-      return `and(league.eq.${league},${eventClause})`;
+      if (eventName === null) {
+        return [
+          `and(league.eq.${league},event_name.is.null)`,
+          `and(league.eq.${league},event_name.eq.${quotePostgrestValue("")})`,
+        ];
+      }
+
+      return [`and(league.eq.${league},event_name.eq.${quotePostgrestValue(eventName)})`];
     })
     .join(",");
 }
