@@ -31,6 +31,29 @@ Known bindings from `wrangler.json`:
 - `WORKER_SELF_REFERENCE`: self-service binding used by OpenNext cache revalidation
 - `NEXT_CACHE_DO_QUEUE`: Durable Object queue used by OpenNext time-based revalidation
 
+## Public League Discovery Cache Contract
+
+Use the archive glossary in `CONTEXT.md`: a League owns Battles, and an Event is
+a named collection of Battles within one League.
+
+- `GET /leagues` is the public League chooser. It uses a 24-hour Next.js
+  revalidation horizon and is expected to be eligible for the one-day
+  Cloudflare Edge TTL configured by the `Main Lists (1 Day)` rule.
+- `GET /leagues/{slug}` is the populated League-scoped Battle directory. It
+  uses the same 24-hour page revalidation horizon and is expected to use the
+  one-day Edge TTL. A registered League with no public Battles is intentionally
+  not available as a public page.
+- Search, status, year, sort, and pagination interactions on a scoped page
+  request `/api/battles?...&league={slug}`. Public unauthenticated responses
+  use the existing one-hour `s-maxage` policy with 59 seconds of
+  stale-while-revalidate and the Workers Cache API.
+- Ingestion and Battle mutations call `revalidateBattleDiscovery`, which
+  refreshes the League chooser, the affected League page, the all-Leagues
+  Battle directory, and public Battle API cache entries.
+
+When checking public caching, use requests without `Cookie` or `Authorization`
+headers. Authenticated requests intentionally bypass the public API cache.
+
 ## Dashboard-Only Settings To Record
 
 Fill these in from the Cloudflare dashboard. Do not guess.
@@ -111,7 +134,12 @@ Known production worker secrets observed:
 
 ### Cache Rules
 
-Dashboard cache rules currently configured:
+Dashboard cache rules recorded or required for verification:
+
+- The entries below describe dashboard state; editing this runbook does not
+  change Cloudflare configuration.
+- After deploying the public League routes, confirm that the `Main Lists (1 Day)`
+  rule includes both `/leagues` and `/leagues/*`.
 
 1. `Admin & Private Data (Bypass)`
    Match:
@@ -156,9 +184,10 @@ Dashboard cache rules currently configured:
 
 8. `Main Lists (1 Day)`
    Match:
-   `URI Path is in /battles, /emcees`
+   `URI Path is in /battles, /emcees, /leagues`
    `URI Path starts with /battles`
    `URI Path starts with /emcees`
+   `URI Path starts with /leagues`
    Action: `Eligible for cache, Edge TTL`
 
 9. `Battles/Emcee Data (1 Hour)`
@@ -189,6 +218,21 @@ OpenNext cache implementation:
 - `/api/battles` and `/api/emcees` use Workers Cache API response caching for public, unauthenticated GET requests.
   - Check `X-A3R-Cache: MISS` on first regional request and `X-A3R-Cache: HIT` on subsequent matching requests.
   - Requests with `Cookie` or `Authorization` bypass this cache.
+
+League cache verification:
+
+- Request `/leagues` and a populated `/leagues/{slug}` without private headers;
+  confirm both return the expected chooser or League-scoped Battle directory.
+- Repeat each request from the same region and inspect the available Cloudflare
+  cache status or response headers. The expected page policy is the one-day
+  Edge TTL described above, with a 24-hour application revalidation horizon.
+- From the scoped page, inspect a filter request to `/api/battles` and confirm
+  its `league` parameter remains present. The expected API response policy is
+  `public, s-maxage=3600, stale-while-revalidate=59`; `X-A3R-Cache` should
+  report the normal MISS-then-HIT flow for repeated unauthenticated requests.
+- After a deployment or representative Battle visibility/mutation change,
+  confirm that the chooser count, the affected League page, and the
+  all-Leagues directory converge without a redirect loop or empty response.
 
 ### Security
 
