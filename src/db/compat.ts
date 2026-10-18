@@ -26,7 +26,8 @@ type OrClause =
   | { kind: "eq" | "neq" | "ilike" | "like"; column: string; value: unknown }
   | { kind: "in"; column: string; value: unknown[] }
   | { kind: "is"; column: string; value: null }
-  | { kind: "contains"; column: "aka"; value: string };
+  | { kind: "contains"; column: "aka"; value: string }
+  | { kind: "and"; clauses: OrClause[] };
 type Order = {
   column: string;
   ascending: boolean;
@@ -344,10 +345,21 @@ function splitTopLevel(input: string) {
 }
 
 function parseOrExpression(input: string): OrClause[] {
+  const unquotePostgrestValue = (value: string) => {
+    const trimmed = value.trim();
+    return trimmed.startsWith('"') && trimmed.endsWith('"')
+      ? trimmed.slice(1, -1).replace(/""/g, '"')
+      : trimmed;
+  };
   return splitTopLevel(input)
     .map((part) => part.trim())
     .filter(Boolean)
     .map((part) => {
+      const andMatch = part.match(/^and\((.*)\)$/);
+      if (andMatch) {
+        return { kind: "and", clauses: parseOrExpression(andMatch[1]) };
+      }
+
       const isNullMatch = part.match(/^([a-zA-Z0-9_]+)\.is\.null$/);
       if (isNullMatch) return { kind: "is", column: isNullMatch[1], value: null };
 
@@ -369,13 +381,41 @@ function parseOrExpression(input: string): OrClause[] {
       return {
         kind: match[2] as "eq" | "neq" | "ilike" | "like",
         column: match[1],
-        value: match[3],
+        value: unquotePostgrestValue(match[3]),
       };
     });
 }
 
 function buildWhere(filters: Filter[]) {
   const params: unknown[] = [];
+  const buildOrClause = (clause: OrClause): string => {
+    switch (clause.kind) {
+      case "and":
+        return `(${clause.clauses.map(buildOrClause).join(" AND ")})`;
+      case "eq":
+        params.push(normalizeDateInput(clause.value));
+        return `${quoteIdent(clause.column)} = ?`;
+      case "neq":
+        params.push(normalizeDateInput(clause.value));
+        return `${quoteIdent(clause.column)} <> ?`;
+      case "ilike":
+      case "like":
+        params.push(String(clause.value));
+        return `${quoteIdent(clause.column)} LIKE ? ESCAPE '\\' COLLATE NOCASE`;
+      case "in":
+        params.push(...clause.value.map(normalizeDateInput));
+        return `${quoteIdent(clause.column)} IN (${clause.value.map(() => "?").join(", ")})`;
+      case "is":
+        return `${quoteIdent(clause.column)} IS NULL`;
+      case "contains":
+        params.push(normalizeEmceeSlug(clause.value));
+        return `EXISTS (
+          SELECT 1 FROM emcee_aliases ea
+          WHERE ea.emcee_id = emcees.id AND ea.alias_normalized = ?
+        )`;
+    }
+  };
+
   const clauses = filters.map((filter) => {
     switch (filter.kind) {
       case "eq":
@@ -406,31 +446,7 @@ function buildWhere(filters: Filter[]) {
       case "is":
         return `${quoteIdent(filter.column)} IS NULL`;
       case "or": {
-        const parts = filter.clauses.map((clause) => {
-          switch (clause.kind) {
-            case "eq":
-              params.push(normalizeDateInput(clause.value));
-              return `${quoteIdent(clause.column)} = ?`;
-            case "neq":
-              params.push(normalizeDateInput(clause.value));
-              return `${quoteIdent(clause.column)} <> ?`;
-            case "ilike":
-            case "like":
-              params.push(String(clause.value));
-              return `${quoteIdent(clause.column)} LIKE ? ESCAPE '\\' COLLATE NOCASE`;
-            case "in":
-              params.push(...clause.value.map(normalizeDateInput));
-              return `${quoteIdent(clause.column)} IN (${clause.value.map(() => "?").join(", ")})`;
-            case "is":
-              return `${quoteIdent(clause.column)} IS NULL`;
-            case "contains":
-              params.push(normalizeEmceeSlug(clause.value));
-              return `EXISTS (
-                SELECT 1 FROM emcee_aliases ea
-                WHERE ea.emcee_id = emcees.id AND ea.alias_normalized = ?
-              )`;
-          }
-        });
+        const parts = filter.clauses.map(buildOrClause);
         return `(${parts.join(" OR ")})`;
       }
     }

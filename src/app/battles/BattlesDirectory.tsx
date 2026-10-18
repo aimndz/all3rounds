@@ -25,10 +25,8 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { formatBattleLeagueLabel } from "@/lib/battles";
-import {
-  getLeagueDefinition,
-  getLeagueDirectoryPath,
-} from "@/lib/leagues";
+import { getBattleEventKeyFromBattle } from "@/lib/battle-events";
+import { getLeagueDefinition, getLeagueDirectoryPath } from "@/lib/leagues";
 import { cn } from "@/lib/utils";
 import { STATUS_CONFIG } from "@/components/StatusBadge";
 import {
@@ -113,13 +111,25 @@ export default function BattlesDirectory({
   const sa = useSuperadminActions(battles, setBattles, initialEventNames);
 
   const handleRenameGroup = useCallback(
-    (oldName: string, newName: string) => {
+    (groupId: string, _oldName: string, newName: string | null) => {
       setBattles((prev) =>
         prev.map((b) =>
-          b.event_name === oldName ||
-          (!b.event_name && oldName === "Other Battles")
+          getBattleEventKeyFromBattle(b) === groupId
             ? { ...b, event_name: newName }
             : b,
+        ),
+      );
+    },
+    [setBattles],
+  );
+
+  const handleUpdateGroupDate = useCallback(
+    (groupId: string, _eventName: string, newDate: string) => {
+      setBattles((prev) =>
+        prev.map((battle) =>
+          getBattleEventKeyFromBattle(battle) === groupId
+            ? { ...battle, event_date: newDate }
+            : battle,
         ),
       );
     },
@@ -236,10 +246,7 @@ export default function BattlesDirectory({
       {!league && (
         <div className={cn("space-y-1.5", mobile ? "col-span-1" : "flex-1")}>
           {mobile && <label className="filter-label">League</label>}
-          <Select
-            value={leagueFilter}
-            onValueChange={handleLeagueChange}
-          >
+          <Select value={leagueFilter} onValueChange={handleLeagueChange}>
             <SelectTrigger
               size="lg"
               className={cn("w-full", !mobile && "sm:w-40")}
@@ -425,9 +432,9 @@ export default function BattlesDirectory({
           >
             {paginatedEventGroups.map((group) => (
               <EventSection
-                key={group.name}
+                key={group.id}
                 group={group}
-                defaultOpen={filter ? true : expandedGroups.has(group.name)}
+                defaultOpen={filter ? true : expandedGroups.has(group.id)}
                 onToggle={handleToggleGroup}
                 canEditStatus={canEditBattleStatus}
                 isSuperadmin={isSuperAdmin}
@@ -436,6 +443,7 @@ export default function BattlesDirectory({
                 selectedIds={sa.selectedBattleIds}
                 onToggleSelect={sa.toggleBattleSelection}
                 onRenameGroup={handleRenameGroup}
+                onUpdateGroupDate={handleUpdateGroupDate}
                 onBattleStatusUpdated={handleBattleStatusUpdated}
               />
             ))}

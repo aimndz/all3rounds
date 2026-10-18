@@ -3,6 +3,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams, usePathname } from "next/navigation";
 import { getUniqueBattleLeagues, normalizeBattleLeague } from "@/lib/battles";
+import {
+  getBattleEventKeyFromBattle,
+  getBattleEventLabel,
+} from "@/lib/battle-events";
 
 // ============================================================================
 // Types
@@ -25,7 +29,10 @@ export type Battle = {
 };
 
 export type EventGroup = {
+  id: string;
   name: string;
+  eventName: string | null;
+  league: string;
   date: string | null;
   leagues: string[];
   battles: Battle[];
@@ -46,10 +53,13 @@ export function groupByEvent(
   const groups = new Map<string, EventGroup>();
 
   for (const battle of battles) {
-    const key = battle.event_name || "Other Battles";
+    const key = getBattleEventKeyFromBattle(battle);
     if (!groups.has(key)) {
       groups.set(key, {
-        name: key,
+        id: key,
+        name: getBattleEventLabel(battle.event_name),
+        eventName: battle.event_name,
+        league: normalizeBattleLeague(battle.league),
         date: battle.event_date,
         leagues: [],
         battles: [],
@@ -108,8 +118,7 @@ export function useBattlesData(
   const filter = searchParams.get("q") || "";
   const statusFilter = searchParams.get("status") || "all";
   const yearFilter = searchParams.get("year") || "all";
-  const leagueFilter =
-    (leagueScope ?? searchParams.get("league")) || "all";
+  const leagueFilter = (leagueScope ?? searchParams.get("league")) || "all";
   const sortBy = searchParams.get("sort") || "latest";
   const page = parseInt(searchParams.get("page") || "1", 10);
 
@@ -309,11 +318,11 @@ export function useBattlesData(
     [updateSearch],
   );
 
-  const handleToggleGroup = useCallback((name: string, isOpen: boolean) => {
+  const handleToggleGroup = useCallback((id: string, isOpen: boolean) => {
     setExpandedGroups((prev) => {
       const next = new Set(prev);
-      if (isOpen) next.add(name);
-      else next.delete(name);
+      if (isOpen) next.add(id);
+      else next.delete(id);
 
       const nextStr = Array.from(next).join("|");
       localStorage.setItem("a3r_expanded_groups", nextStr);

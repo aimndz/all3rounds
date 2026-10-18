@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { requirePermission } from "@/lib/auth";
 import { verifyCsrf } from "@/lib/csrf";
+import {
+  getBattleLeagues,
+  revalidateBattleDiscovery,
+} from "@/lib/revalidation";
 import { z } from "zod";
 
 const BatchStatusSchema = z.object({
@@ -77,7 +81,7 @@ export async function PATCH(request: NextRequest) {
       .from("battles")
       .update({ status })
       .in("id", battleIds)
-      .select("id");
+      .select("id, league");
 
     if (error) {
       console.error("Batch status update failed:", error);
@@ -86,6 +90,8 @@ export async function PATCH(request: NextRequest) {
         { status: 500 },
       );
     }
+
+    await revalidateBattleDiscovery(getBattleLeagues(updated || []));
 
     return NextResponse.json({
       success: true,

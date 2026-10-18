@@ -5,9 +5,13 @@ import {
   normalizeBattleLeague,
   PUBLIC_BATTLE_STATUSES,
 } from "@/lib/battles";
+import {
+  getOrderedBattleEventKeys,
+  orderBattlesByEventKeys,
+} from "@/lib/battle-events";
+import { buildBattleEventFilter } from "@/lib/postgrest";
 
 const INITIAL_EVENTS_PER_PAGE = 5;
-const OTHER_BATTLES_KEY = "Other Battles";
 
 export type BattleDirectoryData = {
   initialBattles: Battle[];
@@ -74,44 +78,13 @@ export async function getBattleDirectoryData(
   }
 
   const allEventRows = eventsMetaResponse.data || [];
-  const eventMeta = new Map<string, { min: number; max: number }>();
+  const orderedEventKeys = getOrderedBattleEventKeys(allEventRows, sort);
 
-  for (const row of allEventRows) {
-    const key = row.event_name || OTHER_BATTLES_KEY;
-    const date = row.event_date ? new Date(row.event_date).getTime() : 0;
-    const current = eventMeta.get(key) || {
-      min: Infinity,
-      max: -Infinity,
-    };
-
-    if (date < current.min) current.min = date;
-    if (date > current.max) current.max = date;
-    eventMeta.set(key, current);
-  }
-
-  const orderedEventNames = Array.from(eventMeta.entries())
-    .sort((a, b) => {
-      const dateA = sort === "oldest" ? a[1].min : a[1].max;
-      const dateB = sort === "oldest" ? b[1].min : b[1].max;
-
-      if (dateA !== dateB) {
-        return sort === "oldest" ? dateA - dateB : dateB - dateA;
-      }
-
-      return a[0].localeCompare(b[0]);
-    })
-    .map(([name]) => name);
-
-  const initialTotalEvents = orderedEventNames.length;
-  const firstPageEventNames = orderedEventNames.slice(
+  const initialTotalEvents = orderedEventKeys.length;
+  const firstPageEventKeys = orderedEventKeys.slice(
     0,
     INITIAL_EVENTS_PER_PAGE,
   );
-  const includeOtherBattles = firstPageEventNames.includes(OTHER_BATTLES_KEY);
-  const namedEvents = firstPageEventNames.filter(
-    (name) => name !== OTHER_BATTLES_KEY,
-  );
-
   const buildInitialBattlesQuery = () => {
     let query = supabase
       .from("battles")
@@ -128,58 +101,28 @@ export async function getBattleDirectoryData(
     return query;
   };
 
-  const [namedEventsResponse, otherBattlesResponse] = await Promise.all([
-    namedEvents.length > 0
-      ? buildInitialBattlesQuery()
-          .in("event_name", namedEvents)
+  const initialResponse =
+    firstPageEventKeys.length > 0
+      ? await buildInitialBattlesQuery()
+          .or(buildBattleEventFilter(firstPageEventKeys))
           .order("event_date", {
             ascending: sort === "oldest",
             nullsFirst: false,
           })
-      : Promise.resolve({ data: [], error: null }),
-    includeOtherBattles
-      ? buildInitialBattlesQuery()
-          .is("event_name", null)
-          .order("event_date", {
-            ascending: sort === "oldest",
-            nullsFirst: false,
-          })
-      : Promise.resolve({ data: [], error: null }),
-  ]);
+      : { data: [], error: null };
 
-  if (namedEventsResponse.error) {
+  if (initialResponse.error) {
     console.error(
-      "Error fetching initial battles page for named events:",
-      namedEventsResponse.error,
-    );
-  }
-  if (otherBattlesResponse.error) {
-    console.error(
-      "Error fetching initial battles page for unnamed events:",
-      otherBattlesResponse.error,
+      "Error fetching initial battles page:",
+      initialResponse.error,
     );
   }
 
-  const eventOrder = new Map(
-    firstPageEventNames.map((name, idx) => [name, idx]),
+  const initialBattles = orderBattlesByEventKeys(
+    (initialResponse.data || []) as Battle[],
+    firstPageEventKeys,
+    sort,
   );
-  const initialBattles = [
-    ...(namedEventsResponse.data || []),
-    ...(otherBattlesResponse.data || []),
-  ].sort((a, b) => {
-    const keyA = a.event_name || OTHER_BATTLES_KEY;
-    const keyB = b.event_name || OTHER_BATTLES_KEY;
-    const groupA = eventOrder.get(keyA) ?? Number.MAX_SAFE_INTEGER;
-    const groupB = eventOrder.get(keyB) ?? Number.MAX_SAFE_INTEGER;
-
-    if (groupA !== groupB) {
-      return groupA - groupB;
-    }
-
-    const dateA = a.event_date ? new Date(a.event_date).getTime() : 0;
-    const dateB = b.event_date ? new Date(b.event_date).getTime() : 0;
-    return sort === "oldest" ? dateA - dateB : dateB - dateA;
-  }) as Battle[];
 
   const initialEventNames = Array.from(
     new Set(initialBattles.map((battle) => battle.event_name).filter(Boolean)),

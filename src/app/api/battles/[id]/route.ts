@@ -3,20 +3,26 @@ import { revalidatePath } from "next/cache";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { getUserWithRole, hasPermission, requirePermission } from "@/lib/auth";
 import { verifyCsrf } from "@/lib/csrf";
+import { revalidateBattleDiscovery } from "@/lib/revalidation";
 import { sortParticipantsByTitle } from "@/features/battles/utils/participant-grouping";
 import { uuidSchema } from "@/lib/schemas";
 import { z } from "zod";
 
-const UpdateBattleSchema = z.object({
-  status: z
-    .enum(["raw", "arranged", "reviewing", "reviewed", "excluded"], {
-      message: "Invalid status",
-    })
-    .optional(),
-  public_visible: z.boolean().optional(),
-}).refine((value) => value.status !== undefined || value.public_visible !== undefined, {
-  message: "No battle updates provided",
-});
+const UpdateBattleSchema = z
+  .object({
+    status: z
+      .enum(["raw", "arranged", "reviewing", "reviewed", "excluded"], {
+        message: "Invalid status",
+      })
+      .optional(),
+    public_visible: z.boolean().optional(),
+  })
+  .refine(
+    (value) => value.status !== undefined || value.public_visible !== undefined,
+    {
+      message: "No battle updates provided",
+    },
+  );
 
 const DeleteBattleSchema = z.object({
   title: z.string().min(1),
@@ -54,7 +60,9 @@ export async function GET(
 
   const { role } = await getUserWithRole();
   const canViewHiddenBattles = hasPermission(role, "battles:manage");
-  const supabase = canViewHiddenBattles ? createAdminClient() : await createClient();
+  const supabase = canViewHiddenBattles
+    ? createAdminClient()
+    : await createClient();
 
   // If a deep-link line is provided, start from the page that contains it.
   let effectiveOffset = offset;
@@ -81,7 +89,9 @@ export async function GET(
   // Fetch battle details
   let battleQuery = supabase
     .from("battles")
-    .select("id, league, slug, title, youtube_id, event_name, event_date, url, status, public_visible")
+    .select(
+      "id, league, slug, title, youtube_id, event_name, event_date, url, status, public_visible",
+    )
     .eq("id", id);
 
   if (!canViewHiddenBattles) {
@@ -283,7 +293,9 @@ export async function PATCH(
     const { status, public_visible } = parsed.data;
 
     if (status !== undefined) {
-      const { error: permError } = await requirePermission("battles:edit_status");
+      const { error: permError } = await requirePermission(
+        "battles:edit_status",
+      );
       if (permError) {
         return NextResponse.json(
           { error: permError.message },
@@ -293,7 +305,9 @@ export async function PATCH(
     }
 
     if (public_visible !== undefined) {
-      const { error: permError } = await requirePermission("battles:edit_visibility");
+      const { error: permError } = await requirePermission(
+        "battles:edit_visibility",
+      );
       if (permError) {
         return NextResponse.json(
           { error: permError.message },
@@ -323,8 +337,8 @@ export async function PATCH(
       );
     }
 
-    if (public_visible !== undefined) {
-      revalidatePath("/battles");
+    if (public_visible !== undefined || status !== undefined) {
+      await revalidateBattleDiscovery(updated.league ? [updated.league] : []);
       revalidatePath("/emcees");
       if (updated.league && updated.slug) {
         revalidatePath(`/battles/${updated.league}/${updated.slug}`);
@@ -387,10 +401,7 @@ export async function DELETE(
       .single();
 
     if (fetchError || !battle) {
-      return NextResponse.json(
-        { error: "Battle not found." },
-        { status: 404 },
-      );
+      return NextResponse.json({ error: "Battle not found." }, { status: 404 });
     }
 
     if (parsed.data.title !== battle.title) {
@@ -424,10 +435,7 @@ export async function DELETE(
       );
     }
 
-    const { error } = await supabaseAdmin
-      .from("battles")
-      .delete()
-      .eq("id", id);
+    const { error } = await supabaseAdmin.from("battles").delete().eq("id", id);
 
     if (error) {
       console.error("Battle deletion failed:", error);
@@ -442,7 +450,7 @@ export async function DELETE(
       .delete()
       .eq("youtube_id", battle.youtube_id);
 
-    revalidatePath("/battles");
+    await revalidateBattleDiscovery(battle.league ? [battle.league] : []);
     revalidatePath("/emcees");
     if (battle.league && battle.slug) {
       revalidatePath(`/battles/${battle.league}/${battle.slug}`);

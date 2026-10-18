@@ -2,17 +2,17 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { hasOnlySearchParams } from "@/lib/api-utils";
 import { parseSearchTokens, scoreBattle } from "@/lib/fuzzy-utils";
+import { normalizeBattleLeague, PUBLIC_BATTLE_STATUSES } from "@/lib/battles";
 import {
-  normalizeBattleLeague,
-  PUBLIC_BATTLE_STATUSES,
-} from "@/lib/battles";
+  getOrderedBattleEventKeys,
+  orderBattlesByEventKeys,
+} from "@/lib/battle-events";
+import { buildBattleEventFilter } from "@/lib/postgrest";
 import {
   buildPublicApiCacheKey,
   matchPublicApiCache,
   storePublicApiCache,
 } from "@/lib/public-api-cache";
-
-const OTHER_BATTLES_KEY = "Other Battles";
 
 type BattleRow = {
   id: string;
@@ -40,10 +40,6 @@ type FilterableQuery = {
   lte: (column: string, value: string) => FilterableQuery;
 };
 
-function getEventKey(battle: Pick<BattleRow, "event_name">): string {
-  return battle.event_name || OTHER_BATTLES_KEY;
-}
-
 function paginateEventKeys(
   eventKeys: string[],
   page: number,
@@ -60,52 +56,6 @@ function getEffectivePage(
 ): number {
   const totalPages = Math.max(1, Math.ceil(totalEvents / eventLimit));
   return Math.min(Math.max(1, page), totalPages);
-}
-
-function getOrderedEventKeys(
-  rows: {
-    event_name: string | null;
-    event_date: string | null;
-    score?: number;
-  }[],
-  cleanSort: string,
-  isSearch: boolean = false,
-): string[] {
-  const meta = new Map<
-    string,
-    { maxScore: number; minDate: number; maxDate: number }
-  >();
-
-  for (const row of rows) {
-    const key = row.event_name || OTHER_BATTLES_KEY;
-    const date = row.event_date ? new Date(row.event_date).getTime() : 0;
-    const score = row.score || 0;
-    const current = meta.get(key) || {
-      maxScore: -Infinity,
-      minDate: Infinity,
-      maxDate: -Infinity,
-    };
-
-    if (score > current.maxScore) current.maxScore = score;
-    if (date < current.minDate) current.minDate = date;
-    if (date > current.maxDate) current.maxDate = date;
-    meta.set(key, current);
-  }
-
-  return Array.from(meta.entries())
-    .sort((a, b) => {
-      if (isSearch && b[1].maxScore !== a[1].maxScore) {
-        return b[1].maxScore - a[1].maxScore;
-      }
-      const dateA = cleanSort === "oldest" ? a[1].minDate : a[1].maxDate;
-      const dateB = cleanSort === "oldest" ? b[1].minDate : b[1].maxDate;
-
-      if (dateA !== dateB) {
-        return cleanSort === "oldest" ? dateA - dateB : dateB - dateA;
-      }
-      return a[0].localeCompare(b[0]);
-    })
-    .map(([key]) => key);
 }
 
 function applyCommonFilters<T>(
@@ -174,7 +124,7 @@ export async function GET(request: NextRequest) {
     20,
   );
 
-  // Normalize parameters to prevent cache key pollution
+  // Normalize parameters to prevent cache key pollution.
   const cleanQ = q.trim().toLowerCase().slice(0, 100);
   const validStatuses = [
     "raw",
@@ -286,10 +236,10 @@ export async function GET(request: NextRequest) {
 
           count = scored.length;
 
-          const orderedEventKeys = getOrderedEventKeys(
+          const orderedEventKeys = getOrderedBattleEventKeys(
             scored.map((s) => ({ ...s.battle, score: s.score })),
-            cleanSort,
-            true,
+            cleanSort === "oldest" ? "oldest" : "latest",
+            { scoreFirst: true },
           );
 
           totalEvents = orderedEventKeys.length;
@@ -299,32 +249,12 @@ export async function GET(request: NextRequest) {
             effectivePage,
             eventLimit,
           );
-          const pageSet = new Set(pageEventKeys);
-          const keyOrder = new Map(pageEventKeys.map((key, idx) => [key, idx]));
-
-          data = scored
-            .filter(({ battle }: ScoredBattle) =>
-              pageSet.has(getEventKey(battle)),
-            )
-            .map(({ battle, score }: ScoredBattle) => ({ ...battle, score }))
-            .sort((a: BattleRow, b: BattleRow) => {
-              const groupA =
-                keyOrder.get(getEventKey(a)) ?? Number.MAX_SAFE_INTEGER;
-              const groupB =
-                keyOrder.get(getEventKey(b)) ?? Number.MAX_SAFE_INTEGER;
-
-              if (groupA !== groupB) {
-                return groupA - groupB;
-              }
-
-              if ((b.score || 0) !== (a.score || 0)) {
-                return (b.score || 0) - (a.score || 0);
-              }
-
-              const dateA = a.event_date ? new Date(a.event_date).getTime() : 0;
-              const dateB = b.event_date ? new Date(b.event_date).getTime() : 0;
-              return cleanSort === "oldest" ? dateA - dateB : dateB - dateA;
-            });
+          data = orderBattlesByEventKeys(
+            scored.map(({ battle, score }) => ({ ...battle, score })),
+            pageEventKeys,
+            cleanSort === "oldest" ? "oldest" : "latest",
+            { scoreFirst: true },
+          );
         }
       }
     } else {
@@ -340,7 +270,7 @@ export async function GET(request: NextRequest) {
         applyCommonFilters(
           supabase
             .from("battles")
-            .select("event_name, event_date")
+            .select("event_name, event_date, league")
             .limit(10000),
           cleanStatus,
           cleanYear,
@@ -358,7 +288,10 @@ export async function GET(request: NextRequest) {
       count = countResponse.count || 0;
 
       const eventRows = eventsMetaResponse.data || [];
-      const orderedEventKeys = getOrderedEventKeys(eventRows, cleanSort, false);
+      const orderedEventKeys = getOrderedBattleEventKeys(
+        eventRows,
+        cleanSort === "oldest" ? "oldest" : "latest",
+      );
 
       totalEvents = orderedEventKeys.length;
       const effectivePage = getEffectivePage(page, totalEvents, eventLimit);
@@ -367,33 +300,16 @@ export async function GET(request: NextRequest) {
         effectivePage,
         eventLimit,
       );
-      const includeOtherBattles = pageEventKeys.includes(OTHER_BATTLES_KEY);
-      const namedEvents = pageEventKeys.filter(
-        (key) => key !== OTHER_BATTLES_KEY,
-      );
-
       if (pageEventKeys.length === 0) {
         data = [];
       } else {
-        const orConditions = [];
-        if (namedEvents.length > 0) {
-          // Wrap event names in parentheses and quote them for Supabase .in() equivalent in .or()
-          const inList = namedEvents
-            .map((name) => `"${name.replace(/"/g, '""')}"`)
-            .join(",");
-          orConditions.push(`event_name.in.(${inList})`);
-        }
-        if (includeOtherBattles) {
-          orConditions.push(`event_name.is.null`);
-        }
-
         const battlesResponse = await applyCommonFilters(
           supabase
             .from("battles")
             .select(
               "id, league, slug, title, youtube_id, event_name, event_date, status, url",
             )
-            .or(orConditions.join(",")),
+            .or(buildBattleEventFilter(pageEventKeys)),
           cleanStatus,
           cleanYear,
           cleanLeague,
@@ -406,22 +322,10 @@ export async function GET(request: NextRequest) {
           error = battlesResponse.error;
         }
 
-        const order = new Map(pageEventKeys.map((key, idx) => [key, idx]));
-        data = (battlesResponse.data || []).sort(
-          (a: BattleRow, b: BattleRow) => {
-            const keyA = getEventKey(a);
-            const keyB = getEventKey(b);
-            const groupA = order.get(keyA) ?? Number.MAX_SAFE_INTEGER;
-            const groupB = order.get(keyB) ?? Number.MAX_SAFE_INTEGER;
-
-            if (groupA !== groupB) {
-              return groupA - groupB;
-            }
-
-            const dateA = a.event_date ? new Date(a.event_date).getTime() : 0;
-            const dateB = b.event_date ? new Date(b.event_date).getTime() : 0;
-            return cleanSort === "oldest" ? dateA - dateB : dateB - dateA;
-          },
+        data = orderBattlesByEventKeys(
+          (battlesResponse.data as BattleRow[] | null | undefined) || [],
+          pageEventKeys,
+          cleanSort === "oldest" ? "oldest" : "latest",
         );
       }
     }

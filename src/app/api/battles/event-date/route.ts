@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { requirePermission } from "@/lib/auth";
 import { verifyCsrf } from "@/lib/csrf";
+import { normalizeBattleLeague } from "@/lib/battles";
+import {
+  getBattleLeagues,
+  revalidateBattleDiscovery,
+} from "@/lib/revalidation";
 import { z } from "zod";
 
 const EventDateSchema = z
@@ -11,6 +16,8 @@ const EventDateSchema = z
       .string()
       .min(1, "New date cannot be empty")
       .max(200, "New date is too long"),
+    league: z.string().min(1).max(80).optional(),
+    currentEventName: z.string().max(200).nullable().optional(),
     battleIds: z.array(z.string().uuid("Invalid battle ID")).optional(),
   })
   .refine(
@@ -66,7 +73,14 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
-    const { eventName, newDate, battleIds } = parsed.data;
+    const {
+      eventName,
+      currentEventName,
+      newDate,
+      league: rawLeague,
+      battleIds,
+    } = parsed.data;
+    const league = rawLeague ? normalizeBattleLeague(rawLeague) : undefined;
 
     const supabaseAdmin = createAdminClient();
 
@@ -76,7 +90,7 @@ export async function PATCH(request: NextRequest) {
         .from("battles")
         .update({ event_date: newDate })
         .in("id", battleIds)
-        .select("id");
+        .select("id, league");
 
       if (error) {
         console.error("Update battles event date failed:", error);
@@ -85,6 +99,8 @@ export async function PATCH(request: NextRequest) {
           { status: 500 },
         );
       }
+
+      await revalidateBattleDiscovery(getBattleLeagues(updated || []));
 
       return NextResponse.json({
         success: true,
@@ -97,13 +113,19 @@ export async function PATCH(request: NextRequest) {
     // Build the update query
     let query = supabaseAdmin.from("battles").update({ event_date: newDate });
 
-    if (eventName === "Other Battles") {
+    if (currentEventName !== undefined) {
+      query =
+        currentEventName === null
+          ? query.is("event_name", null)
+          : query.eq("event_name", currentEventName);
+    } else if (eventName === "Other Battles") {
       query = query.is("event_name", null);
     } else {
       query = query.eq("event_name", eventName);
     }
+    if (league) query = query.eq("league", league);
 
-    const { data: updated, error } = await query.select("id");
+    const { data: updated, error } = await query.select("id, league");
 
     if (error) {
       console.error("Batch update event date failed:", error);
@@ -112,6 +134,8 @@ export async function PATCH(request: NextRequest) {
         { status: 500 },
       );
     }
+
+    await revalidateBattleDiscovery(getBattleLeagues(updated || []));
 
     return NextResponse.json({
       success: true,

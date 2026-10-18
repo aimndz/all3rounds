@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { requirePermission } from "@/lib/auth";
 import { verifyCsrf } from "@/lib/csrf";
+import { normalizeBattleLeague } from "@/lib/battles";
+import {
+  getBattleLeagues,
+  revalidateBattleDiscovery,
+} from "@/lib/revalidation";
 import { z } from "zod";
 
 const EventNameSchema = z
@@ -11,6 +16,8 @@ const EventNameSchema = z
       .string()
       .min(1, "New name cannot be empty")
       .max(200, "New name is too long"),
+    league: z.string().min(1).max(80).optional(),
+    eventName: z.string().max(200).nullable().optional(),
     battleIds: z.array(z.string().uuid("Invalid battle ID")).optional(),
   })
   .refine(
@@ -66,7 +73,14 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
-    const { oldName, newName, battleIds } = parsed.data;
+    const {
+      oldName,
+      newName,
+      league: rawLeague,
+      eventName,
+      battleIds,
+    } = parsed.data;
+    const league = rawLeague ? normalizeBattleLeague(rawLeague) : undefined;
 
     // Map "Other Battles" to null
     const finalNewName = newName === "Other Battles" ? null : newName;
@@ -79,7 +93,7 @@ export async function PATCH(request: NextRequest) {
         .from("battles")
         .update({ event_name: finalNewName })
         .in("id", battleIds)
-        .select("id");
+        .select("id, league");
 
       if (error) {
         console.error("Move battles event name failed:", error);
@@ -88,6 +102,8 @@ export async function PATCH(request: NextRequest) {
           { status: 500 },
         );
       }
+
+      await revalidateBattleDiscovery(getBattleLeagues(updated || []));
 
       return NextResponse.json({
         success: true,
@@ -102,13 +118,19 @@ export async function PATCH(request: NextRequest) {
       .from("battles")
       .update({ event_name: finalNewName });
 
-    if (oldName === "Other Battles") {
+    if (eventName !== undefined) {
+      query =
+        eventName === null
+          ? query.is("event_name", null)
+          : query.eq("event_name", eventName);
+    } else if (oldName === "Other Battles") {
       query = query.is("event_name", null);
     } else {
       query = query.eq("event_name", oldName);
     }
+    if (league) query = query.eq("league", league);
 
-    const { data: updated, error } = await query.select("id");
+    const { data: updated, error } = await query.select("id, league");
 
     if (error) {
       console.error("Batch rename event name failed:", error);
@@ -117,6 +139,8 @@ export async function PATCH(request: NextRequest) {
         { status: 500 },
       );
     }
+
+    await revalidateBattleDiscovery(getBattleLeagues(updated || []));
 
     return NextResponse.json({
       success: true,

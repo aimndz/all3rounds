@@ -18,13 +18,42 @@ const makeBattle = (
 });
 
 describe("groupByEvent", () => {
-  it("collects the unique leagues represented by each event", () => {
+  it("keeps identical event names separate for different leagues", () => {
     const groups = groupByEvent([
       makeBattle("one", "Event One", "sunugan"),
       makeBattle("two", "Event One", "fliptop"),
       makeBattle("three", "Event One", "sunugan"),
     ]);
 
-    expect(groups[0]?.leagues).toEqual(["fliptop", "sunugan"]);
+    expect(groups).toHaveLength(2);
+    expect(
+      groups.find((group) => group.league === "sunugan")?.battles,
+    ).toHaveLength(2);
+    expect(
+      groups.find((group) => group.league === "fliptop")?.battles,
+    ).toHaveLength(1);
+  });
+
+  it("keeps unnamed battles separate for each league", () => {
+    const groups = groupByEvent([
+      makeBattle("one", null, "sunugan"),
+      makeBattle("two", null, "fliptop"),
+    ]);
+
+    expect(groups).toHaveLength(2);
+    expect(groups.every((group) => group.name === "Other Battles")).toBe(true);
+    expect(groups.map((group) => group.league).sort()).toEqual([
+      "fliptop",
+      "sunugan",
+    ]);
+  });
+
+  it("preserves date ordering while treating event identity as scoped", () => {
+    const groups = groupByEvent([
+      { ...makeBattle("old", "Shared", "fliptop"), event_date: "2024-01-01" },
+      { ...makeBattle("new", "Shared", "motus"), event_date: "2025-01-01" },
+    ]);
+
+    expect(groups.map((group) => group.league)).toEqual(["motus", "fliptop"]);
   });
 });

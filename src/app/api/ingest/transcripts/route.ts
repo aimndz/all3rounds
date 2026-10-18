@@ -11,6 +11,7 @@ import {
   videoProcessingStatus,
 } from "@/db/schema";
 import { normalizeBattleLeague, normalizeBattleSlug } from "@/lib/battles";
+import { revalidateBattleDiscovery } from "@/lib/revalidation";
 import { normalizeEmceeSlug } from "@/lib/emcees";
 import { enforceIngestBodyLimit, requireIngestToken } from "../_auth";
 import { z } from "zod";
@@ -61,17 +62,23 @@ export async function POST(request: NextRequest) {
   const oversized = enforceIngestBodyLimit(request);
   if (oversized) return oversized;
 
-  const parsed = TranscriptSchema.safeParse(await request.json().catch(() => null));
+  const parsed = TranscriptSchema.safeParse(
+    await request.json().catch(() => null),
+  );
   if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
+    return NextResponse.json(
+      { error: parsed.error.issues[0].message },
+      { status: 400 },
+    );
   }
 
   try {
     const payload = parsed.data;
+    const league = normalizeBattleLeague(payload.league);
     const db = getDb();
     const now = new Date();
     const existing = await db
-      .select({ id: battles.id })
+      .select({ id: battles.id, league: battles.league })
       .from(battles)
       .where(eq(battles.youtubeId, payload.youtube_id))
       .limit(1);
@@ -102,7 +109,6 @@ export async function POST(request: NextRequest) {
       throw new Error("Unable to resolve battle id for ingest upload.");
     }
 
-    const league = normalizeBattleLeague(payload.league);
     const slugBase = normalizeBattleSlug(payload.title);
 
     const speakerToEmcee = new Map<string, string>();
@@ -119,10 +125,7 @@ export async function POST(request: NextRequest) {
     });
 
     for (const participant of participantRows) {
-      await db
-        .insert(emcees)
-        .values(participant)
-        .onConflictDoNothing();
+      await db.insert(emcees).values(participant).onConflictDoNothing();
 
       const existingEmcee = await db
         .select({ id: emcees.id })
@@ -147,7 +150,10 @@ export async function POST(request: NextRequest) {
         .select({ slug: battles.slug })
         .from(battles)
         .where(eq(battles.league, league));
-      const slug = uniqueSlug(slugBase, new Set(existingSlugs.map((row) => row.slug)));
+      const slug = uniqueSlug(
+        slugBase,
+        new Set(existingSlugs.map((row) => row.slug)),
+      );
 
       await db.insert(battles).values({
         id: battleId,
@@ -166,12 +172,15 @@ export async function POST(request: NextRequest) {
     for (const [index, participant] of participantRows.entries()) {
       const emceeId = speakerToEmcee.get(participant.name.toLowerCase());
       if (!emceeId) continue;
-      await db.insert(battleParticipants).values({
-        id: crypto.randomUUID(),
-        battleId,
-        emceeId,
-        label: `MC${index + 1}`,
-      }).onConflictDoNothing();
+      await db
+        .insert(battleParticipants)
+        .values({
+          id: crypto.randomUUID(),
+          battleId,
+          emceeId,
+          label: `MC${index + 1}`,
+        })
+        .onConflictDoNothing();
     }
 
     const lineRows = payload.segments.map((segment) => {
@@ -198,7 +207,9 @@ export async function POST(request: NextRequest) {
       .where(eq(lines.battleId, battleId));
 
     const lineSpeakerRows = insertedLines
-      .filter((line): line is { id: number; emceeId: string } => Boolean(line.emceeId))
+      .filter((line): line is { id: number; emceeId: string } =>
+        Boolean(line.emceeId),
+      )
       .map((line) => ({
         lineId: line.id,
         emceeId: line.emceeId,
@@ -206,7 +217,10 @@ export async function POST(request: NextRequest) {
 
     if (lineSpeakerRows.length > 0) {
       for (const lineSpeakerChunk of chunks(lineSpeakerRows, 40)) {
-        await db.insert(lineSpeakers).values(lineSpeakerChunk).onConflictDoNothing();
+        await db
+          .insert(lineSpeakers)
+          .values(lineSpeakerChunk)
+          .onConflictDoNothing();
       }
     }
 
@@ -227,6 +241,12 @@ export async function POST(request: NextRequest) {
         },
       });
 
+    await revalidateBattleDiscovery(
+      [league, existing[0]?.league].filter((value): value is string =>
+        Boolean(value),
+      ),
+    );
+
     return NextResponse.json({
       battle_id: battleId,
       line_count: payload.segments.length,
@@ -234,11 +254,14 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error("Ingest transcript upload failed:", error);
-    return NextResponse.json({
-      error: "Failed to ingest transcript.",
-      details: getErrorMessage(error),
-    }, {
-      status: 500,
-    });
+    return NextResponse.json(
+      {
+        error: "Failed to ingest transcript.",
+        details: getErrorMessage(error),
+      },
+      {
+        status: 500,
+      },
+    );
   }
 }

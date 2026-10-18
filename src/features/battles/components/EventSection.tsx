@@ -34,11 +34,19 @@ export const EventSection = memo(function EventSection({
 }: {
   group: EventGroup;
   defaultOpen?: boolean;
-  onToggle?: (name: string, isOpen: boolean) => void;
+  onToggle?: (id: string, isOpen: boolean) => void;
   canEditStatus?: boolean;
   isSuperadmin?: boolean;
-  onRenameGroup?: (oldName: string, newName: string) => void;
-  onUpdateGroupDate?: (eventName: string, newDate: string) => void;
+  onRenameGroup?: (
+    groupId: string,
+    oldName: string,
+    newName: string | null,
+  ) => void;
+  onUpdateGroupDate?: (
+    groupId: string,
+    eventName: string,
+    newDate: string,
+  ) => void;
   onBattleStatusUpdated?: (
     battleId: string,
     status: EventGroup["battles"][number]["status"],
@@ -63,7 +71,7 @@ export const EventSection = memo(function EventSection({
   const handleToggle = () => {
     const next = !isOpen;
     setIsOpen(next);
-    onToggle?.(group.name, next);
+    onToggle?.(group.id, next);
   };
 
   const handleRename = async () => {
@@ -73,15 +81,20 @@ export const EventSection = memo(function EventSection({
       const res = await fetch("/api/battles/event-name", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ oldName: group.name, newName: newName.trim() }),
+        body: JSON.stringify({
+          oldName: group.name,
+          eventName: group.eventName,
+          newName: newName.trim(),
+          league: group.league,
+        }),
       });
       if (!res.ok) {
         const data = await res.json();
         throw new Error(data.error || "Failed to rename");
       }
       const finalName =
-        newName.trim() === "Other Battles" ? "" : newName.trim();
-      onRenameGroup?.(group.name, finalName);
+        newName.trim() === "Other Battles" ? null : newName.trim();
+      onRenameGroup?.(group.id, group.name, finalName);
       toast({
         title: "Event renamed",
         description: `Renamed ${group.battles.length} battle(s).`,
@@ -108,14 +121,16 @@ export const EventSection = memo(function EventSection({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           eventName: group.name,
+          currentEventName: group.eventName,
           newDate,
+          league: group.league,
         }),
       });
       if (!res.ok) {
         const data = await res.json();
         throw new Error(data.error || "Failed to update date");
       }
-      onUpdateGroupDate?.(group.name, newDate);
+      onUpdateGroupDate?.(group.id, group.name, newDate);
       toast({
         title: "Date updated",
         description: `Updated date for ${group.battles.length} battle(s).`,
