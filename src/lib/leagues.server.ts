@@ -1,12 +1,6 @@
 import { getD1Async } from "@/db/client";
 import { mergePublicLeagueCounts, type PublicLeague } from "./leagues";
-
-export const PUBLIC_BATTLE_STATUSES = [
-  "raw",
-  "arranged",
-  "reviewing",
-  "reviewed",
-] as const;
+import { PUBLIC_BATTLE_STATUSES } from "./battles";
 
 type PublicLeagueCountRow = {
   league: string;

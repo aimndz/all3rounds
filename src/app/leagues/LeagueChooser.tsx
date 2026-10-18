@@ -1,15 +1,14 @@
 import Image from "next/image";
 import Link from "next/link";
 import { ExternalLink } from "lucide-react";
-import type { PublicLeague } from "@/lib/leagues";
+import {
+  formatPublicBattleCount,
+  type PublicLeague,
+} from "@/lib/leagues";
 
 type LeagueChooserProps = {
   leagues: PublicLeague[];
 };
-
-function formatBattleCount(count: number): string {
-  return `${count.toLocaleString()} public battle${count === 1 ? "" : "s"}`;
-}
 
 export function LeagueChooser({ leagues }: LeagueChooserProps) {
   if (leagues.length === 0) {
@@ -61,7 +60,7 @@ export function LeagueChooser({ leagues }: LeagueChooserProps) {
                   {league.name}
                 </h2>
                 <p className="text-muted-foreground mt-1 text-sm">
-                  {formatBattleCount(league.battleCount)}
+                  {formatPublicBattleCount(league.battleCount)}
                 </p>
               </div>
               <span className="text-primary text-[10px] font-bold tracking-[0.16em] uppercase">

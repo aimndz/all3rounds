@@ -48,6 +48,8 @@ import { useBattlesData } from "@/features/battles/hooks/use-battles-data";
 import type { Battle } from "@/features/battles/hooks/use-battles-data";
 import { useSuperadminActions } from "@/features/battles/hooks/use-superadmin-actions";
 import { StickyPageHeader } from "@/components/StickyPageHeader";
+import { LeagueDirectoryHeader } from "@/components/LeagueDirectoryHeader";
+import type { PublicLeague } from "@/lib/leagues";
 
 export default function BattlesDirectory({
   initialBattles,
@@ -55,6 +57,7 @@ export default function BattlesDirectory({
   initialTotalEvents,
   initialYears,
   initialEventNames = [],
+  league,
 }: {
   initialBattles: Battle[];
   initialCount: number;
@@ -62,6 +65,7 @@ export default function BattlesDirectory({
   initialYears: string[];
   initialEventNames?: string[];
   initialAvailableLeagues?: string[];
+  league?: PublicLeague;
 }) {
   const { canEditBattleStatus, isSuperAdmin } = useAuthStore();
 
@@ -95,6 +99,7 @@ export default function BattlesDirectory({
     initialCount,
     initialTotalEvents,
     initialYears,
+    { leagueScope: league?.slug },
   );
 
   const sa = useSuperadminActions(battles, setBattles, initialEventNames);
@@ -204,28 +209,30 @@ export default function BattlesDirectory({
       </div>
 
       {/* League Filter */}
-      <div className={cn("space-y-1.5", mobile ? "col-span-1" : "flex-1")}>
-        {mobile && <label className="filter-label">League</label>}
-        <Select
-          value={leagueFilter}
-          onValueChange={(v) => updateSearch({ league: v })}
-        >
-          <SelectTrigger
-            size="lg"
-            className={cn("w-full", !mobile && "sm:w-40")}
+      {!league && (
+        <div className={cn("space-y-1.5", mobile ? "col-span-1" : "flex-1")}>
+          {mobile && <label className="filter-label">League</label>}
+          <Select
+            value={leagueFilter}
+            onValueChange={(v) => updateSearch({ league: v })}
           >
-            <SelectValue placeholder="All Leagues" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Leagues</SelectItem>
-            {leagueOptions.map((league) => (
-              <SelectItem key={league} value={league}>
-                {formatBattleLeagueLabel(league)}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
+            <SelectTrigger
+              size="lg"
+              className={cn("w-full", !mobile && "sm:w-40")}
+            >
+              <SelectValue placeholder="All Leagues" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Leagues</SelectItem>
+              {leagueOptions.map((league) => (
+                <SelectItem key={league} value={league}>
+                  {formatBattleLeagueLabel(league)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
 
       <div className={cn("space-y-1.5", mobile ? "col-span-1" : "flex-1")}>
         {mobile && <label className="filter-label">Sort By</label>}
@@ -271,12 +278,16 @@ export default function BattlesDirectory({
         <StickyPageHeader>
           <div className="sticky-surface flex flex-col gap-4">
             {/* Header / Title block */}
-            <div className="flex flex-col gap-1">
-              <h1 className="page-heading">Battles</h1>
-              <p className="page-meta">
-                {totalCount !== null ? totalCount : battles.length} battles
-              </p>
-            </div>
+            {league ? (
+              <LeagueDirectoryHeader league={league} />
+            ) : (
+              <div className="flex flex-col gap-1">
+                <h1 className="page-heading">Battles</h1>
+                <p className="page-meta">
+                  {totalCount !== null ? totalCount : battles.length} battles
+                </p>
+              </div>
+            )}
 
             {/* Controls (Search & Filters) */}
             <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between lg:gap-6">

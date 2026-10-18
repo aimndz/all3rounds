@@ -2,7 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { hasOnlySearchParams } from "@/lib/api-utils";
 import { parseSearchTokens, scoreBattle } from "@/lib/fuzzy-utils";
-import { normalizeBattleLeague } from "@/lib/battles";
+import {
+  normalizeBattleLeague,
+  PUBLIC_BATTLE_STATUSES,
+} from "@/lib/battles";
 import {
   buildPublicApiCacheKey,
   matchPublicApiCache,
@@ -36,8 +39,6 @@ type FilterableQuery = {
   gte: (column: string, value: string) => FilterableQuery;
   lte: (column: string, value: string) => FilterableQuery;
 };
-
-const PUBLIC_BATTLE_STATUSES = ["raw", "arranged", "reviewing", "reviewed"];
 
 function getEventKey(battle: Pick<BattleRow, "event_name">): string {
   return battle.event_name || OTHER_BATTLES_KEY;

@@ -10,6 +10,10 @@ export type PublicLeague = LeagueDefinition & {
   readonly battleCount: number;
 };
 
+export function formatPublicBattleCount(count: number): string {
+  return `${count.toLocaleString()} public battle${count === 1 ? "" : "s"}`;
+}
+
 export const leagueDefinitions = [
   {
     slug: "fliptop",

@@ -1,7 +1,8 @@
 import { MetadataRoute } from "next";
-import { getBattlePath } from "@/lib/battles";
+import { getBattlePath, PUBLIC_BATTLE_STATUSES } from "@/lib/battles";
 import { getEmceePath } from "@/lib/emcees";
 import { createPublicClient } from "@/lib/supabase/server";
+import { getPublicLeagues } from "@/lib/leagues.server";
 
 export const dynamic = "force-static";
 export const revalidate = 86400; // 24 hours (1 day)
@@ -9,8 +10,6 @@ export const revalidate = 86400; // 24 hours (1 day)
 import { getSiteUrl } from "@/lib/utils";
 
 const siteUrl = getSiteUrl();
-const PUBLIC_BATTLE_STATUSES = ["raw", "arranged", "reviewing", "reviewed"];
-
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const now = new Date();
   const staticRoutes: MetadataRoute.Sitemap = [
@@ -67,14 +66,22 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   try {
     const supabase = createPublicClient();
 
-    const [battlesRes, emceesRes] = await Promise.all([
+    const [battlesRes, emceesRes, leagues] = await Promise.all([
       supabase
         .from("battles")
         .select("league, slug")
         .in("status", PUBLIC_BATTLE_STATUSES)
         .eq("public_visible", true),
       supabase.from("emcees").select("slug"),
+      getPublicLeagues(),
     ]);
+
+    const leagueRoutes: MetadataRoute.Sitemap = leagues.map((league) => ({
+      url: `${siteUrl}/leagues/${encodeURIComponent(league.slug)}`,
+      lastModified: now,
+      changeFrequency: "daily",
+      priority: 0.7,
+    }));
 
     const battleRoutes: MetadataRoute.Sitemap =
       battlesRes.data?.map((battle: { league: string; slug: string }) => ({
@@ -92,7 +99,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         priority: 0.5,
       })) ?? [];
 
-    return [...staticRoutes, ...battleRoutes, ...emceeRoutes];
+    return [...staticRoutes, ...leagueRoutes, ...battleRoutes, ...emceeRoutes];
   } catch (error) {
     console.error("Sitemap generation error:", error);
     return staticRoutes;

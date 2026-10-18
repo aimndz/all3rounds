@@ -1,3 +1,10 @@
+export const PUBLIC_BATTLE_STATUSES = [
+  "raw",
+  "arranged",
+  "reviewing",
+  "reviewed",
+];
+
 function mapSpecialSlugCharacters(value: string): string {
   return value.replace(/\$/g, "s").replace(/@/g, "a");
 }
