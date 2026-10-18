@@ -10,7 +10,8 @@ import {
   lineSpeakers,
   videoProcessingStatus,
 } from "@/db/schema";
-import { normalizeBattleLeague, normalizeBattleSlug } from "@/lib/battles";
+import { normalizeBattleSlug } from "@/lib/battles";
+import { getLeagueDefinition } from "@/lib/leagues";
 import { revalidateBattleDiscovery } from "@/lib/revalidation";
 import { normalizeEmceeSlug } from "@/lib/emcees";
 import { enforceIngestBodyLimit, requireIngestToken } from "../_auth";
@@ -72,9 +73,19 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  const leagueDefinition = getLeagueDefinition(parsed.data.league);
+  if (!leagueDefinition) {
+    return NextResponse.json(
+      {
+        error: `Unsupported League slug: ${parsed.data.league}`,
+      },
+      { status: 400 },
+    );
+  }
+
   try {
     const payload = parsed.data;
-    const league = normalizeBattleLeague(payload.league);
+    const league = leagueDefinition.slug;
     const db = getDb();
     const now = new Date();
     const existing = await db
